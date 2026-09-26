@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: auditagent
+  profiles:
+    active: local
+
+server:
+  port: 8173
+  forward-headers-strategy: framework
+  servlet:
+    session:
+      cookie:
+        secure: true
+        same-site: lax
+      timeout: 30m

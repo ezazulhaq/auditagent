@@ -1,0 +1,62 @@
+#!/bin/sh
+#
+# AuditAgent documentation guard.
+#
+# This hook does not generate documentation. It blocks commits containing
+# staged implementation/configuration/rule changes when no Markdown document
+# under doc/ is staged, so the author can update the affected guides.
+
+set -eu
+
+if [ "${AUDITAGENT_SKIP_DOCS_CHECK:-}" = "1" ]; then
+  echo "AuditAgent documentation check skipped by AUDITAGENT_SKIP_DOCS_CHECK=1."
+  exit 0
+fi
+
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+
+changed_paths=$(git diff --cached --name-only --diff-filter=ACMR)
+if [ -z "$changed_paths" ]; then
+  exit 0
+fi
+
+requires_docs=0
+docs_changed=0
+
+while IFS= read -r path; do
+  case "$path" in
+    doc/*.md)
+      docs_changed=1
+      ;;
+    src/main/*|frontend/src/*|rules/*|.auditagent/skills/*|pom.xml|frontend/package.json|frontend/package-lock.json|frontend/vite.config.js|src/main/resources/application.yaml|run.sh|run-dev.sh|.devcontainer/*)
+      requires_docs=1
+      ;;
+  esac
+done <<EOF
+$changed_paths
+EOF
+
+if [ "$requires_docs" -eq 1 ] && [ "$docs_changed" -ne 1 ]; then
+  cat >&2 <<'EOF'
+AuditAgent documentation check failed.
+
+The staged change modifies implementation, configuration, rules, skills, or
+runtime behavior, but no Markdown file under doc/ is staged.
+
+Review doc/README.md and update every affected guide. At minimum, consider:
+  - doc/03-feature-catalog.md
+  - doc/07-api-reference.md
+  - doc/08-data-and-persistence.md
+  - doc/10-security-model.md
+  - doc/11-setup-configuration-operations.md
+  - doc/15-source-inventory-and-glossary.md
+
+If the change is demonstrably documentation-neutral, retry explicitly with:
+  AUDITAGENT_SKIP_DOCS_CHECK=1 git commit ...
+and record the reason in the change handoff.
+EOF
+  exit 1
+fi
+
+exit 0

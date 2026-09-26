@@ -1,0 +1,79 @@
+spring:
+  config:
+    activate:
+      on-profile: local
+  devtools:
+    restart:
+      enabled: false
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:}
+      base-url: ${OPENAI_BASE_URL:https://openrouter.ai/api/v1}
+      chat:
+        model: ${PROVIDER_MODEL:anthropic/claude-3.5-sonnet}
+management:
+  health:
+    db:
+      enabled: false
+
+# Agentic remediation loop configuration
+auditagent:
+  llm:
+    provider: ${AUDITAGENT_LLM_PROVIDER:openai-compatible}
+    openai:
+      base-url: ${OPENAI_BASE_URL:https://openrouter.ai/api/v1}
+      api-key: ${OPENAI_API_KEY:}
+      model-name: ${OPENAI_MODEL_NAME:anthropic/claude-3.5-sonnet}
+  database:
+    path: ${AUDITAGENT_DB_PATH:audit_reports.duckdb}
+  scanner:
+    timeout-seconds: ${AUDITAGENT_SCANNER_TIMEOUT_SECONDS:900}
+    heartbeat-seconds: ${AUDITAGENT_SCANNER_HEARTBEAT_SECONDS:15}
+    max-target-bytes: ${AUDITAGENT_SCANNER_MAX_TARGET_BYTES:500000}
+    max-memory-mb: ${AUDITAGENT_SCANNER_MAX_MEMORY_MB:1024}
+    rule-timeout-seconds: ${AUDITAGENT_SCANNER_RULE_TIMEOUT_SECONDS:2}
+  agent:
+    max-iterations: 15
+    compile-timeout-seconds: 120
+    test-timeout-seconds: 180
+    backup-dir: .auditagent/backups
+    max-file-read-lines: 200
+    max-retries: 3
+    llm-call-timeout-seconds: 120
+    max-tool-result-chars: 4000
+    max-history-messages: 40
+    max-consecutive-empty-responses: 3
+    # Docker sandbox configuration
+    sandbox-enabled: ${AUDITAGENT_SANDBOX_ENABLED:false}
+    sandbox-image: ${AUDITAGENT_SANDBOX_IMAGE:auditagent-sandbox:latest}
+    sandbox-memory-limit: ${AUDITAGENT_SANDBOX_MEMORY:2g}
+    sandbox-cpu-limit: ${AUDITAGENT_SANDBOX_CPU:2.0}
+  memory:
+    enabled: true
+    fts-enabled: true
+    retention-days: 30
+    context-token-budget: 12000
+    candidate-limit: 50
+    top-k: 8
+    max-chat-chars: 8000
+    max-tool-chars: 4000
+    # Context compression settings
+    summarization-enabled: ${AUDITAGENT_MEMORY_SUMMARIZATION:true}
+    max-tool-output-chars: ${AUDITAGENT_MAX_TOOL_OUTPUT_CHARS:2000}
+  github:
+    app-id: ${GITHUB_APP_ID:}
+    client-id: ${GITHUB_APP_CLIENT_ID:}
+    client-secret: ${GITHUB_APP_CLIENT_SECRET:}
+    private-key: ${GITHUB_APP_PRIVATE_KEY:}
+    webhook-secret: ${GITHUB_APP_WEBHOOK_SECRET:}
+    token-encryption-key: ${AUDITAGENT_TOKEN_ENCRYPTION_KEY:}
+    callback-url: ${GITHUB_APP_CALLBACK_URL:http://localhost:8173/api/auth/github/callback}
+    frontend-url: ${AUDITAGENT_FRONTEND_URL:http://localhost:5173}
+    installation-url: ${GITHUB_APP_INSTALLATION_URL:}
+    api-url: ${GITHUB_API_URL:https://api.github.com}
+    authorize-url: ${GITHUB_AUTHORIZE_URL:https://github.com/login/oauth/authorize}
+    token-url: ${GITHUB_TOKEN_URL:https://github.com/login/oauth/access_token}
+    workspace-root: ${AUDITAGENT_WORKSPACE_ROOT:${java.io.tmpdir}/auditagent-workspaces}
+    secure-cookies: ${AUDITAGENT_SECURE_COOKIES:false}
+    session-hours: ${AUDITAGENT_SESSION_HOURS:24}
+    api-version: ${GITHUB_API_VERSION:2026-03-10}

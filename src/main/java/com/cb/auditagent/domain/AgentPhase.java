@@ -1,0 +1,21 @@
+package com.cb.auditagent.domain;
+
+public enum AgentPhase {
+    PLANNING,
+    PREPARING_WORKSPACE,
+    GATHERING_CONTEXT,
+    PATCHING,
+    VERIFYING,
+    AWAITING_APPROVAL,
+    COMMITTING,
+    PUSHING,
+    CREATING_PR,
+    TRACKING_PR,
+    APPROVED,
+    REJECTED,
+    FAILED,
+    INTERRUPTED,
+    CONFLICTED,
+    DISCARDED,
+    COMPLETE
+}
