@@ -137,6 +137,17 @@ public class DatabaseService {
         d.setRepoPath(e.getRepoPath());
         d.setMdReport(e.getMdReport());
         d.setHtmlReport(e.getHtmlReport());
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            if (e.getFindingsJson() != null) {
+                d.setFindings(mapper.readValue(e.getFindingsJson(), new com.fasterxml.jackson.core.type.TypeReference<List<Vulnerability>>() {}));
+            }
+            if (e.getMetadataJson() != null) {
+                d.setMetadata(mapper.readValue(e.getMetadataJson(), ScanMetadata.class));
+            }
+        } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+            logger.error("Failed to deserialize report metadata/findings", ex);
+        }
         return d;
     }
 
@@ -274,6 +285,13 @@ public class DatabaseService {
         entity.setRepoPath(repoPath);
         entity.setMdReport(mdReport);
         entity.setHtmlReport(htmlReport);
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            entity.setFindingsJson(mapper.writeValueAsString(findings));
+            entity.setMetadataJson(mapper.writeValueAsString(metadata));
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            logger.error("Failed to serialize report metadata/findings", e);
+        }
         reportRepository.save(entity);
 
         for (Vulnerability v : findings) {
@@ -310,6 +328,7 @@ public class DatabaseService {
     @Transactional
     public void saveScanHistory(ScanHistoryRecord record) {
         com.cb.auditagent.entity.ScanHistoryStats stats = new com.cb.auditagent.entity.ScanHistoryStats();
+        stats.setHistoryId(record.historyId());
         stats.setRepositoryId(record.repositoryId());
         stats.setBranch(record.branch());
         stats.setBaseSha(record.baseSha());
@@ -835,7 +854,9 @@ public class DatabaseService {
     public Optional<AuthenticatedUser> findAuthenticatedUser(String sessionHash) {
         return userSessionRepository
                 .findBySessionHashAndExpiresAtAfter(sessionHash, LocalDateTime.now(java.time.ZoneOffset.UTC))
-                .flatMap(s -> appUserRepository.findById(s.getUserId()).map(this::mapToAuthenticatedUser));
+                .flatMap(s -> appUserRepository.findById(s.getUserId()).map(u -> new AuthenticatedUser(
+                        u.getUserId(), u.getGithubUserId(), u.getLogin(), u.getDisplayName(),
+                        u.getAvatarUrl(), s.getCsrfToken())));
     }
 
     @Transactional

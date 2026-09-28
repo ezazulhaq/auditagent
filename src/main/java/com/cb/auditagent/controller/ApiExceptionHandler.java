@@ -44,6 +44,14 @@ public class ApiExceptionHandler {
                 "error", safe(exception)));
     }
 
+    @ExceptionHandler(java.util.NoSuchElementException.class)
+    ResponseEntity<?> notFound(java.util.NoSuchElementException exception) {
+        log.warn("Not found: {}", safe(exception));
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                "message", "404 Not Found: " + safe(exception),
+                "error", safe(exception)));
+    }
+
     @ExceptionHandler(Exception.class)
     ResponseEntity<?> genericError(Exception exception) {
         log.error("Unhandled API exception", exception);

@@ -108,13 +108,19 @@ export default function App({ api = auditApi }) {
       if (error.name !== 'AbortError') toast.error(`Memory restore failed: ${error.message}`);
     });
     api.getReport(config.repositoryId, config.branch, controller.signal).then(replaceResult).catch(error => {
-      if (error.name !== 'AbortError' && !error.message.includes('404')) toast.error(`Report restore failed: ${error.message}`);
+      if (error.name === 'AbortError') return;
+      if (error.message.includes('404')) {
+        resetForScan();
+        runScan(config);
+      } else {
+        toast.error(`Report restore failed: ${error.message}`);
+      }
     });
     api.getReportHistory(config.repositoryId, config.branch, controller.signal).then(setScanHistory).catch(error => {
       if (error.name !== 'AbortError') console.error(`Scan history restore failed: ${error.message}`);
     });
     return () => controller.abort();
-  }, [api, authSession?.authenticated, config.branch, config.repositoryId, replaceResult, restoreThread, toast]);
+  }, [api, authSession?.authenticated, config, replaceResult, resetForScan, restoreThread, runScan, toast]);
 
   const refreshReport = useCallback(() => {
     if (config.repositoryId && config.branch && remediation.refreshReport) {

@@ -132,9 +132,9 @@ public class ScanOrchestratorService {
     public java.util.Map<String, Object> report(AuthenticatedUser user, long repositoryId, String branch) {
         ManagedRepository repository = repositoryAccess.requireRepositoryAccess(user, repositoryId);
         ScanSnapshot snapshot = database.findLatestScanSnapshot(repositoryId, branch)
-                .orElseThrow(() -> new IllegalArgumentException("No scan exists for this repository branch"));
+                .orElseThrow(() -> new java.util.NoSuchElementException("No scan exists for this repository branch"));
         Report report = database.getReport(snapshot.reportKey())
-                .orElseThrow(() -> new IllegalStateException("The scan report is unavailable"));
+                .orElseThrow(() -> new java.util.NoSuchElementException("The scan report is unavailable"));
         return resultEvent("report", report, repository, branch, snapshot.baseSha(),
                 "Restored the latest pinned scan.");
     }
@@ -142,9 +142,9 @@ public class ScanOrchestratorService {
     public ReportArtifact exportReport(AuthenticatedUser user, long repositoryId, String branch, String format) {
         ManagedRepository repository = repositoryAccess.requireRepositoryAccess(user, repositoryId);
         ScanSnapshot snapshot = database.findLatestScanSnapshot(repositoryId, branch)
-                .orElseThrow(() -> new IllegalArgumentException("No scan exists for this repository branch"));
+                .orElseThrow(() -> new java.util.NoSuchElementException("No scan exists for this repository branch"));
         Report report = database.getReport(snapshot.reportKey())
-                .orElseThrow(() -> new IllegalStateException("The scan report is unavailable"));
+                .orElseThrow(() -> new java.util.NoSuchElementException("The scan report is unavailable"));
         String baseName = safeArtifactName(repository.name() + "-" + branch + "-security-report");
 
         return switch (Optional.ofNullable(format).orElse("").trim().toLowerCase(java.util.Locale.ROOT)) {
