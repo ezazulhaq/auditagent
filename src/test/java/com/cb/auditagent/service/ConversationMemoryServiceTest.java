@@ -1,10 +1,6 @@
 package com.cb.auditagent.service;
 
 import com.cb.auditagent.config.MemoryConfig;
-import com.cb.auditagent.service.ConversationMemoryService;
-import com.cb.auditagent.service.DatabaseService;
-import com.cb.auditagent.service.MemoryRedactor;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.data.message.AiMessage;
@@ -14,36 +10,36 @@ import dev.langchain4j.data.message.ToolExecutionResultMessage;
 import dev.langchain4j.data.message.UserMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
-import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@SpringBootTest
+@ActiveProfiles("test")
+@Transactional
 class ConversationMemoryServiceTest {
-    @TempDir
-    Path tempDir;
 
+    @MockitoBean
+    private org.springframework.ai.chat.model.ChatModel chatModel;
+
+    @MockitoBean
+    private dev.langchain4j.model.chat.ChatModel agentModel;
+
+    @Autowired
     private MemoryConfig memoryConfig;
-    private ObjectMapper objectMapper;
+
+    @Autowired
     private ConversationMemoryService service;
-    private Path dbPath;
 
     @BeforeEach
     void setUp() {
-        memoryConfig = new MemoryConfig();
         memoryConfig.setFtsEnabled(false);
-        objectMapper = new ObjectMapper();
-        dbPath = tempDir.resolve("memory.duckdb");
-        service = createService(dbPath);
-    }
-
-    private ConversationMemoryService createService(Path path) {
-        DatabaseService database = new DatabaseService(path.toString(), objectMapper, memoryConfig);
-        database.init();
-        return new ConversationMemoryService(database, memoryConfig,
-                new MemoryRedactor(memoryConfig), objectMapper, null);
     }
 
     @Test
@@ -52,13 +48,12 @@ class ConversationMemoryServiceTest {
         service.addUserMessage("thread-1", "Fix VULN-001");
         service.addAiMessage("thread-1", AiMessage.from("I will inspect it."));
 
-        ConversationMemoryService recreated = createService(dbPath);
-        List<ChatMessage> history = recreated.getHistory("thread-1");
+        List<ChatMessage> history = service.getHistory("thread-1");
 
         assertEquals(3, history.size());
         assertInstanceOf(SystemMessage.class, history.get(0));
         assertInstanceOf(UserMessage.class, history.get(1));
-        assertEquals("I will inspect it.", recreated.getLastAiMessage("thread-1").text());
+        assertEquals("I will inspect it.", service.getLastAiMessage("thread-1").text());
     }
 
     @Test

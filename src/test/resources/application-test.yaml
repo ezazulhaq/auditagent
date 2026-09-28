@@ -1,0 +1,81 @@
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiChatAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiEmbeddingAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiImageAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiAudioSpeechAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiAudioTranscriptionAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiModerationAutoConfiguration
+  datasource:
+    url: jdbc:h2:mem:auditagent_test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL
+    driverClassName: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: update
+
+management:
+  health:
+    db:
+      enabled: false
+
+auditagent:
+  database:
+    path: test.duckdb
+  memory:
+    enabled: true
+    fts-enabled: false
+    retention-days: 30
+    context-token-budget: 12000
+    candidate-limit: 50
+    top-k: 8
+    max-chat-chars: 8000
+    max-tool-chars: 4000
+    summarization-enabled: false
+    max-tool-output-chars: 2000
+  agent:
+    max-iterations: 5
+    compile-timeout-seconds: 30
+    test-timeout-seconds: 30
+    backup-dir: .auditagent/test-backups
+    max-file-read-lines: 100
+    max-retries: 1
+    llm-call-timeout-seconds: 30
+    max-tool-result-chars: 2000
+    max-history-messages: 10
+    max-consecutive-empty-responses: 2
+    sandbox-enabled: false
+  scanner:
+    timeout-seconds: 60
+    heartbeat-seconds: 5
+    max-target-bytes: 100000
+    max-memory-mb: 256
+    rule-timeout-seconds: 1
+  llm:
+    provider: openai-compatible
+    openai:
+      base-url: http://localhost:11434/v1
+      api-key: test-key
+      model-name: test-model
+  github:
+    app-id: 0
+    client-id: test-client-id
+    client-secret: test-client-secret
+    private-key: /dev/null
+    webhook-secret: test-webhook-secret
+    token-encryption-key: dGVzdC1lbmNyeXB0aW9uLWtleS10aGF0LWlzLTMyLWJ5dGVzMTIzNA==
+    callback-url: http://localhost:8173/api/auth/github/callback
+    frontend-url: http://localhost:5173
+    installation-url: https://github.com/apps/test/installations/new
+    api-url: https://api.github.com
+    authorize-url: https://github.com/login/oauth/authorize
+    token-url: https://github.com/login/oauth/access_token
+    workspace-root: /tmp/auditagent-test-workspaces/
+    secure-cookies: false
+    session-hours: 1
+    api-version: 2022-11-28

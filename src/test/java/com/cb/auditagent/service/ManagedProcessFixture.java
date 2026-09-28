@@ -43,7 +43,10 @@ public final class ManagedProcessFixture {
         Path classes = Path.of(ManagedProcessFixture.class.getProtectionDomain()
                 .getCodeSource().getLocation().toURI());
         return new ProcessBuilder(java, "-cp", classes.toString(),
-                ManagedProcessFixture.class.getName(), "sleep").start();
+                ManagedProcessFixture.class.getName(), "sleep")
+                .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                .redirectError(ProcessBuilder.Redirect.DISCARD)
+                .start();
     }
 
     private static boolean isWindows() {

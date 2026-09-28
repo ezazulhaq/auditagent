@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Test;
 import com.cb.auditagent.domain.ScanMetadata;
 import com.cb.auditagent.domain.Severity;
 import com.cb.auditagent.domain.Vulnerability;
-import com.cb.auditagent.service.ReporterService;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -44,12 +43,12 @@ class ReporterServiceTest {
 
         String markdown = reporter.generateMarkdown(List.of(finding), metadata(), "octo/payments", "main", "base-sha");
 
-        assertTrue(markdown.startsWith("# AuditAgent Enterprise Security Assessment"));
-        assertTrue(markdown.contains("| High | 1 |"));
+        assertTrue(markdown.startsWith("# 🛡️ AuditAgent Enterprise Security Assessment"));
+        assertTrue(markdown.contains("| 🔴 High | 1 |"));
         assertTrue(markdown.contains("Unsafe query | &lt;script&gt;alert(1)&lt;/script&gt;"));
         assertTrue(markdown.contains("| Branch | main |"));
         assertTrue(markdown.contains("| Scanned commit | `base-sha` |"));
-        assertTrue(markdown.contains("~~~~java\nString sql"));
+        assertTrue(markdown.contains("~~~~java\n->   42 | String sql"));
         assertTrue(markdown.contains("Confidential - repository-scoped"));
     }
 

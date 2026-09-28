@@ -6,16 +6,6 @@ import org.junit.jupiter.api.io.TempDir;
 
 import com.cb.auditagent.domain.AuthenticatedUser;
 import com.cb.auditagent.domain.ManagedRepository;
-import com.cb.auditagent.service.DatabaseService;
-import com.cb.auditagent.service.GitHubApiClient;
-import com.cb.auditagent.service.GitHubAuthService;
-import com.cb.auditagent.service.ReporterService;
-import com.cb.auditagent.service.RepositoryAccessService;
-import com.cb.auditagent.service.ScanExecutionException;
-import com.cb.auditagent.service.ScanOrchestratorService;
-import com.cb.auditagent.service.ScanTimeoutException;
-import com.cb.auditagent.service.ScannerService;
-import com.cb.auditagent.service.SourceControlProvider;
 
 import java.nio.file.Path;
 import java.time.Duration;
