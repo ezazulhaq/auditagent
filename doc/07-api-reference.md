@@ -287,7 +287,7 @@ Body:
 }
 ```
 
-The other decision is `REJECT`; its digest may be null, but `reason` will be stored in DuckDB and used as negative context in the FTS for future fixes.
+The other decision is `REJECT`; its digest may be null, but `reason` will be stored in PostgreSQL and used as negative context in the FTS for future fixes.
 
 Events:
 

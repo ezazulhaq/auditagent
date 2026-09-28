@@ -2,11 +2,11 @@
 
 ## Overview
 
-AuditAgent uses one DuckDB file, configured by `auditagent.database.path` and defaulting to `audit_reports.duckdb`. `DatabaseService` is the sole persistence boundary. Most methods are synchronized to serialize access to the shared file.
+AuditAgent uses PostgreSQL, configured by `auditagent.database.path` and defaulting to `jdbc:postgresql://localhost:5432/auditagent`. `DatabaseService` is the sole persistence boundary. Most methods are synchronized to serialize access to the shared database.
 
 ## Startup behavior
 
-1. Load DuckDB JDBC driver.
+1. Load PostgreSQL JDBC driver.
 2. If a file database already exists and no pre-memory backup exists, copy it to `<db>.pre-memory-v1.bak`.
 3. Run schema creation/migration in a transaction.
 4. Record schema versions in order. Current schema version is 4; a fresh database records versions 1, 2, 3, and 4.
@@ -40,7 +40,7 @@ Stores the aggregated finding counts per scan for a repository and branch:
 
 Used to render the historical trend timeline on the dashboard.
 
-PDF bytes are not stored in DuckDB and no schema migration is required for PDF reporting. PDF and downloadable Markdown are generated in memory from the authorized latest report, findings, metadata, repository identity, branch, and scan snapshot base SHA. This avoids duplicate binary storage, binds both exports to the selected snapshot, and ensures an export reflects current persisted finding statuses. The existing stored Markdown/HTML, report key, and scan-snapshot relationship remain unchanged.
+PDF bytes are not stored in PostgreSQL and no schema migration is required for PDF reporting. PDF and downloadable Markdown are generated in memory from the authorized latest report, findings, metadata, repository identity, branch, and scan snapshot base SHA. This avoids duplicate binary storage, binds both exports to the selected snapshot, and ensures an export reflects current persisted finding statuses. The existing stored Markdown/HTML, report key, and scan-snapshot relationship remain unchanged.
 
 #### `vulnerabilities`
 
@@ -52,7 +52,7 @@ PDF bytes are not stored in DuckDB and no schema migration is required for PDF r
 | `status`, `proposed_fix`                                                 | Remediation lifecycle.              |
 | `rule_id`, `language`, `finding_fingerprint`                             | Migrated identity/retrieval fields. |
 
-No secondary fingerprint index is used because of a DuckDB 1.1.x update limitation; lookup remains bounded by repository.
+No secondary fingerprint index is used because of a DuckDB/PostgreSQL update limitation; lookup remains bounded by repository.
 
 ### Conversation tables
 
@@ -218,10 +218,10 @@ Stores only session hash, user, CSRF token, and lifetime timestamps.
 
 Stores only OAuth state hash and encrypted PKCE verifier with a ten-minute expiry.
 
-OAuth-state and user-session expiry values are generated in UTC and stored in DuckDB `TIMESTAMP` columns without a
+OAuth-state and user-session expiry values are generated in UTC and stored in PostgreSQL `TIMESTAMP` columns without a
 timezone marker. Queries and retention cleanup therefore compare them with
 `CURRENT_TIMESTAMP AT TIME ZONE 'UTC'`. Comparing these fields with raw `CURRENT_TIMESTAMP` would reinterpret the
-stored value in DuckDB's configured timezone and could expire a fresh login immediately on a non-UTC server. This is
+stored value in PostgreSQL's configured timezone and could expire a fresh login immediately on a non-UTC server. This is
 a query-semantics rule and requires no schema migration. OAuth access/refresh expiry is likewise generated and
 evaluated as UTC `LocalDateTime` values in Java.
 
@@ -236,7 +236,7 @@ Connects repository/branch to base SHA, report key, temporary workspace path, cr
 #### `run_publications`
 
 Publication checkpoint saves use a transaction that updates by `run_id` and inserts only when the row does not yet
-exist. Schema version 3 removes the optional `(repository_id, pr_number)` secondary index because DuckDB 1.1.x cannot
+exist. Schema version 3 removes the optional `(repository_id, pr_number)` secondary index because PostgreSQL (and previously DuckDB) cannot
 reliably update `pr_number` while that index exists. Webhook lookup remains correct and repository-bounded through a
 table scan, while one durable publication row per run remains protected by the `run_id` primary key.
 

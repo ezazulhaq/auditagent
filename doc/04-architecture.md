@@ -17,7 +17,7 @@ RemediationWorkflowService / LlmService
   +--> Semgrep process
   +--> Maven/Gradle processes
   +--> OpenAI-compatible LLM provider
-  +--> DuckDB
+  +--> PostgreSQL & DuckDB FTS
 ```
 
 The Vite frontend is compiled into `src/main/resources/static` for the packaged application. In development, Vite runs on port 5173 and proxies `/api` to Spring Boot on port 8173.
@@ -144,7 +144,7 @@ Controllers translate HTTP into application operations. `ApiSecurityFilter` hand
 
 ### Persistence
 
-`DatabaseService` owns all DuckDB schema and access. Services should not create ad-hoc tables or raw alternative persistence paths.
+`DatabaseService` owns all PostgreSQL schema and access. Services should not create ad-hoc tables or raw alternative persistence paths.
 
 ### Presentation
 
@@ -163,7 +163,7 @@ App.jsx
   +-- auditApi -> fetch + SSE parser
 ```
 
-State that must survive reload lives in DuckDB. Ephemeral view state—open tab, selected row, timer, chat visibility—lives in React.
+State that must survive reload lives in PostgreSQL. Ephemeral view state—open tab, selected row, timer, chat visibility—lives in React.
 
 ## Concurrency model
 
@@ -171,7 +171,7 @@ State that must survive reload lives in DuckDB. Ephemeral view state—open tab,
 - Long workflows create unicast Reactor sinks.
 - Scan, remediation, decision, retry, resume, and background FTS work use Java 21 virtual threads.
 - Process output is drained on a virtual thread to avoid deadlock.
-- DuckDB access methods are mostly synchronized because the service shares a file database.
+- PostgreSQL access methods are mostly synchronized because the service shares a file database.
 - FTS rebuilds have an explicit `ReentrantLock`.
 - Frontend request IDs and abort controllers prevent stale asynchronous results from winning.
 

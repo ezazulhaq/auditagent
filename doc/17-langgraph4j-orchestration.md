@@ -12,7 +12,7 @@ The graph executes in two concentric loops:
 
 ## Persistence & recovery
 
-The `DuckDbCheckpointSaver` intercepts every graph transition and stores the snapshot as JSON in DuckDB (`graph_checkpoints`).
+The `DatabaseCheckpointSaver (formerly DuckDbCheckpointSaver)` intercepts every graph transition and stores the snapshot as JSON in PostgreSQL (`graph_checkpoints`).
 
 This guarantees that:
 - Server restarts or process crashes do not lose the conversation or patch progress.

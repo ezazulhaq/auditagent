@@ -21,7 +21,7 @@ AuditAgent must:
 - Browser-state cookie is `HttpOnly`, `SameSite=Lax`, scoped to `/api/auth/github`, and ten minutes.
 - State is atomically consumed once and checked for expiry.
 - Session token has 48 random bytes; DB stores only its hash.
-- OAuth-state and session expiries are generated in UTC and compared against a UTC-normalized DuckDB clock, so host timezone does not shorten or extend their security lifetime.
+- OAuth-state and session expiries are generated in UTC and compared against a UTC-normalized PostgreSQL clock, so host timezone does not shorten or extend their security lifetime.
 - CSRF token has 32 random bytes and is returned only for the authenticated browser session.
 - Comparisons of state and CSRF use constant-time `MessageDigest.isEqual`.
 - Session cookie is `HttpOnly`, `SameSite=Lax`, path `/`, and `Secure` for HTTPS or explicit configuration.
@@ -143,7 +143,7 @@ The application-level controls are not enough for arbitrary untrusted build scri
 - use a dedicated service identity;
 - store configuration in a secret manager;
 - use HTTPS and secure cookies;
-- protect and back up DuckDB and encryption key together;
+- protect and back up PostgreSQL and DuckDB and encryption key together;
 - rotate credentials with a planned token re-encryption strategy;
 - keep Semgrep, Java, Maven/Gradle, Node, and dependencies patched;
 - monitor repeated conflicts, authentication failures, webhook failures, and abnormal process output.

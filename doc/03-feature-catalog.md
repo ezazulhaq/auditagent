@@ -94,7 +94,7 @@ This catalog connects each feature to its user/business outcome and main impleme
 | Dual model integration | Spring AI handles chat; LangChain4j handles tool calling. | `ChatModel` and `OpenAiChatModel` |
 | Dynamic skill loading | `.auditagent/skills/*/SKILL.md` is rediscovered on access. | `SkillManagerService` |
 | Default remediation prompt | Agent remains functional if `patch-engineer` skill is unavailable. | `buildAgenticSystemPrompt()` fallback |
-| Repository memory injection | Up to eight matching memories (both approved successes and rejected failures) enrich remediation context via DuckDB FTS/BM25. | `DatabaseService.searchRepositoryMemories()`, `DatabaseService.searchRejectedMemories()` |
+| Repository memory injection | Up to eight matching memories (both approved successes and rejected failures) enrich remediation context via PostgreSQL FTS/BM25 (mirrored from PostgreSQL). | `DatabaseService.searchRepositoryMemories()`, `DatabaseService.searchRejectedMemories()` |
 | Knowledge base improvement | System learns from failures by asking user for a rejection reason, storing it, and providing it to the `MEMORY_REVIEW` agent on subsequent runs. Unmerged closed PRs lower confidence scores. | `FindingDrawer.jsx`, `RunPublicationController`, `PullRequestLifecycleService`, `DatabaseService` |
 | Self-training global intelligence | Asynchronous failure reflection extracts anti-patterns from failed trajectories, while merged PR diff learning captures positive patterns into cross-repository rule intelligence. | `LlmService.reflectOnFailure()`, `LlmService.summarizeDiffForGlobalPattern()`, `RepositoryMemoryService`, `DatabaseService` |
 
@@ -106,9 +106,9 @@ This catalog connects each feature to its user/business outcome and main impleme
 | Multi-agent architecture | 16-stage Star Topology orchestrating specialized code review sub-agents via a Supervisor LLM. Mandatory PLANNING stage generates a remediation plan before execution begins. | `MultiAgentRemediationGraph`, `SupervisorNode`, `WorkerAgentGraphFactory` |
 | Context summarization | When conversation turns are dropped due to context budget limits, an LLM-based summary preserves key context instead of silently discarding it. Tool outputs are aggressively truncated before persistence. | `ConversationMemoryService`, `MemoryConfig.summarizationEnabled` |
 | Docker sandbox | Optionally wraps agent shell commands (compile, test, lint) inside an isolated Docker container with no network access, read-only root filesystem, and configurable resource limits. | `AgentToolService.buildDockerCommand()`, `AgentConfig.sandboxEnabled` |
-| DuckDB checkpoints | Graph state is persisted to DuckDB after every step for durability and recovery. | `DuckDbCheckpointSaver` |
+| PostgreSQL checkpoints | Graph state is persisted to PostgreSQL after every step for durability and recovery. | `DatabaseCheckpointSaver (formerly DuckDbCheckpointSaver)` |
 | Idempotent tool execution | Prevents duplicate tool calls during graph replays using state-based tracking. | `ToolExecutionNode` |
-| Human-in-the-loop workflow pause | Graph execution pauses before decision evaluation (via `interruptBefore("process_decision")`), checkpoints state in DuckDB, and waits for explicit user decision (`APPROVE_AND_CREATE_PR` or `REJECT`) before routing to `publish` or `reject`. | `CompileConfig.interruptBefore("process_decision")`, `RemediationWorkflowGraph`, `RemediationWorkflowService.decide()` |
+| Human-in-the-loop workflow pause | Graph execution pauses before decision evaluation (via `interruptBefore("process_decision")`), checkpoints state in PostgreSQL, and waits for explicit user decision (`APPROVE_AND_CREATE_PR` or `REJECT`) before routing to `publish` or `reject`. | `CompileConfig.interruptBefore("process_decision")`, `RemediationWorkflowGraph`, `RemediationWorkflowService.decide()` |
 | Workflow automation | End-to-end orchestration of workspace clone, agent remediation loop, verification, approval gate, PR creation, and webhook status reconciliation. | `RemediationWorkflowGraph`, `RemediationWorkflowService` |
 | Unified audit workflow | Scan, chat, and remediation are orchestrated under a single unified graph timeline. | `AuditWorkflowGraph` |
 | Graph visualization | Real-time graph execution timeline with node-level progress and tool details. | `GraphTimeline.jsx`, `graph_step` SSE events |
@@ -168,8 +168,8 @@ This catalog connects each feature to its user/business outcome and main impleme
 |---|---|---|
 | Transactional schema migration | Existing data is preserved while tables/columns and compatibility changes are applied. | schema version 3 |
 | Pre-memory backup | Existing file DB receives one `.pre-memory-v1.bak` copy. | startup migration |
-| DuckDB source of truth | Conversations, runs, evidence, changes, auth, and reports survive process restart. | `DatabaseService` |
-| DuckDB-compatible GitHub persistence | Login, authorization refresh, repository discovery, and publication checkpoints update without binder or indexed-column errors. | Workflow upserts reuse `EXCLUDED.updated_at`; publication checkpoints use transactional update-then-insert |
+| PostgreSQL source of truth | Conversations, runs, evidence, changes, auth, and reports survive process restart. | `DatabaseService` |
+| PostgreSQL-compatible GitHub persistence | Login, authorization refresh, repository discovery, and publication checkpoints update without binder or indexed-column errors. | Workflow upserts reuse `EXCLUDED.updated_at`; publication checkpoints use transactional update-then-insert |
 | Stable thread identity | One user/repository/branch thread, plus optional user general thread. | unique client/repo index; server user ID used as client key |
 | Owner checks | Thread and run access require the authenticated user. | controller and remediation checks |
 | Message ordering | Per-thread monotonically increasing sequence. | transaction and unique index |
@@ -191,7 +191,7 @@ This catalog connects each feature to its user/business outcome and main impleme
 |---|---|---|
 | Method lifecycle logs | Controller/service calls log class, method, argument count, return type, and exception class without values. | AOP CGLIB interceptor |
 | Redacted public errors | Common API exceptions return capped, redacted messages. | `ApiExceptionHandler` |
-| Token usage tracking | Tracks AI token consumption and finding resolution via Micrometer and DuckDB with a user-level dashboard view. | `MeterRegistry`, `token_usage` table, `TokenUsageView` |
+| Token usage tracking | Tracks AI token consumption and finding resolution via Micrometer and PostgreSQL with a user-level dashboard view. | `MeterRegistry`, `token_usage` table, `TokenUsageView` |
 | Java virtual threads | Long scans, runs, output readers, and background index work avoid platform-thread blocking. | `Thread.startVirtualThread()` |
 | Reactive streams | Long workflows return SSE through Reactor `Flux`. | WebFlux and unicast sinks |
 | Jackson compatibility bridge | Jackson 2 mapper is supplied for libraries while Spring Boot 4 defaults differ. | `Jackson2Config` |

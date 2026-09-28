@@ -25,7 +25,7 @@ The implementation in `src/`, `frontend/src/`, `rules/`, and `.auditagent/skills
 5. [Backend guide](05-backend-guide.md) — controllers, services, domain objects, and detailed responsibilities.
 6. [Frontend guide](06-frontend-guide.md) — React structure, state controllers, UI behavior, and browser-side protocols.
 7. [API reference](07-api-reference.md) — endpoints, request/response fields, authentication, CSRF, SSE events, and errors.
-8. [Data and persistence](08-data-and-persistence.md) — DuckDB schema, migrations, identity, retention, retrieval, and recovery.
+8. [Data and persistence](08-data-and-persistence.md) — PostgreSQL schema, migrations, identity, retention, retrieval, and recovery.
 9. [AI and remediation](09-ai-and-remediation.md) — chat agent, tool-calling loop, tools, verification gates, approval, and publication.
 10. [Security model](10-security-model.md) — controls, threats, secrets, filesystem safety, GitHub authorization, and deployment caveats.
 11. [Setup, configuration, and operations](11-setup-configuration-operations.md) — prerequisites, environment variables, GitHub App setup, builds, startup, and maintenance.
@@ -34,8 +34,7 @@ The implementation in `src/`, `frontend/src/`, `rules/`, and `.auditagent/skills
 14. [Change guide](14-change-guide.md) — where and how to implement future changes safely.
 15. [Source inventory and glossary](15-source-inventory-and-glossary.md) — production-file map, rule inventory, state vocabulary, and terms.
 16. [Skill catalog](16-skill-catalog.md) — active and historical skill playbooks, parser behavior, and runtime status.
-17. [CrewAI POC](17-crewai-poc.md) — architecture, capabilities, and setup for the standalone Python CrewAI prototype.
-18. [LangGraph4j orchestration](18-langgraph4j-orchestration.md) — dedicated state machine orchestration guide for agentic loops and workflows.
+17. [LangGraph4j orchestration](17-langgraph4j-orchestration.md) — dedicated state machine orchestration guide for agentic loops and workflows.
 
 ## Documentation conventions
 

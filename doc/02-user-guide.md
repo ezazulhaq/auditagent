@@ -157,7 +157,7 @@ When the AI agent succeeds, the finding becomes `AWAITING_APPROVAL` (or transiti
 If manual approval is enabled, you can review the proposed diff in the finding drawer.
 
 - **Approve**: Click "Approve & create PR" to merge the fix into a new branch and open a PR.
-- **Reject**: Click "Reject" to discard the fix. You can optionally provide a reason for the rejection (e.g., "Breaks formatting" or "Uses deprecated API"). This reason is securely stored in DuckDB and used as negative context by the Memory Review agent on subsequent attempts.
+- **Reject**: Click "Reject" to discard the fix. You can optionally provide a reason for the rejection (e.g., "Breaks formatting" or "Uses deprecated API"). This reason is securely stored in PostgreSQL and used as negative context by the Memory Review agent on subsequent attempts.
 
 ## 9. Webhook synchronization
 
