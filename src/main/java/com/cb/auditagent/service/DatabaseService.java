@@ -139,14 +139,19 @@ public class DatabaseService {
         d.setHtmlReport(e.getHtmlReport());
         try {
             com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-            if (e.getFindingsJson() != null) {
-                d.setFindings(mapper.readValue(e.getFindingsJson(), new com.fasterxml.jackson.core.type.TypeReference<List<Vulnerability>>() {}));
+            if (e.getFindingsJson() != null && !e.getFindingsJson().trim().isEmpty()) {
+                d.setFindings(mapper.readValue(e.getFindingsJson(),
+                        new com.fasterxml.jackson.core.type.TypeReference<List<Vulnerability>>() {
+                        }));
             }
-            if (e.getMetadataJson() != null) {
+            if (e.getMetadataJson() != null && !e.getMetadataJson().trim().isEmpty()) {
                 d.setMetadata(mapper.readValue(e.getMetadataJson(), ScanMetadata.class));
+            } else {
+                d.setMetadata(new ScanMetadata()); // Fallback for old scans
             }
-        } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+        } catch (Exception ex) {
             logger.error("Failed to deserialize report metadata/findings", ex);
+            d.setMetadata(new ScanMetadata());
         }
         return d;
     }
