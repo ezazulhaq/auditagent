@@ -39,13 +39,15 @@ export function CustomSelect({ value, onChange, options, disabled, placeholder }
             options.map((opt) => (
               <div
                 key={opt.value}
-                onClick={() => {
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   onChange(opt.value);
                   setIsOpen(false);
                 }}
                 className={`flex items-center justify-between px-3 py-2.5 mx-1 text-xs cursor-pointer rounded-lg transition-colors ${String(value) === String(opt.value)
-                    ? 'bg-cyan-500/10 text-cyan-300 font-semibold'
-                    : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                  ? 'bg-cyan-500/10 text-cyan-300 font-semibold'
+                  : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
                   }`}
               >
                 <span className="truncate pr-3">{opt.label}</span>

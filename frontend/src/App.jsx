@@ -109,10 +109,7 @@ export default function App({ api = auditApi }) {
     });
     api.getReport(config.repositoryId, config.branch, controller.signal).then(replaceResult).catch(error => {
       if (error.name === 'AbortError') return;
-      if (error.message.includes('404')) {
-        resetForScan();
-        runScan(config);
-      } else {
+      if (!error.message.includes('404')) {
         toast.error(`Report restore failed: ${error.message}`);
       }
     });
