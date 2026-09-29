@@ -17,6 +17,7 @@ import com.cb.auditagent.service.GitHubAuthService;
 import java.net.URI;
 import java.time.Duration;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -63,10 +64,24 @@ public class AuthController {
     @GetMapping("/github/callback")
     public ResponseEntity<Void> callback(@RequestParam String code, @RequestParam String state,
             ServerWebExchange exchange) {
-        HttpCookie stateCookie = exchange.getRequest().getCookies()
-                .getFirst(GitHubAuthService.OAUTH_STATE_COOKIE);
-        GitHubAuthService.LoginResult result = auth.completeLogin(code, state,
-                stateCookie == null ? null : stateCookie.getValue());
+        List<HttpCookie> stateCookies = exchange.getRequest().getCookies()
+                .get(GitHubAuthService.OAUTH_STATE_COOKIE);
+
+        GitHubAuthService.LoginResult result = null;
+        if (stateCookies != null) {
+            for (HttpCookie stateCookie : stateCookies) {
+                try {
+                    result = auth.completeLogin(code, state, stateCookie.getValue());
+                    break;
+                } catch (Exception ignored) {
+                }
+            }
+        }
+        if (result == null) {
+            // Fallback to let it throw the original error if none matched
+            result = auth.completeLogin(code, state, null);
+        }
+
         ResponseCookie cookie = ResponseCookie.from(GitHubAuthService.SESSION_COOKIE, result.sessionToken())
                 .httpOnly(true).secure(config.useSecureCookies()).sameSite("Lax").path("/")
                 .maxAge(Duration.ofHours(config.getSessionHours())).build();
