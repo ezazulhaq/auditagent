@@ -106,6 +106,10 @@ public class ApprovalReadyNode implements NodeAction<WorkflowState> {
                     vulnerability.getStatus(),
                     run.finalSummary() != null ? run.finalSummary() : vulnerability.getProposedFix());
         });
+        database.updateAgentRun(run.runId(), AgentPhase.AWAITING_APPROVAL, AgentRunStatus.AWAITING_APPROVAL,
+                run.iteration(), run.retryCount(), run.patchApplied(), run.compilePassed(), run.rescanPassed(),
+                run.testsPassed(), run.checkpointJson(), run.finalSummary(), null, null);
+
         updates.put("workflowMessage", "Remediation verified. Awaiting human approval.");
         // Decision is NOT set here. The graph pauses at the conditional edge.
         // Human approval comes via POST /api/runs/{runId}/decision ->

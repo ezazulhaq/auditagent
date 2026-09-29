@@ -585,7 +585,8 @@ public class DatabaseService {
 
     public Optional<AgentRunRecord> findRecoverableRun(String threadId) {
         return agentRunRepository
-                .findFirstByThreadIdAndStatusInOrderByUpdatedAtDesc(threadId, List.of("ACTIVE", "INTERRUPTED"))
+                .findFirstByThreadIdAndStatusInOrderByUpdatedAtDesc(threadId, List.of(
+                        "ACTIVE", "INTERRUPTED", "AWAITING_APPROVAL", "PUBLISHING", "PUBLISH_FAILED", "PR_OPEN"))
                 .map(this::mapToAgentRunRecord);
     }
 
