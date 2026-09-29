@@ -40,7 +40,7 @@ public class LangChainModelConfig {
     @Value("${auditagent.agent.llm-max-output-tokens:4096}")
     private int maxOutputTokens;
 
-    @Value("${auditagent.agent.llm-call-timeout-seconds:120}")
+    @Value("${auditagent.agent.llm-call-timeout-seconds:300}")
     private long timeoutSeconds;
 
     @Bean
@@ -65,6 +65,7 @@ public class LangChainModelConfig {
                 .temperature(temperature)
                 .maxTokens(maxOutputTokens)
                 .timeout(Duration.ofSeconds(timeoutSeconds))
+                .maxRetries(0)
                 .httpClientBuilder(httpClientBuilder)
                 .build();
     }
