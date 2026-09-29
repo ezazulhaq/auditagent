@@ -95,19 +95,23 @@ public class ApprovalReadyNode implements NodeAction<WorkflowState> {
         ApprovalPreview preview = new ApprovalPreview(
                 runId, run.vulnerabilityId(), repository.fullName(), publication.baseBranch(),
                 publication.baseSha(), publication.branchName(), files, diff, verification,
-                Optional.ofNullable(run.finalSummary()).orElse("Verified security remediation"), digest);
+                Optional.ofNullable(run.finalSummary()).orElse("Verified security remediation"),
+                digest);
 
         Map<String, Object> updates = new HashMap<>();
         updates.put("approvalPreview", preview);
-        database.getVulnerabilityById(run.vulnerabilityId(), publication.reportKey()).ifPresent(vulnerability -> {
-            vulnerability.setStatus(VulnerabilityStatus.AWAITING_APPROVAL);
-            database.updateVulnerabilityStatus(
-                    vulnerability.getId(),
-                    vulnerability.getStatus(),
-                    run.finalSummary() != null ? run.finalSummary() : vulnerability.getProposedFix());
-        });
+        database.getVulnerabilityById(run.vulnerabilityId(), publication.reportKey())
+                .ifPresent(vulnerability -> {
+                    vulnerability.setStatus(VulnerabilityStatus.AWAITING_APPROVAL);
+                    database.updateVulnerabilityStatus(
+                            vulnerability.getId(),
+                            vulnerability.getStatus(),
+                            run.finalSummary() != null ? run.finalSummary()
+                                    : vulnerability.getProposedFix());
+                });
         database.updateAgentRun(run.runId(), AgentPhase.AWAITING_APPROVAL, AgentRunStatus.AWAITING_APPROVAL,
-                run.iteration(), run.retryCount(), run.patchApplied(), run.compilePassed(), run.rescanPassed(),
+                run.iteration(), run.retryCount(), run.patchApplied(), run.compilePassed(),
+                run.rescanPassed(),
                 run.testsPassed(), run.checkpointJson(), run.finalSummary(), null, null);
 
         updates.put("workflowMessage", "Remediation verified. Awaiting human approval.");
