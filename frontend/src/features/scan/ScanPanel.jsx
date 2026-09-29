@@ -32,7 +32,7 @@ export function ScanPanel({ config, onConfigChange, onScan, scan, repositories =
   ];
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 w-4/5 max-w-[352px] flex-col overflow-y-auto bg-[#081522] shadow-2xl lg:static lg:h-[calc(100vh-72px)] lg:w-[352px] lg:shrink-0 lg:border-r lg:border-slate-700/25 lg:bg-[#081522]/82 lg:shadow-none">
+    <aside className="fixed inset-y-0 left-0 z-40 w-4/5 max-w-88 flex-col overflow-y-auto bg-[#081522] shadow-2xl lg:static lg:h-[calc(100vh-72px)] lg:w-88 lg:shrink-0 lg:border-r lg:border-slate-700/25 lg:bg-[#081522]/82 lg:shadow-none">
       <div className="p-5 sm:p-6 lg:p-5 xl:p-6">
         <div className="mb-6 flex items-start justify-between gap-3">
           <div>
@@ -122,7 +122,7 @@ export function ScanPanel({ config, onConfigChange, onScan, scan, repositories =
             <span className="font-mono text-sm font-bold text-cyan-300">{scan.progress?.progress ?? 0}%</span>
           </div>
           <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-slate-800" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={scan.progress?.progress ?? 0}>
-            <div className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-cyan-300 transition-all duration-500" style={{ width: `${scan.progress?.progress ?? 0}%` }} />
+            <div className="h-full rounded-full bg-linear-to-r from-cyan-500 to-cyan-300 transition-all duration-500" style={{ width: `${scan.progress?.progress ?? 0}%` }} />
           </div>
           <div className="space-y-0.5">{SCAN_STEPS.map((step, index) => {
             const completed = index < currentIndex;
