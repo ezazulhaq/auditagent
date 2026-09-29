@@ -61,8 +61,7 @@ export function useRemediationController({ api, toast, onMessage, onReport, onFi
     try {
       const result = await api.getReport(repoId, br);
       if (result) {
-        if (onReport) onReport(result);
-        if (onFindings && result.findings) onFindings(result.findings);
+        if (onReport) onReport(result, silent);
       }
     } catch (e) {
       if (!silent) toast?.error("Failed to refresh scan results.");
