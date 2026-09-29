@@ -3,6 +3,7 @@ package com.cb.auditagent.service;
 import com.cb.auditagent.config.MemoryConfig;
 import com.cb.auditagent.domain.*;
 import com.cb.auditagent.repository.*;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
@@ -197,6 +198,7 @@ public class DatabaseService {
                 e.getRefreshTokenEncrypted(), e.getRefreshExpiresAt());
     }
 
+    @SuppressWarnings("unused")
     private AuthenticatedUser mapToAuthenticatedUser(com.cb.auditagent.entity.AppUser e) {
         if (e == null)
             return null;
@@ -286,18 +288,6 @@ public class DatabaseService {
     @Transactional
     public void saveReport(String repoPath, String mdReport, String htmlReport, List<Vulnerability> findings,
             ScanMetadata metadata) {
-        com.cb.auditagent.entity.Report entity = new com.cb.auditagent.entity.Report();
-        entity.setRepoPath(repoPath);
-        entity.setMdReport(mdReport);
-        entity.setHtmlReport(htmlReport);
-        try {
-            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-            entity.setFindingsJson(mapper.writeValueAsString(findings));
-            entity.setMetadataJson(mapper.writeValueAsString(metadata));
-        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-            logger.error("Failed to serialize report metadata/findings", e);
-        }
-        reportRepository.save(entity);
 
         for (Vulnerability v : findings) {
             String snippet = v.getCodeSnippet() == null ? "" : v.getCodeSnippet();
@@ -310,11 +300,17 @@ public class DatabaseService {
             if (existingOpt.isPresent()) {
                 com.cb.auditagent.entity.VulnerabilityEntity existing = existingOpt.get();
                 vulnEntity.setId(existing.getId());
+                v.setId(existing.getId()); // Synchronize domain object ID
                 vulnEntity.setStatus(existing.getStatus());
+                v.setStatus(VulnerabilityStatus.valueOf(existing.getStatus())); // Sync status
                 vulnEntity.setProposedFix(existing.getProposedFix());
+                v.setProposedFix(existing.getProposedFix()); // Sync fix
             } else {
-                vulnEntity.setId(v.getId() != null ? v.getId() : UUID.randomUUID().toString());
+                if (v.getId() == null)
+                    v.setId(UUID.randomUUID().toString());
+                vulnEntity.setId(v.getId());
                 vulnEntity.setStatus("DETECTED");
+                v.setStatus(VulnerabilityStatus.DETECTED);
             }
             vulnEntity.setRepoPath(repoPath);
             vulnEntity.setFilePath(v.getFilePath());
@@ -328,6 +324,19 @@ public class DatabaseService {
             vulnEntity.setLanguage(v.getLanguage());
             vulnerabilityEntityRepository.save(vulnEntity);
         }
+
+        com.cb.auditagent.entity.Report entity = new com.cb.auditagent.entity.Report();
+        entity.setRepoPath(repoPath);
+        entity.setMdReport(mdReport);
+        entity.setHtmlReport(htmlReport);
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            entity.setFindingsJson(mapper.writeValueAsString(findings));
+            entity.setMetadataJson(mapper.writeValueAsString(metadata));
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            logger.error("Failed to serialize report metadata/findings", e);
+        }
+        reportRepository.save(entity);
     }
 
     @Transactional
