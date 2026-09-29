@@ -1060,6 +1060,11 @@ public class DatabaseService {
                 .orElse(new String[0]);
     }
 
+    @Transactional
+    public void deleteGraphCheckpoints(String workflowId) {
+        graphCheckpointRepository.deleteByThreadId(workflowId);
+    }
+
     public String loadLatestGraphCheckpoint(String runId) {
         return graphCheckpointRepository.findFirstByRunIdAndStateJsonIsNotNullOrderByCreatedAtDesc(runId)
                 .map(com.cb.auditagent.entity.GraphCheckpoint::getCheckpointId)
