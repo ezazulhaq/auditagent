@@ -590,6 +590,13 @@ public class DatabaseService {
                 .map(this::mapToAgentRunRecord);
     }
 
+    public List<AgentRunRecord> findRecoverableRuns(String threadId) {
+        return agentRunRepository
+                .findByThreadIdAndStatusInOrderByUpdatedAtDesc(threadId, List.of(
+                        "ACTIVE", "INTERRUPTED", "AWAITING_APPROVAL", "PUBLISHING", "PUBLISH_FAILED", "PR_OPEN"))
+                .stream().map(this::mapToAgentRunRecord).toList();
+    }
+
     @Transactional
     public boolean appendAgentStep(String runId, int iteration, String action, String toolName, String arguments,
             String result, String resultStatus, long durationMs, String idempotencyKey) {

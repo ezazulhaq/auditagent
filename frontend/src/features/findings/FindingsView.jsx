@@ -24,8 +24,8 @@ const statusClass = {
 const statusOrder = ['DETECTED', 'ANALYZING', 'GENERATING_FIX', 'VERIFYING', 'PATCH_FAILED', 'AWAITING_APPROVAL', 'PR_OPEN', 'FIXED', 'IGNORED'];
 const formatStatus = (value) => value.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, character => character.toUpperCase());
 
-function FindingRow({ finding, activeRun, onSelect, hideLocation = false, isSelected, onToggleSelect }) {
-  const findingStatus = (activeRun?.vulnerabilityId === finding.id ? activeRun.status : finding.status) || 'DETECTED';
+function FindingRow({ finding, runs, onSelect, hideLocation = false, isSelected, onToggleSelect }) {
+  const findingStatus = (runs?.[finding.id] ? runs[finding.id].status : finding.status) || 'DETECTED';
   return (
     <div className="group flex w-full items-start md:items-stretch border-b border-slate-700/20 transition last:border-0 hover:bg-cyan-400/[0.035]">
       <div className="flex shrink-0 items-start md:items-center justify-center pl-4 pr-3 py-4 md:pl-5">
@@ -68,7 +68,7 @@ function FindingRow({ finding, activeRun, onSelect, hideLocation = false, isSele
   );
 }
 
-function FileGroup({ filePath, findings, activeRun, onSelect, selectedIds, onToggleSelect, onToggleGroup }) {
+function FileGroup({ filePath, findings, runs, onSelect, selectedIds, onToggleSelect, onToggleGroup }) {
   const [expanded, setExpanded] = useState(true);
   const groupSelectedCount = findings.filter(f => selectedIds.has(f.id)).length;
   const isAllSelected = groupSelectedCount === findings.length && findings.length > 0;
@@ -109,7 +109,7 @@ function FileGroup({ filePath, findings, activeRun, onSelect, selectedIds, onTog
             <FindingRow
               key={finding.id}
               finding={finding}
-              activeRun={activeRun}
+              runs={runs}
               onSelect={onSelect}
               hideLocation={true}
               isSelected={selectedIds.has(finding.id)}
@@ -122,14 +122,14 @@ function FileGroup({ filePath, findings, activeRun, onSelect, selectedIds, onTog
   );
 }
 
-export function FindingsView({ findings, activeRun, onSelect, onBulkAction, onRefresh }) {
+export function FindingsView({ findings, runs, onSelect, onBulkAction, onRefresh }) {
   const [query, setQuery] = useState('');
   const [severity, setSeverity] = useState('ALL');
   const [status, setStatus] = useState('ALL');
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'grouped'
   const [selectedIds, setSelectedIds] = useState(new Set());
 
-  const filtered = useMemo(() => filterFindings(findings, { query, severity, status, activeRun }), [findings, query, severity, status, activeRun]);
+  const filtered = useMemo(() => filterFindings(findings, { query, severity, status, runs }), [findings, query, severity, status, runs]);
 
   const groupedFindings = useMemo(() => {
     if (viewMode !== 'grouped') return [];
@@ -152,7 +152,7 @@ export function FindingsView({ findings, activeRun, onSelect, onBulkAction, onRe
 
   const statusOptions = useMemo(() => {
     const counts = findings.reduce((result, finding) => {
-      const value = (activeRun?.vulnerabilityId === finding.id ? activeRun.status : finding.status) || 'DETECTED';
+      const value = (runs?.[finding.id] ? runs[finding.id].status : finding.status) || 'DETECTED';
       result.set(value, (result.get(value) || 0) + 1);
       return result;
     }, new Map());
@@ -164,7 +164,7 @@ export function FindingsView({ findings, activeRun, onSelect, onBulkAction, onRe
     });
     if (status !== 'ALL' && !counts.has(status)) values.push(status);
     return values.map(value => ({ value, count: counts.get(value) || 0 }));
-  }, [findings, status, activeRun]);
+  }, [findings, status, runs]);
 
   const hasFilters = Boolean(query.trim()) || severity !== 'ALL' || status !== 'ALL';
   const resetFilters = () => {
@@ -260,7 +260,7 @@ export function FindingsView({ findings, activeRun, onSelect, onBulkAction, onRe
     ) : viewMode === 'list' ? (
       <section className="surface-card overflow-hidden rounded-2xl" aria-label="Security findings">
         <div className="overflow-x-auto">
-          <div className="md:min-w-[800px]">
+          <div className="md:min-w-200">
             <div className="hidden md:flex items-center border-b border-slate-700/25 bg-slate-950/25 px-5 py-3.5 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-600">
               <div className="mr-5 flex items-center shrink-0">
                 <input
@@ -279,7 +279,7 @@ export function FindingsView({ findings, activeRun, onSelect, onBulkAction, onRe
               <FindingRow
                 key={finding.id}
                 finding={finding}
-                activeRun={activeRun}
+                runs={runs}
                 onSelect={onSelect}
                 isSelected={selectedIds.has(finding.id)}
                 onToggleSelect={handleToggleSelect}
@@ -290,13 +290,13 @@ export function FindingsView({ findings, activeRun, onSelect, onBulkAction, onRe
       </section>
     ) : (
       <section aria-label="Security findings grouped by file" className="overflow-x-auto">
-        <div className="md:min-w-[800px]">
+        <div className="md:min-w-200">
           {groupedFindings.map(([filePath, groupFindings]) => (
             <FileGroup
               key={filePath}
               filePath={filePath}
               findings={groupFindings}
-              activeRun={activeRun}
+              runs={runs}
               onSelect={onSelect}
               selectedIds={selectedIds}
               onToggleSelect={handleToggleSelect}

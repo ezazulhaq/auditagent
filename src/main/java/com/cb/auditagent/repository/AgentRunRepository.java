@@ -13,8 +13,11 @@ import java.util.Optional;
 public interface AgentRunRepository extends JpaRepository<AgentRun, String> {
     Optional<AgentRun> findFirstByThreadIdAndStatusInOrderByUpdatedAtDesc(String threadId, Collection<String> statuses);
 
+    List<AgentRun> findByThreadIdAndStatusInOrderByUpdatedAtDesc(String threadId, Collection<String> statuses);
+
     @Query("SELECT r FROM AgentRun r WHERE (r.threadId = :threadId OR r.repoPath = :repoPath) AND r.status IN :statuses")
-    List<AgentRun> findActiveRunsByThreadOrRepo(@Param("threadId") String threadId, @Param("repoPath") String repoPath, @Param("statuses") Collection<String> statuses);
+    List<AgentRun> findActiveRunsByThreadOrRepo(@Param("threadId") String threadId, @Param("repoPath") String repoPath,
+            @Param("statuses") Collection<String> statuses);
 
     List<AgentRun> findByThreadId(String threadId);
 
@@ -28,5 +31,6 @@ public interface AgentRunRepository extends JpaRepository<AgentRun, String> {
 
     @Modifying
     @Query("UPDATE AgentRun r SET r.checkpointJson = :checkpointJson, r.updatedAt = :now WHERE r.runId = :runId")
-    int updateCheckpointJson(@Param("runId") String runId, @Param("checkpointJson") String checkpointJson, @Param("now") LocalDateTime now);
+    int updateCheckpointJson(@Param("runId") String runId, @Param("checkpointJson") String checkpointJson,
+            @Param("now") LocalDateTime now);
 }
