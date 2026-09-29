@@ -1055,7 +1055,7 @@ public class DatabaseService {
 
     public String[] loadGraphCheckpoint(String checkpointId) {
         return graphCheckpointRepository.findValidCheckpoint(checkpointId, LocalDateTime.now())
-                .map(c -> new String[] { c.getStateJson(), c.getInterruptReason() })
+                .map(c -> new String[] { c.getStateJson(), c.getNodeName() })
                 .orElse(new String[0]);
     }
 
