@@ -73,7 +73,7 @@ export function ScanPanel({ config, onConfigChange, onScan, scan, repositories =
             />
           </label>
 
-          <label className="block text-[11px] font-semibold text-slate-400">
+          <label className="hidden text-[11px] font-semibold text-slate-400">
             <span className="mb-1.5 flex items-center gap-1.5"><ScanLine size={13} className="text-slate-500" /> Scanner engine</span>
             <CustomSelect
               value={config.scannerName}
