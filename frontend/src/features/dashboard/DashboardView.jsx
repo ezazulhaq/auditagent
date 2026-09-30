@@ -2,7 +2,7 @@ import { AlertTriangle, ArrowRight, CheckCircle2, Clock3, Code2, FileSearch, Git
 import { useMemo } from 'react';
 import { getFileName } from '../../utils/auditSelectors';
 
-export function DashboardView({ metadata, findings, counts, scanHistory = [], repositoryLabel, onSelect, onShowFindings }) {
+export function DashboardView({ metadata, findings, counts, scanHistory = [], repositoryLabel, onSelect, onShowFindings, onClearHistory }) {
   if (!metadata) return <EmptyWorkspace />;
 
   const cards = [
@@ -39,12 +39,13 @@ export function DashboardView({ metadata, findings, counts, scanHistory = [], re
     <section className="flex flex-col gap-4 border-b border-slate-700/25 pb-6 xl:flex-row xl:items-end xl:justify-between">
       <div className="min-w-0">
         <p className="eyebrow">Latest security audit</p>
-        <h2 className="mt-2 truncate text-2xl font-semibold tracking-[-0.025em] text-white sm:text-3xl">{metadata.projectName || 'Repository security overview'}</h2>
+        <h2 className="mt-2 truncate text-2xl font-semibold tracking-tight text-white sm:text-3xl">{metadata.projectName || 'Repository security overview'}</h2>
         <p className="mt-2 flex items-center gap-1.5 truncate text-xs text-slate-500"><GitBranch size={13} className="shrink-0" /> {repositoryLabel}</p>
       </div>
-      <div className="flex items-center gap-2 self-start rounded-full border border-emerald-400/20 bg-emerald-400/8 px-3 py-1.5 text-[10px] font-semibold text-emerald-300 xl:self-auto">
-        <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-35" /><span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" /></span>
-        Scan complete · evidence available
+      <div className="flex flex-col items-start xl:items-end gap-3">
+        <button onClick={onClearHistory} className="text-xs font-medium text-rose-400 hover:text-rose-300 hover:underline">
+          Clear Scan History
+        </button>
       </div>
     </section>
 
@@ -67,7 +68,7 @@ export function DashboardView({ metadata, findings, counts, scanHistory = [], re
           </div>
           <div className="flex items-center gap-5">
             <div className="relative h-24 w-24 shrink-0 rounded-full" style={{ background: distribution }} role="img" aria-label={`${counts.high} high, ${counts.medium} medium, and ${lowAndInfo} lower-severity findings`}>
-              <div className="absolute inset-[10px] flex flex-col items-center justify-center rounded-full bg-[#0b192a]"><b className="text-xl text-white">{findings.length}</b><span className="text-[9px] uppercase tracking-wider text-slate-500">Findings</span></div>
+              <div className="absolute inset-2.5 flex flex-col items-center justify-center rounded-full bg-[#0b192a]"><b className="text-xl text-white">{findings.length}</b><span className="text-[9px] uppercase tracking-wider text-slate-500">Findings</span></div>
             </div>
             <div className="space-y-2 text-[11px]">
               <p className="flex items-center justify-between gap-7 text-slate-400"><span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-rose-400" /> High</span><b className="text-slate-200">{counts.high}</b></p>
@@ -98,21 +99,21 @@ export function DashboardView({ metadata, findings, counts, scanHistory = [], re
           <p className="eyebrow">Hotspots</p>
           <h3 className="mt-2 flex items-center gap-2 text-lg font-semibold text-white"><Flame size={18} className="text-orange-400" /> Top vulnerable files</h3>
           <p className="mt-1 text-xs leading-5 text-slate-500">Files with the highest concentration of security findings.</p>
-          
+
           <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-             {fileVulnerabilityCounts.map(file => (
-                <button key={file.filePath} onClick={() => onShowFindings(`Findings in ${getFileName(file.filePath)}`, file.fileFindings)} className="group flex items-start justify-between rounded-xl border border-slate-700/40 bg-slate-900/40 p-4 text-left transition hover:bg-slate-800/60 hover:border-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60">
-                  <div className="min-w-0 pr-4">
-                    <p className="truncate text-sm font-semibold text-slate-200 transition group-hover:text-white">{getFileName(file.filePath)}</p>
-                    <p className="mt-1 truncate text-[10px] text-slate-500" title={file.filePath}>{file.filePath}</p>
-                  </div>
-                  <span className="flex h-7 shrink-0 items-center justify-center rounded-lg bg-rose-500/10 px-2.5 text-[11px] font-bold text-rose-400">{file.count}</span>
-                </button>
-             ))}
+            {fileVulnerabilityCounts.map(file => (
+              <button key={file.filePath} onClick={() => onShowFindings(`Findings in ${getFileName(file.filePath)}`, file.fileFindings)} className="group flex items-start justify-between rounded-xl border border-slate-700/40 bg-slate-900/40 p-4 text-left transition hover:bg-slate-800/60 hover:border-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60">
+                <div className="min-w-0 pr-4">
+                  <p className="truncate text-sm font-semibold text-slate-200 transition group-hover:text-white">{getFileName(file.filePath)}</p>
+                  <p className="mt-1 truncate text-[10px] text-slate-500" title={file.filePath}>{file.filePath}</p>
+                </div>
+                <span className="flex h-7 shrink-0 items-center justify-center rounded-lg bg-rose-500/10 px-2.5 text-[11px] font-bold text-rose-400">{file.count}</span>
+              </button>
+            ))}
           </div>
         </article>
       )}
-      
+
       {scanHistory && scanHistory.length > 1 && (
         <article className="surface-card rounded-2xl p-5 sm:p-6 xl:col-span-2">
           <p className="eyebrow">Trends</p>
@@ -125,15 +126,15 @@ export function DashboardView({ metadata, findings, counts, scanHistory = [], re
               return (
                 <div key={scan.historyId || index} className="group relative flex w-12 shrink-0 flex-col items-center justify-end gap-2 h-full">
                   <div className="w-full rounded-t-md bg-indigo-500/20 transition-colors group-hover:bg-indigo-400/40 relative flex items-end justify-center" style={{ height: `${Math.max(heightPct, 5)}%` }}>
-                    <div className="h-full w-full rounded-t-md bg-gradient-to-t from-transparent to-indigo-500/40 absolute inset-0"></div>
+                    <div className="h-full w-full rounded-t-md bg-linear-to-t from-transparent to-indigo-500/40 absolute inset-0"></div>
                     <span className="relative z-10 text-[10px] font-bold text-indigo-200 mb-1 opacity-0 transition-opacity group-hover:opacity-100">{scan.totalFindings}</span>
                   </div>
                   <span className="text-[10px] text-slate-500 whitespace-nowrap">{new Date(scan.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
-                  
+
                   {/* Tooltip */}
                   <div className="absolute -top-12 z-20 hidden whitespace-nowrap rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-medium text-white shadow-xl group-hover:block">
                     {scan.totalFindings} findings
-                    <br/>
+                    <br />
                     <span className="text-[10px] text-slate-400">{new Date(scan.createdAt).toLocaleString()}</span>
                     <div className="absolute -bottom-1.5 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border-b border-r border-slate-700 bg-slate-800"></div>
                   </div>
@@ -148,9 +149,9 @@ export function DashboardView({ metadata, findings, counts, scanHistory = [], re
 }
 
 function EmptyWorkspace() {
-  return <div className="flex min-h-[560px] items-center justify-center p-6 text-center sm:p-10">
+  return <div className="flex min-h-140 items-center justify-center p-6 text-center sm:p-10">
     <div className="max-w-lg">
-      <div className="relative mx-auto flex h-20 w-20 items-center justify-center rounded-3xl border border-cyan-300/15 bg-gradient-to-br from-cyan-300/10 to-blue-500/5 text-cyan-300 shadow-2xl shadow-cyan-950/30">
+      <div className="relative mx-auto flex h-20 w-20 items-center justify-center rounded-3xl border border-cyan-300/15 bg-linear-to-br from-cyan-300/10 to-blue-500/5 text-cyan-300 shadow-2xl shadow-cyan-950/30">
         <ShieldCheck size={34} strokeWidth={1.6} />
         <span className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-xl border-4 border-[#091625] bg-emerald-400 text-[#06251c]"><CheckCircle2 size={13} strokeWidth={3} /></span>
       </div>

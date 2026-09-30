@@ -119,6 +119,11 @@ export function createAuditApi({ baseUrl = API_BASE_URL, fetchImpl = fetch } = {
       return response.json();
     },
 
+    async clearScanHistory(repositoryId, branch) {
+      const response = await request(`/reports/history?repositoryId=${encodeURIComponent(repositoryId)}&branch=${encodeURIComponent(branch)}`, { method: 'DELETE' });
+      if (!response.ok) throw await errorFor(response);
+    },
+
     async reportArtifact(repositoryId, branch, format, signal) {
       const query = `repositoryId=${encodeURIComponent(repositoryId)}&branch=${encodeURIComponent(branch)}&format=${encodeURIComponent(format)}`;
       const response = await request(`/reports/export?${query}`, { signal });
