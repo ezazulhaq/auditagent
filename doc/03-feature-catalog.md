@@ -28,6 +28,7 @@ This catalog connects each feature to its user/business outcome and main impleme
 | Feature | Behavior | Implementation |
 |---|---|---|
 | Pinned-commit scan | A report identifies the exact branch commit scanned. | `branchHead()`, `cloneAtCommit()`, `ScanSnapshot` |
+| Scan history clearing | Users can delete all scan reports, snapshots, stats, and vulnerabilities for a selected repository branch. | `DELETE /api/reports/history`, `DatabaseService`, `DashboardView` |
 | Isolated scan clone | Scanner never operates on a browser-supplied local directory. | unique `scan-<UUID>` workspace |
 | Commit-aware cache | Report is reused only if stored base SHA equals current branch SHA and force rescan is false. | `ScanOrchestratorService.scan()` |
 | Force rescan | User can bypass an otherwise valid cache. | `ScanRequest.forceRescan`, UI checkbox |

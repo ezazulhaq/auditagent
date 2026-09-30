@@ -21,6 +21,8 @@ Initialization errors are logged. The service currently does not fail applicatio
 
 #### `reports`
 
+Reports and all related scan artifacts (`vulnerabilities`, `scan_snapshots`, `scan_history_stats`) can be manually deleted in bulk per repository and branch using the `DELETE /api/reports/history` endpoint.
+
 | Column        | Meaning                                                                                                          |
 |---------------|------------------------------------------------------------------------------------------------------------------|
 | `repo_path`   | Primary report key. Current format is `github:<repositoryId>:<branch>`.                                         |
