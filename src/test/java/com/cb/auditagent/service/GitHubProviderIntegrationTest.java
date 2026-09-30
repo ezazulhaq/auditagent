@@ -16,8 +16,6 @@ import com.cb.auditagent.domain.PublicationCheckpoint;
 import com.cb.auditagent.domain.PublishResult;
 import com.cb.auditagent.domain.Severity;
 import com.cb.auditagent.domain.Vulnerability;
-import com.cb.auditagent.service.GitHubApiClient;
-import com.cb.auditagent.service.GitHubProvider;
 
 import java.nio.file.Files;
 import java.nio.file.Path;

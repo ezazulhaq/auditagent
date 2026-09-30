@@ -29,7 +29,7 @@ Static-analysis tools can find many issues, but a finding alone does not explain
 | Semgrep                       | Performs static source-code analysis using the bundled rule packs.                                                                                |
 | OpenAI-compatible model       | Powers conversational explanations and the tool-using remediation agent.                                                                          |
 | GitHub                        | Supplies identity, repository access, branch state, installation tokens, pull requests, and merge/close events.                                   |
-| DuckDB                        | Stores scan reports, findings, users, encrypted authorization, sessions, conversations, runs, evidence, and approved memories.                    |
+| PostgreSQL                    | Stores scan reports, findings, users, encrypted authorization, sessions, conversations, runs, evidence, and approved memories.                    |
 
 ## Business value
 

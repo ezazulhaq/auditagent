@@ -50,8 +50,8 @@ npm test
 - PKCE login stores only hashed state and encrypted verifier.
 - Callback persists encrypted expiring authorization and hashed session.
 - Browser-state mismatch is rejected before state consumption.
-- OAuth-state/session lookup and cleanup preserve future UTC expiries when DuckDB runs in a non-UTC timezone.
-- GitHub authorization, repository, and publication checkpoint updates execute against the supported DuckDB version.
+- OAuth-state/session lookup and cleanup preserve future UTC expiries when PostgreSQL runs in a non-UTC timezone.
+- GitHub authorization, repository, and publication checkpoint updates execute against the supported PostgreSQL version.
 - Token encryption is randomized authenticated encryption.
 
 ### GitHub publication and webhook

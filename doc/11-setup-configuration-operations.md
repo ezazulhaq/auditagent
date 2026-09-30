@@ -127,7 +127,7 @@ $webhookBytes = New-Object byte[] 32
 
 Generate these directly in the deployment secret manager when possible. Never reuse one value for both purposes.
 `TokenCipher` derives the AES key from `AUDITAGENT_TOKEN_ENCRYPTION_KEY`; losing or changing it makes existing OAuth
-token ciphertext unreadable. Back up that key separately but consistently with DuckDB.
+token ciphertext unreadable. Back up that key separately but consistently with the PostgreSQL database.
 
 ### Register the GitHub App
 
@@ -213,6 +213,12 @@ AUDITAGENT_FRONTEND_URL=https://audit.example.com
 GITHUB_APP_INSTALLATION_URL=https://github.com/apps/your-auditagent-app/installations/new
 
 AUDITAGENT_WORKSPACE_ROOT=/var/lib/auditagent/workspaces
+# PostgreSQL configuration
+SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-host:5432/auditagent
+SPRING_DATASOURCE_USERNAME=auditagent
+SPRING_DATASOURCE_PASSWORD=strongpassword
+
+# DuckDB FTS configuration
 AUDITAGENT_DB_PATH=/var/lib/auditagent/data/audit_reports.duckdb
 AUDITAGENT_SECURE_COOKIES=true
 AUDITAGENT_SESSION_HOURS=24
@@ -264,7 +270,7 @@ secret manager is preferable to a static environment file.
 
 - Inject App ID, client ID/secret, webhook secret, and encryption key from the orchestrator secret store.
 - Mount the private key as a read-only file and set `GITHUB_APP_PRIVATE_KEY` to the mounted path.
-- Mount durable storage for DuckDB and separate disposable/capacity-limited storage for workspaces.
+- Mount durable storage for PostgreSQL, DuckDB, and separate disposable/capacity-limited storage for workspaces.
 - For Kubernetes, use `secretKeyRef`/`envFrom` or an external-secret operator; do not commit a plaintext or merely
   base64-encoded Secret manifest.
 - Remember that privileged container administrators can inspect process environments; enforce platform access
@@ -284,7 +290,10 @@ The LangChain4j client uses the same Spring Boot properties. Provide valid API k
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `AUDITAGENT_DB_PATH` | `audit_reports.duckdb` | DuckDB file. |
+| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5432/auditagent` | PostgreSQL connection URL. |
+| `SPRING_DATASOURCE_USERNAME` | `postgres` | PostgreSQL username. |
+| `SPRING_DATASOURCE_PASSWORD` | | PostgreSQL password. |
+| `AUDITAGENT_DB_PATH` | `audit_reports.duckdb` | DuckDB FTS file. |
 | `AUDITAGENT_WORKSPACE_ROOT` | OS temp `/auditagent-workspaces` | Managed isolated clones. |
 
 Place the DB on durable storage. Place workspaces on disposable, capacity-limited storage. Do not point the workspace root at the repository, user home, filesystem root, or shared source tree.
@@ -508,11 +517,12 @@ Actuator is present, but database health is disabled in configuration. Add deplo
 
 Back up:
 
+- PostgreSQL database backup;
 - DuckDB file;
 - `AUDITAGENT_TOKEN_ENCRYPTION_KEY` in a separate secret manager;
 - GitHub App private key and configuration.
 
-The DB and encryption key must be recoverable together to refresh user authorizations. Managed workspaces are temporary; interrupted unpublished runs may require the matching workspace, so avoid deleting the root while runs are recoverable.
+The PostgreSQL database and encryption key must be recoverable together to refresh user authorizations. Managed workspaces are temporary; interrupted unpublished runs may require the matching workspace, so avoid deleting the root while runs are recoverable.
 
 ### Workspace cleanup
 

@@ -15,6 +15,7 @@ import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Base64;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -76,10 +77,19 @@ public class GitHubAuthService {
     }
 
     public Optional<AuthenticatedUser> authenticate(ServerWebExchange exchange) {
-        HttpCookie cookie = exchange.getRequest().getCookies().getFirst(SESSION_COOKIE);
-        if (cookie == null || cookie.getValue().isBlank())
+        List<HttpCookie> cookies = exchange.getRequest().getCookies()
+                .get(SESSION_COOKIE);
+        if (cookies == null || cookies.isEmpty())
             return Optional.empty();
-        return database.findAuthenticatedUser(sha256(cookie.getValue()));
+        for (HttpCookie cookie : cookies) {
+            if (cookie.getValue().isBlank())
+                continue;
+            Optional<AuthenticatedUser> user = database.findAuthenticatedUser(sha256(cookie.getValue()));
+            if (user.isPresent()) {
+                return user;
+            }
+        }
+        return Optional.empty();
     }
 
     public AuthenticatedUser requireUser(ServerWebExchange exchange) {

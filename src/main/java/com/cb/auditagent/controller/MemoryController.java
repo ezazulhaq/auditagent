@@ -90,16 +90,38 @@ public class MemoryController {
     private Map<String, Object> threadResponse(String threadId, AuthenticatedUser user) {
         requireOwner(threadId, user);
         Map<String, Object> response = new LinkedHashMap<>();
-        var activeRun = database.findRecoverableRun(threadId);
-        activeRun.filter(run -> run.status() == com.cb.auditagent.domain.AgentRunStatus.PR_OPEN)
-                .ifPresent(run -> pullRequestLifecycle.reconcilePullRequest(user, run.runId()));
-        activeRun = database.findRecoverableRun(threadId);
+        var activeRuns = database.findRecoverableRuns(threadId);
+        for (var run : activeRuns) {
+            if (run.status() == com.cb.auditagent.domain.AgentRunStatus.PR_OPEN) {
+                pullRequestLifecycle.reconcilePullRequest(user, run.runId());
+            }
+        }
+        activeRuns = database.findRecoverableRuns(threadId);
+        var activeRun = activeRuns.isEmpty() ? java.util.Optional.<com.cb.auditagent.domain.AgentRunRecord>empty()
+                : java.util.Optional.of(activeRuns.get(0));
+
         response.put("threadId", threadId);
         response.put("messages", database.getMemoryMessages(threadId));
+        // Keep backward compatibility for single run
         response.put("activeRun", activeRun.orElse(null));
         response.put("publication", activeRun.flatMap(run -> database.getRunPublication(run.runId())).orElse(null));
         response.put("activeFinding",
                 activeRun.flatMap(run -> database.getVulnerabilityById(run.vulnerabilityId())).orElse(null));
+
+        // Add multiple runs
+        response.put("activeRuns", activeRuns);
+
+        // Fetch publications and findings for all active runs
+        Map<String, Object> publications = new java.util.HashMap<>();
+        Map<String, Object> activeFindings = new java.util.HashMap<>();
+        for (var run : activeRuns) {
+            database.getRunPublication(run.runId()).ifPresent(pub -> publications.put(run.runId(), pub));
+            database.getVulnerabilityById(run.vulnerabilityId())
+                    .ifPresent(vuln -> activeFindings.put(run.runId(), vuln));
+        }
+        response.put("publications", publications);
+        response.put("activeFindings", activeFindings);
+
         response.put("ftsAvailable", database.isFtsAvailable());
         return response;
     }

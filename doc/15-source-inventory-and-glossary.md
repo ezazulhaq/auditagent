@@ -85,7 +85,7 @@
 | File | Purpose |
 |---|---|
 | `AuditWorkflowGraph.java` | Unified end-to-end graph orchestrating scan, chat, remediation, and publication. |
-| `DuckDbCheckpointSaver.java` | Native LangGraph4j state persistence to DuckDB. |
+| `DuckDbCheckpointSaver.java` | Native LangGraph4j state persistence (now using PostgreSQL despite the name). |
 | `MultiAgentRemediationGraph.java` | 15-stage Star Topology orchestration graph with a supervisor. |
 | `RemediationGraph.java` | Inner LangGraph4j state machine for agent execution. |
 | `RemediationState.java` | State definition for the remediation loop. |
@@ -103,7 +103,7 @@
 |---|---|
 | `AgentToolService.java` | Secure model tools and managed processes; Docker sandbox wrapping. |
 | `ConversationMemoryService.java` | Durable LangChain message history, context summarization, and aggressive tool output truncation. |
-| `DatabaseService.java` | Complete DuckDB persistence/migration/retrieval boundary and global pattern accumulation (`saveGlobalPatternTx`). |
+| `DatabaseService.java` | Complete PostgreSQL persistence/migration/retrieval boundary and global pattern accumulation (`saveGlobalPatternTx`). |
 | `FilePatchService.java` | Backup, rollback, diff, and legacy patch helper. |
 | `FindingFingerprint.java` | Stable normalized SHA-256 finding identity. |
 | `GitHubApiClient.java` | OAuth/App/installation/repository/PR HTTP APIs and PR diff retrieval (`getPullRequestDiff`). |

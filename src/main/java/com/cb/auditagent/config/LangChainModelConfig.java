@@ -3,6 +3,10 @@ package com.cb.auditagent.config;
 import dev.langchain4j.http.client.okhttp.OkHttpClientBuilder;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
+
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,40 +23,50 @@ import okhttp3.OkHttpClient.Builder;
 @Configuration
 public class LangChainModelConfig {
 
-        private static final Logger logger = LoggerFactory.getLogger(LangChainModelConfig.class);
+    private static final Logger logger = LoggerFactory.getLogger(LangChainModelConfig.class);
 
-        @Value("${auditagent.llm.openai.base-url:https://openrouter.ai/api/v1}")
-        private String baseUrl;
+    @Value("${auditagent.llm.openai.base-url:https://openrouter.ai/api/v1}")
+    private String baseUrl;
 
-        @Value("${auditagent.llm.openai.api-key:}")
-        private String apiKey;
+    @Value("${auditagent.llm.openai.api-key:}")
+    private String apiKey;
 
-        @Value("${auditagent.llm.openai.model-name:anthropic/claude-3.5-sonnet}")
-        private String modelName;
+    @Value("${auditagent.llm.openai.model-name:anthropic/claude-3.5-sonnet}")
+    private String modelName;
 
-        @Value("${auditagent.agent.llm-temperature:0.2}")
-        private double temperature;
+    @Value("${auditagent.agent.llm-temperature:0.2}")
+    private double temperature;
 
-        @Value("${auditagent.agent.llm-max-output-tokens:4096}")
-        private int maxOutputTokens;
+    @Value("${auditagent.agent.llm-max-output-tokens:4096}")
+    private int maxOutputTokens;
 
-        @Bean
-        public ChatModel openAiLangChainModel() {
-                logger.info("Initializing LangChain4j ChatModel with model={} url={} temperature={} maxTokens={}",
-                                modelName, baseUrl, temperature, maxOutputTokens);
+    @Value("${auditagent.agent.llm-call-timeout-seconds:300}")
+    private long timeoutSeconds;
 
-                Builder okBuilder = new Builder()
-                                .addInterceptor(new GeminiThoughtSignatureInterceptor());
-                OkHttpClientBuilder httpClientBuilder = new OkHttpClientBuilder()
-                                .okHttpClientBuilder(okBuilder);
+    @Bean
+    public ChatModel openAiLangChainModel() {
+        logger.info(
+                "Initializing LangChain4j ChatModel with model={} url={} temperature={} maxTokens={} timeoutSeconds={}",
+                modelName, baseUrl, temperature, maxOutputTokens, timeoutSeconds);
 
-                return OpenAiChatModel.builder()
-                                .baseUrl(baseUrl)
-                                .apiKey(apiKey)
-                                .modelName(modelName)
-                                .temperature(temperature)
-                                .maxTokens(maxOutputTokens)
-                                .httpClientBuilder(httpClientBuilder)
-                                .build();
-        }
+        Builder okBuilder = new Builder()
+                .addInterceptor(new GeminiThoughtSignatureInterceptor())
+                .readTimeout(timeoutSeconds, TimeUnit.SECONDS)
+                .connectTimeout(timeoutSeconds, TimeUnit.SECONDS)
+                .writeTimeout(timeoutSeconds, TimeUnit.SECONDS)
+                .callTimeout(timeoutSeconds, TimeUnit.SECONDS);
+        OkHttpClientBuilder httpClientBuilder = new OkHttpClientBuilder()
+                .okHttpClientBuilder(okBuilder);
+
+        return OpenAiChatModel.builder()
+                .baseUrl(baseUrl)
+                .apiKey(apiKey)
+                .modelName(modelName)
+                .temperature(temperature)
+                .maxTokens(maxOutputTokens)
+                .timeout(Duration.ofSeconds(timeoutSeconds))
+                .maxRetries(0)
+                .httpClientBuilder(httpClientBuilder)
+                .build();
+    }
 }

@@ -82,6 +82,7 @@ public class RemediationWorkflowService {
                         .orElseThrow(() -> new IllegalStateException("Run a scan for this repository branch first"));
 
                 String workflowId = threadId + "-" + vulnerabilityId;
+                database.deleteGraphCheckpoints(workflowId);
                 java.util.Map<String, Object> state = new java.util.HashMap<>();
                 state.put("authenticatedUser", user);
                 state.put("threadId", threadId);

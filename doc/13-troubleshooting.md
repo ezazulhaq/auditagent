@@ -220,7 +220,7 @@ This is expected. `FIXED` requires merge; closed-unmerged returns to `DETECTED`.
 
 ## FTS unavailable
 
-**Cause:** DuckDB extension install/load/rebuild failed, often due network or binary compatibility.
+**Cause:** DuckDB extension install (for FTS)/load/rebuild failed, often due network or binary compatibility.
 
 **Behavior:** structured metadata retrieval remains active; `ftsAvailable` is false.
 
@@ -228,7 +228,7 @@ This is expected. `FIXED` requires merge; closed-unmerged returns to `DETECTED`.
 
 **Remedy:** enable extension support and rebuild. Do not block scanning/remediation solely for FTS.
 
-## DuckDB is locked or initialization failed
+## PostgreSQL connection failed or initialization failed
 
 **Cause:** multiple writers/processes, invalid path/permission, corrupted file, version issue.
 

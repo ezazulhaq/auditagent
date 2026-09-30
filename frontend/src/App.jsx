@@ -73,7 +73,7 @@ export default function App({ api = auditApi }) {
     if (!silent) setActiveTab('report');
   }, [replaceResult]);
   const remediation = useRemediationController({ api, toast, onMessage: addMessage, onReport: handleRemediationReport, onFindings: handleFindings, repositoryId: config.repositoryId, branch: config.branch });
-  const { activeRun, analyze, approvalPreview, awaitingApproval, decide, discard, hydrate, isAnalyzing,
+  const { activeRun, runs, analyze, approvalPreview, awaitingApproval, decide, discard, hydrate, isAnalyzing,
     isPublishing, loadApprovalPreview, publication, resetForScan, resume, retryPublish,
     selectedFinding, setSelectedFinding, graphSteps } = remediation;
 
@@ -108,13 +108,16 @@ export default function App({ api = auditApi }) {
       if (error.name !== 'AbortError') toast.error(`Memory restore failed: ${error.message}`);
     });
     api.getReport(config.repositoryId, config.branch, controller.signal).then(replaceResult).catch(error => {
-      if (error.name !== 'AbortError' && !error.message.includes('404')) toast.error(`Report restore failed: ${error.message}`);
+      if (error.name === 'AbortError') return;
+      if (!error.message.includes('404')) {
+        toast.error(`Report restore failed: ${error.message}`);
+      }
     });
     api.getReportHistory(config.repositoryId, config.branch, controller.signal).then(setScanHistory).catch(error => {
       if (error.name !== 'AbortError') console.error(`Scan history restore failed: ${error.message}`);
     });
     return () => controller.abort();
-  }, [api, authSession?.authenticated, config.branch, config.repositoryId, replaceResult, restoreThread, toast]);
+  }, [api, authSession?.authenticated, config, replaceResult, resetForScan, restoreThread, runScan, toast]);
 
   const refreshReport = useCallback(() => {
     if (config.repositoryId && config.branch && remediation.refreshReport) {
@@ -206,17 +209,6 @@ export default function App({ api = auditApi }) {
   const counts = useMemo(() => severityCounts(findings), [findings]);
   const selectedRepository = repositories.find(item => String(item.repositoryId) === String(config.repositoryId));
 
-  const activeRunFinding = activeRun ? findings.find(f => f.id === activeRun.vulnerabilityId) : null;
-  const activeFilePath = activeRunFinding?.filePath;
-  const isActiveGroupFinding = (finding) => finding && activeFilePath && finding.filePath === activeFilePath && finding.status !== 'FIXED' && finding.status !== 'IGNORED';
-
-  const isSelectedInActiveGroup = isActiveGroupFinding(selectedFinding);
-
-  const approvalForDrawer = isSelectedInActiveGroup ? approvalPreview : null;
-  const awaitingForDrawer = awaitingApproval && isSelectedInActiveGroup;
-  const activeRunForDrawer = isSelectedInActiveGroup ? activeRun : null;
-  const publicationForDrawer = isSelectedInActiveGroup ? publication : null;
-  const graphStepsForDrawer = isSelectedInActiveGroup ? graphSteps : [];
 
   const handleBulkAction = useCallback((action, selectedIds) => {
     chat.setIsOpen(true);
@@ -270,7 +262,7 @@ export default function App({ api = auditApi }) {
         <WorkspaceTabs activeTab={activeTab} onChange={setActiveTab} findingCount={findings.length} />
         <div className="min-h-0 flex-1 overflow-auto scroll-smooth">
           {activeTab === 'dashboard' && <DashboardView metadata={metadata} findings={findings} counts={counts} scanHistory={scanHistory} repositoryLabel={result?.repository || selectedRepository?.fullName || ''} onSelect={setSelectedFinding} onShowFindings={(title, modalFindings) => setActiveModal({ title, findings: modalFindings })} />}
-          {activeTab === 'findings' && <FindingsView findings={findings} activeRun={activeRun} onSelect={setSelectedFinding} onBulkAction={handleBulkAction} onRefresh={refreshReport} />}
+          {activeTab === 'findings' && <FindingsView findings={findings} runs={runs} onSelect={setSelectedFinding} onBulkAction={handleBulkAction} onRefresh={refreshReport} />}
           {activeTab === 'report' && <ReportView key={`${config.repositoryId}:${config.branch}`} api={api} repositoryId={config.repositoryId} branch={config.branch}
             reportAvailable={result?.reportAvailable ?? Boolean(result?.htmlReport)} projectName={metadata?.projectName || selectedRepository?.name} />}
         </div>
@@ -278,15 +270,15 @@ export default function App({ api = auditApi }) {
     </div>
     {isViewingDocs && <DocsView api={api} theme={theme} onClose={() => setIsViewingDocs(false)} />}
     <FindingDrawer finding={selectedFinding} isAnalyzing={isAnalyzing} isPublishing={isPublishing}
-      awaitingApproval={awaitingForDrawer} approvalPreview={approvalForDrawer} publication={publicationForDrawer}
-      activeRun={activeRunForDrawer} graphSteps={graphStepsForDrawer} onClose={() => setSelectedFinding(null)} onAnalyze={() => analyzeFinding(selectedFinding)}
+      awaitingApproval={awaitingApproval} approvalPreview={approvalPreview} publication={publication}
+      activeRun={activeRun} graphSteps={graphSteps} onClose={() => setSelectedFinding(null)} onAnalyze={() => analyzeFinding(selectedFinding)}
       onLoadPreview={loadApprovalPreview} onDecision={submitDecision} onRetryPublish={retry} theme={theme} />
     <ChatWidget chat={chat} onSubmit={submitChat} onCancel={cancelStream} activeRun={activeRun} publication={publication}
       onResume={() => publication?.approvedAt ? retry() : resume(threadId)} onDiscard={discard} onRetryPublish={retry}
       onForgetConversation={forgetConversation} onForgetRepository={forgetRepository} />
     {isViewingTokenUsage && <TokenUsageLayout api={api} theme={theme} onClose={() => setIsViewingTokenUsage(false)} />}
     <Modal isOpen={activeModal !== null} onClose={() => setActiveModal(null)} title={activeModal?.title || 'Findings'}>
-      {activeModal && <FindingsView findings={activeModal.findings} activeRun={activeRun} onSelect={(finding) => { setActiveModal(null); setSelectedFinding(finding); }} onBulkAction={(action, ids) => { setActiveModal(null); handleBulkAction(action, ids); }} onRefresh={refreshReport} />}
+      {activeModal && <FindingsView findings={activeModal.findings} runs={runs} onSelect={(finding) => { setActiveModal(null); setSelectedFinding(finding); }} onBulkAction={(action, ids) => { setActiveModal(null); handleBulkAction(action, ids); }} onRefresh={refreshReport} />}
     </Modal>
     <ConfirmDialog
       isOpen={confirmAction !== null}

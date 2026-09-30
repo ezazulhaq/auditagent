@@ -3,7 +3,6 @@ package com.cb.auditagent.service;
 import org.junit.jupiter.api.Test;
 
 import com.cb.auditagent.config.GitHubAppConfig;
-import com.cb.auditagent.service.TokenCipher;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;

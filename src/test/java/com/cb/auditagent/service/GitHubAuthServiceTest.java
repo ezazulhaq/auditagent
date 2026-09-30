@@ -5,10 +5,6 @@ import org.mockito.ArgumentCaptor;
 
 import com.cb.auditagent.config.GitHubAppConfig;
 import com.cb.auditagent.domain.GitHubAuthorization;
-import com.cb.auditagent.service.DatabaseService;
-import com.cb.auditagent.service.GitHubApiClient;
-import com.cb.auditagent.service.GitHubAuthService;
-import com.cb.auditagent.service.TokenCipher;
 
 import java.net.URI;
 import java.net.URLDecoder;

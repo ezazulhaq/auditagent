@@ -2,7 +2,7 @@
 
 ## Application entry and framework
 
-`AuditagentApplication` starts Spring Boot. The backend uses Java 21, Spring Boot 4.0.6, WebFlux, validation, Actuator, Spring AI 2.0.0-RC1, LangChain4j 1.0.0-beta4, DuckDB JDBC 1.1.3, JGit 7.6, and aligned AWS SDK modules.
+`AuditagentApplication` starts Spring Boot. The backend uses Java 21, Spring Boot 4.0.6, WebFlux, validation, Actuator, Spring AI 2.0.0-RC1, LangChain4j 1.0.0-beta4, PostgreSQL JDBC driver, JGit 7.6, and aligned AWS SDK modules.
 
 ## Controllers
 
@@ -24,7 +24,7 @@
 - `/analyze`: requires repository ID and branch and starts managed remediation.
 - `/reports`: restores the latest repository/branch report.
 - `/skills`: lists dynamically discovered local skills.
-- `/chat`: requires thread ownership and repository access, then loads findings from DuckDB.
+- `/chat`: requires thread ownership and repository access, then loads findings from PostgreSQL.
 
 ### `MemoryController`
 
@@ -166,7 +166,7 @@ Owns schema migration, report and vulnerability upserts, memory, runs, evidence,
 ### Observability
 
 `AopLoggingConfig` applies a CGLIB method interceptor to services and controllers. It logs method identity, argument count, return type, and exception class—not argument values.
-Also includes token usage tracking, persisting `token_usage` metrics via DuckDB and tracking operations through Micrometer counters (`ai.tokens.consumed`, `findings.resolved`).
+Also includes token usage tracking, persisting `token_usage` metrics via PostgreSQL and tracking operations through Micrometer counters (`ai.tokens.consumed`, `findings.resolved`).
 
 ## Graph orchestration (LangGraph4j)
 
@@ -176,7 +176,7 @@ The backend now uses `langgraph4j` to orchestrate agents and workflows:
 - `GitHubWebhookController`: Handles asynchronous `pull_request` webhook payloads, identifying merges and instantly updating the grouped vulnerability findings.
 - `MultiAgentRemediationGraph`: A 3-agent orchestration graph (Triage, Patch, Verification) with retry edges, subsuming the single-agent `RemediationGraph`.
 - `AuditWorkflowGraph`: Unified end-to-end graph orchestrating scan, chat, remediation, and publication workflows into a single timeline.
-- `DuckDbCheckpointSaver`: Connects LangGraph4j's state-saving mechanisms natively to DuckDB, enabling durable suspend/resume operations.
+- `DatabaseCheckpointSaver (formerly DuckDbCheckpointSaver)`: Connects LangGraph4j's state-saving mechanisms natively to PostgreSQL, enabling durable suspend/resume operations.
 - `WorkflowState`, `RemediationState`, & `MultiAgentState`: Custom state objects to hold parameters during graph execution and multi-agent handoffs.
 
 ## Domain states
