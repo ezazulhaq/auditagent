@@ -200,6 +200,26 @@ export default function App({ api = auditApi }) {
       }
     });
   }, [api, config.branch, config.repositoryId, toast]);
+
+  const clearScanHistory = useCallback(async () => {
+    if (!config.repositoryId || !config.branch) return;
+    setConfirmAction({
+      title: 'Clear scan history',
+      message: 'Permanently delete all scan reports, findings, and history for this repository branch?',
+      confirmText: 'Clear History',
+      style: 'danger',
+      action: async () => {
+        try {
+          await api.clearScanHistory(config.repositoryId, config.branch);
+          toast.success('Scan history cleared successfully.');
+          scan.replaceResult(null);
+          setScanHistory([]);
+        } catch (error) {
+          toast.error(`Failed to clear scan history: ${error.message}`);
+        }
+      }
+    });
+  }, [api, config.branch, config.repositoryId, toast, scan]);
   const logout = useCallback(async () => {
     try { await api.logout(); } finally { setAuthSession(previous => ({ ...previous, authenticated: false, user: null })); }
   }, [api]);
@@ -261,7 +281,7 @@ export default function App({ api = auditApi }) {
       <main className="workspace-surface min-w-0 flex-1 lg:flex lg:min-h-0 lg:flex-col">
         <WorkspaceTabs activeTab={activeTab} onChange={setActiveTab} findingCount={findings.length} />
         <div className="min-h-0 flex-1 overflow-auto scroll-smooth">
-          {activeTab === 'dashboard' && <DashboardView metadata={metadata} findings={findings} counts={counts} scanHistory={scanHistory} repositoryLabel={result?.repository || selectedRepository?.fullName || ''} onSelect={setSelectedFinding} onShowFindings={(title, modalFindings) => setActiveModal({ title, findings: modalFindings })} />}
+          {activeTab === 'dashboard' && <DashboardView metadata={metadata} findings={findings} counts={counts} scanHistory={scanHistory} repositoryLabel={result?.repository || selectedRepository?.fullName || ''} onSelect={setSelectedFinding} onShowFindings={(title, modalFindings) => setActiveModal({ title, findings: modalFindings })} onClearHistory={clearScanHistory} />}
           {activeTab === 'findings' && <FindingsView findings={findings} runs={runs} onSelect={setSelectedFinding} onBulkAction={handleBulkAction} onRefresh={refreshReport} />}
           {activeTab === 'report' && <ReportView key={`${config.repositoryId}:${config.branch}`} api={api} repositoryId={config.repositoryId} branch={config.branch}
             reportAvailable={result?.reportAvailable ?? Boolean(result?.htmlReport)} projectName={metadata?.projectName || selectedRepository?.name} />}

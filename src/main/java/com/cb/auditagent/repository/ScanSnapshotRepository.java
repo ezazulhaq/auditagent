@@ -6,4 +6,6 @@ import java.util.Optional;
 
 public interface ScanSnapshotRepository extends JpaRepository<ScanSnapshot, String> {
     Optional<ScanSnapshot> findFirstByRepositoryIdAndBranchOrderByCreatedAtDesc(Long repositoryId, String branch);
+
+    void deleteByRepositoryIdAndBranch(Long repositoryId, String branch);
 }

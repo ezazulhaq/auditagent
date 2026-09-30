@@ -70,6 +70,8 @@ The dashboard shows:
 - lines analyzed;
 - repository label;
 - a severity-distribution chart;
+- scan history trends (if multiple scans exist);
+- an option to permanently clear scan history for the current repository branch.
 - an action-oriented risk-posture summary.
 
 ### Findings

@@ -186,6 +186,10 @@ Returns the latest report payload with type `report`.
 
 Returns a JSON array of `ScanHistoryRecord` objects representing past scans for the given repository and branch, ordered by creation time ascending.
 
+### `DELETE /api/reports/history?repositoryId=42&branch=main`
+
+Permanently deletes all scan history, reports, snapshots, stats, and vulnerabilities for the specified repository and branch. Returns an empty `200 OK` on success.
+
 ### `GET /api/reports/export?repositoryId=42&branch=main&format=pdf`
 
 Returns the latest report artifact after revalidating the authenticated user's current read access to the repository. `format` accepts `pdf`, `markdown`, or the `md` alias.

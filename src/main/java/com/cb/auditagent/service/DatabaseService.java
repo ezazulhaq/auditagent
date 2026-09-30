@@ -360,6 +360,15 @@ public class DatabaseService {
                 .stream().map(this::mapToScanHistoryRecord).collect(Collectors.toList());
     }
 
+    @Transactional
+    public void deleteScanHistory(long repositoryId, String branch) {
+        String repoPath = "github:" + repositoryId + ":" + branch;
+        scanHistoryStatsRepository.deleteByRepositoryIdAndBranch(repositoryId, branch);
+        scanSnapshotRepository.deleteByRepositoryIdAndBranch(repositoryId, branch);
+        reportRepository.deleteById(repoPath);
+        vulnerabilityEntityRepository.deleteByRepoPath(repoPath);
+    }
+
     public Optional<Report> getReport(String repoPath) {
         return reportRepository.findById(repoPath).map(this::mapToReport);
     }

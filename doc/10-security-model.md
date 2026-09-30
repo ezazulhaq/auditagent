@@ -36,6 +36,7 @@ AuditAgent must:
 - Publication revalidates user push and App write permissions.
 - Run ID and vulnerability ID must match.
 - Base branch and file state must remain unchanged.
+- Deleting scan history revalidates current user repository read access before bulk removal.
 
 ## Secret handling
 

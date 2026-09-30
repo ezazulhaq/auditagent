@@ -6,4 +6,6 @@ import java.util.List;
 
 public interface ScanHistoryStatsRepository extends JpaRepository<ScanHistoryStats, String> {
     List<ScanHistoryStats> findTop50ByRepositoryIdAndBranchOrderByCreatedAtDesc(Long repositoryId, String branch);
+
+    void deleteByRepositoryIdAndBranch(Long repositoryId, String branch);
 }
