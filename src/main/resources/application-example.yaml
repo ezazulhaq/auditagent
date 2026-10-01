@@ -37,6 +37,7 @@ auditagent:
       base-url: ${OPENAI_BASE_URL:https://openrouter.ai/api/v1}
       api-key: ${OPENAI_API_KEY:}
       model-name: ${OPENAI_MODEL_NAME:anthropic/claude-3.5-sonnet}
+      supervisor-model-name: ${SUPERVISOR_MODEL_NAME:typesafe/jev-router}
   database:
     path: ${AUDITAGENT_DB_PATH:audit_reports.duckdb}
   scanner:

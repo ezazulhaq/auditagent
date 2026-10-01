@@ -335,6 +335,7 @@ Semgrep also requires a short, writable JVM OS-temp root (`java.io.tmpdir`), esp
 | `auditagent.llm.openai.base-url` | empty | API Base URL for OpenAI-compatible endpoints. |
 | `auditagent.llm.openai.api-key` | empty | API key for the OpenAI-compatible endpoint. |
 | `auditagent.llm.openai.model-name` | empty | Model name (e.g. `anthropic/claude-3.5-sonnet`). |
+| `auditagent.llm.openai.supervisor-model-name` | `typesafe/jev-router` | System 1 model used exclusively for Supervisor routing (e.g. TypeSafe JEV). |
 | `compile-timeout-seconds` | 120 | Build and target-rescan process timeout. |
 | `test-timeout-seconds` | 180 | Test timeout. |
 | `backup-dir` | `.auditagent/backups` | Workspace-relative backups. |

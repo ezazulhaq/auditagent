@@ -1,12 +1,19 @@
 package com.cb.auditagent.graph.node;
 
 import org.springframework.context.annotation.Lazy;
+import org.springframework.beans.factory.annotation.Qualifier;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.response.ChatResponse;
+import dev.langchain4j.model.chat.request.ResponseFormat;
+import dev.langchain4j.model.chat.request.ResponseFormatType;
+import dev.langchain4j.model.chat.request.json.JsonSchema;
+import dev.langchain4j.model.chat.request.json.JsonObjectSchema;
 import org.bsc.langgraph4j.action.NodeAction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,16 +38,19 @@ public class SupervisorNode implements NodeAction<MultiAgentState> {
     private final ConversationMemoryService memoryService;
     private final AgentConfig config;
     private final LlmService llmService;
+    private final ObjectMapper objectMapper;
 
     public SupervisorNode(
-            ChatModel chatModel,
+            @Qualifier("supervisorChatModel") ChatModel chatModel,
             ConversationMemoryService memoryService,
             AgentConfig config,
-            @Lazy LlmService llmService) {
+            @Lazy LlmService llmService,
+            ObjectMapper objectMapper) {
         this.chatModel = chatModel;
         this.memoryService = memoryService;
         this.config = config;
         this.llmService = llmService;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -95,7 +105,7 @@ public class SupervisorNode implements NodeAction<MultiAgentState> {
         promptBuilder.append("1. Follow the REMEDIATION PLAN order when deciding the next agent.\n");
         promptBuilder.append(
                 "2. Reply ONLY with the exact name of the next agent (e.g. 'DISCOVERY', 'SECURITY', 'COMPLETE', or 'FAIL').\n");
-        promptBuilder.append("3. Do not include any other text, reasoning, or markdown.\n");
+        promptBuilder.append("3. You MUST respond with a JSON object containing a single key `next_agent` with the exact name of the next agent.\n");
         promptBuilder.append("4. Do NOT route to PLANNING again; it has already run.\n");
 
         SystemMessage systemMessage = new SystemMessage(promptBuilder.toString());
@@ -111,6 +121,16 @@ public class SupervisorNode implements NodeAction<MultiAgentState> {
 
         ChatRequest request = ChatRequest.builder()
                 .messages(systemMessage, userMessage)
+                .responseFormat(ResponseFormat.builder()
+                        .type(ResponseFormatType.JSON)
+                        .jsonSchema(JsonSchema.builder()
+                                .name("SupervisorChoice")
+                                .rootElement(JsonObjectSchema.builder()
+                                        .addStringProperty("next_agent", "The exact name of the next agent (e.g. 'DISCOVERY', 'SECURITY', 'COMPLETE', or 'FAIL')")
+                                        .required("next_agent")
+                                        .build())
+                                .build())
+                        .build())
                 .build();
 
         ChatResponse response = chatModel.chat(request);
@@ -122,19 +142,30 @@ public class SupervisorNode implements NodeAction<MultiAgentState> {
         }
 
         String aiText = response.aiMessage().text().trim();
+        
+        String aiNextAgent = "FAIL";
+        try {
+            JsonNode jsonNode = objectMapper.readTree(aiText);
+            if (jsonNode.has("next_agent")) {
+                aiNextAgent = jsonNode.get("next_agent").asText().trim();
+            }
+        } catch (Exception e) {
+            logger.warn("Supervisor failed to parse JSON output: {}. Defaulting to FAIL", aiText);
+        }
 
         // Clean up AI response just in case
         String nextAgent = "FAIL";
+        final String targetAgent = aiNextAgent;
         boolean matched = Arrays.stream(AgentStage.values())
                 .filter(s -> s != AgentStage.PLANNING) // Don't allow routing back to PLANNING
-                .anyMatch(s -> s.name().equals(aiText))
-                || "COMPLETE".equals(aiText)
-                || "FAIL".equals(aiText);
+                .anyMatch(s -> s.name().equals(targetAgent))
+                || "COMPLETE".equals(targetAgent)
+                || "FAIL".equals(targetAgent);
 
         if (matched) {
-            nextAgent = aiText;
+            nextAgent = targetAgent;
         } else {
-            logger.warn("Supervisor returned invalid agent: {}. Defaulting to FAIL", aiText);
+            logger.warn("Supervisor returned invalid agent: {}. Defaulting to FAIL", targetAgent);
         }
 
         memoryService.addUserMessage(threadId, runId, "Supervisor decided to route to: " + nextAgent);

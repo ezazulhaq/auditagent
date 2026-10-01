@@ -142,7 +142,7 @@ Stores LLM token consumption metrics per request, joined with finding and reposi
 * `vulnerability_id` (VARCHAR, nullable): The finding ID if the usage occurred during remediation.
 * `thread_id` (VARCHAR): The originating conversation. Tracks both UI streaming chat tokens and agentic loops.
 * `run_id` (VARCHAR, nullable): The agent run ID.
-* `model_name` (VARCHAR): Dynamically resolved identifier for the underlying model/provider, populated from `auditagent.llm.openai.model-name` configuration instead of a framework literal.
+* `model_name` (VARCHAR): Dynamically resolved identifier for the underlying model/provider, populated from `auditagent.llm.openai.model-name` or `auditagent.llm.openai.supervisor-model-name` configurations instead of a framework literal.
 * `tokens` (INTEGER): Total tokens consumed (prompt + completion). Tracks standard calls and Flux-streamed chat responses.
 * `created_at` (TIMESTAMP): Insertion time.
 

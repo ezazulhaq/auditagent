@@ -43,7 +43,11 @@ public class LangChainModelConfig {
     @Value("${auditagent.agent.llm-call-timeout-seconds:300}")
     private long timeoutSeconds;
 
+    @Value("${auditagent.llm.openai.supervisor-model-name:typesafe/jev-router}")
+    private String supervisorModelName;
+
     @Bean
+    @org.springframework.context.annotation.Primary
     public ChatModel openAiLangChainModel() {
         logger.info(
                 "Initializing LangChain4j ChatModel with model={} url={} temperature={} maxTokens={} timeoutSeconds={}",
@@ -64,6 +68,32 @@ public class LangChainModelConfig {
                 .modelName(modelName)
                 .temperature(temperature)
                 .maxTokens(maxOutputTokens)
+                .timeout(Duration.ofSeconds(timeoutSeconds))
+                .maxRetries(0)
+                .httpClientBuilder(httpClientBuilder)
+                .build();
+    }
+
+    @Bean
+    public ChatModel supervisorChatModel() {
+        logger.info(
+                "Initializing Supervisor ChatModel with model={} url={} timeoutSeconds={}",
+                supervisorModelName, baseUrl, timeoutSeconds);
+
+        Builder okBuilder = new Builder()
+                .readTimeout(timeoutSeconds, TimeUnit.SECONDS)
+                .connectTimeout(timeoutSeconds, TimeUnit.SECONDS)
+                .writeTimeout(timeoutSeconds, TimeUnit.SECONDS)
+                .callTimeout(timeoutSeconds, TimeUnit.SECONDS);
+        OkHttpClientBuilder httpClientBuilder = new OkHttpClientBuilder()
+                .okHttpClientBuilder(okBuilder);
+
+        return OpenAiChatModel.builder()
+                .baseUrl(baseUrl)
+                .apiKey(apiKey)
+                .modelName(supervisorModelName)
+                .temperature(0.0) // System 1 model doesn't need high temperature
+                .maxTokens(100)
                 .timeout(Duration.ofSeconds(timeoutSeconds))
                 .maxRetries(0)
                 .httpClientBuilder(httpClientBuilder)

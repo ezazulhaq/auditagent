@@ -104,7 +104,7 @@ This catalog connects each feature to its user/business outcome and main impleme
 | Feature | Behavior | Implementation |
 |---|---|---|
 | State graph engine | Replaces `while` loops with a node-based state machine for agent execution. | `RemediationGraph` |
-| Multi-agent architecture | 16-stage Star Topology orchestrating specialized code review sub-agents via a Supervisor LLM. Mandatory PLANNING stage generates a remediation plan before execution begins. | `MultiAgentRemediationGraph`, `SupervisorNode`, `WorkerAgentGraphFactory` |
+| Multi-agent architecture | 16-stage Star Topology orchestrating specialized code review sub-agents via a Supervisor LLM (configured to use a fast, typed System 1 model like JEV). Mandatory PLANNING stage generates a remediation plan before execution begins. | `MultiAgentRemediationGraph`, `SupervisorNode`, `WorkerAgentGraphFactory` |
 | Context summarization | When conversation turns are dropped due to context budget limits, an LLM-based summary preserves key context instead of silently discarding it. Tool outputs are aggressively truncated before persistence. | `ConversationMemoryService`, `MemoryConfig.summarizationEnabled` |
 | Docker sandbox | Optionally wraps agent shell commands (compile, test, lint) inside an isolated Docker container with no network access, read-only root filesystem, and configurable resource limits. | `AgentToolService.buildDockerCommand()`, `AgentConfig.sandboxEnabled` |
 | PostgreSQL checkpoints | Graph state is persisted to PostgreSQL after every step for durability and recovery. | `DatabaseCheckpointSaver (formerly DuckDbCheckpointSaver)` |

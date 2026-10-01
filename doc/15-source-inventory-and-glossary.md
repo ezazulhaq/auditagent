@@ -25,7 +25,7 @@
 | `CorsConfig.java` | Exact frontend-origin credentialed CORS. |
 | `GitHubAppConfig.java` | GitHub endpoints, secrets, cookies, workspace settings. |
 | `Jackson2Config.java` | Jackson compatibility bean. |
-| `LangChainModelConfig.java` | Tool-calling OpenAI model. |
+| `LangChainModelConfig.java` | Tool-calling OpenAI agent model and Supervisor System 1 model beans. |
 | `MemoryConfig.java` | Retention, context, retrieval, content limits, and context summarization settings. |
 | `ScannerConfig.java` | Validated Semgrep timeout and heartbeat settings. |
 
