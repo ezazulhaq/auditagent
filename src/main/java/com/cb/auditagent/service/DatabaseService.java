@@ -367,6 +367,7 @@ public class DatabaseService {
         scanSnapshotRepository.deleteByRepositoryIdAndBranch(repositoryId, branch);
         reportRepository.deleteById(repoPath);
         vulnerabilityEntityRepository.deleteByRepoPath(repoPath);
+        agentRunRepository.deleteByRepoPath(repoPath);
     }
 
     public Optional<Report> getReport(String repoPath) {

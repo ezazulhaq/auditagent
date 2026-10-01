@@ -26,6 +26,10 @@ public interface AgentRunRepository extends JpaRepository<AgentRun, String> {
     void deleteByThreadId(@Param("threadId") String threadId);
 
     @Modifying
+    @Query("DELETE FROM AgentRun r WHERE r.repoPath = :repoPath")
+    void deleteByRepoPath(@Param("repoPath") String repoPath);
+
+    @Modifying
     @Query("UPDATE AgentRun r SET r.errorDetail = NULL WHERE r.updatedAt < :cutoff")
     int clearExpiredErrorDetails(@Param("cutoff") LocalDateTime cutoff);
 
