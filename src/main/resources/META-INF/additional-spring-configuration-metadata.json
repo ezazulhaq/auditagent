@@ -1,262 +1,295 @@
-{
-  "properties": [
-    {
-      "name": "auditagent.scanner.timeout-seconds",
-      "type": "java.lang.Integer",
-      "description": "Maximum wall-clock time allowed for one Semgrep process.",
-      "defaultValue": 900
-    },
-    {
-      "name": "auditagent.scanner.heartbeat-seconds",
-      "type": "java.lang.Integer",
-      "description": "Interval between Semgrep liveness progress events.",
-      "defaultValue": 15
-    },
-    {
-      "name": "auditagent.agent.max-iterations",
-      "type": "java.lang.Integer",
-      "description": "Maximum number of LLM reasoning iterations before the agent gives up.",
-      "defaultValue": 15
-    },
-    {
-      "name": "auditagent.agent.compile-timeout-seconds",
-      "type": "java.lang.Integer",
-      "description": "Timeout in seconds for project compilation commands.",
-      "defaultValue": 120
-    },
-    {
-      "name": "auditagent.agent.test-timeout-seconds",
-      "type": "java.lang.Integer",
-      "description": "Timeout in seconds for running unit tests.",
-      "defaultValue": 180
-    },
-    {
-      "name": "auditagent.agent.backup-dir",
-      "type": "java.lang.String",
-      "description": "Directory (relative to repo root) where file backups are stored before patching.",
-      "defaultValue": ".auditagent/backups"
-    },
-    {
-      "name": "auditagent.agent.max-file-read-lines",
-      "type": "java.lang.Integer",
-      "description": "Maximum number of file lines returned in a single read_file tool call.",
-      "defaultValue": 200
-    },
-    {
-      "name": "auditagent.agent.max-retries",
-      "type": "java.lang.Integer",
-      "description": "Maximum number of retry attempts when a patch fails verification.",
-      "defaultValue": 3
-    },
-    {
-      "name": "auditagent.agent.llm-call-timeout-seconds",
-      "type": "java.lang.Integer",
-      "description": "Timeout in seconds for individual LLM API calls during the agent loop.",
-      "defaultValue": 120
-    },
-    {
-      "name": "auditagent.agent.max-tool-result-chars",
-      "type": "java.lang.Integer",
-      "description": "Maximum characters to store per tool result in conversation memory to prevent context bloat.",
-      "defaultValue": 4000
-    },
-    {
-      "name": "auditagent.agent.max-history-messages",
-      "type": "java.lang.Integer",
-      "description": "Maximum messages to keep in the conversation history sliding window.",
-      "defaultValue": 40
-    },
-    {
-      "name": "auditagent.agent.max-consecutive-empty-responses",
-      "type": "java.lang.Integer",
-      "description": "Maximum consecutive empty LLM responses before aborting the agent loop.",
-      "defaultValue": 3
-    },
-    {
-      "name": "auditagent.agent.llm-temperature",
-      "type": "java.lang.Double",
-      "description": "Temperature parameter for the LangChain4j Bedrock model used in the agentic loop.",
-      "defaultValue": 0.2
-    },
-    {
-      "name": "auditagent.agent.llm-max-output-tokens",
-      "type": "java.lang.Integer",
-      "description": "Maximum output tokens for the LangChain4j Bedrock model used in the agentic loop.",
-      "defaultValue": 4096
-    },
-    {
-      "name": "auditagent.database.path",
-      "type": "java.lang.String",
-      "description": "Path to the DuckDB database file.",
-      "defaultValue": "audit_reports.duckdb"
-    },
-    {
-      "name": "auditagent.memory.enabled",
-      "type": "java.lang.Boolean",
-      "description": "Enable durable memory persistence and retrieval.",
-      "defaultValue": true
-    },
-    {
-      "name": "auditagent.memory.fts-enabled",
-      "type": "java.lang.Boolean",
-      "description": "Enable DuckDB FTS BM25 retrieval with metadata fallback.",
-      "defaultValue": true
-    },
-    {
-      "name": "auditagent.memory.retention-days",
-      "type": "java.lang.Integer",
-      "description": "Retention period for redacted message, tool, and error detail.",
-      "defaultValue": 30
-    },
-    {
-      "name": "auditagent.memory.context-token-budget",
-      "type": "java.lang.Integer",
-      "description": "Estimated token budget for durable conversation context.",
-      "defaultValue": 12000
-    },
-    {
-      "name": "auditagent.memory.candidate-limit",
-      "type": "java.lang.Integer",
-      "description": "Maximum repository-memory candidates considered during retrieval.",
-      "defaultValue": 50
-    },
-    {
-      "name": "auditagent.memory.top-k",
-      "type": "java.lang.Integer",
-      "description": "Maximum approved repository memories injected into agent context.",
-      "defaultValue": 8
-    },
-    {
-      "name": "auditagent.memory.max-chat-chars",
-      "type": "java.lang.Integer",
-      "description": "Maximum persisted characters per redacted chat message.",
-      "defaultValue": 8000
-    },
-    {
-      "name": "auditagent.memory.max-tool-chars",
-      "type": "java.lang.Integer",
-      "description": "Maximum persisted characters per redacted tool result.",
-      "defaultValue": 4000
-    },
-    {
-      "name": "auditagent.llm.provider",
-      "type": "java.lang.String",
-      "description": "A description for 'auditagent.llm.provider'"
-    },
-    {
-      "name": "auditagent.llm.openai.base-url",
-      "type": "java.lang.String",
-      "description": "A description for 'auditagent.llm.openai.base-url'"
-    },
-    {
-      "name": "auditagent.llm.openai.api-key",
-      "type": "java.lang.String",
-      "description": "A description for 'auditagent.llm.openai.api-key'"
-    },
-    {
-      "name": "auditagent.llm.openai.api-key",
-      "type": "java.lang.String",
-      "description": "A description for 'auditagent.llm.openai.api-key'"
-    },
-    {
-      "name": "auditagent.llm.openai.model-name",
-      "type": "java.lang.String",
-      "description": "A description for 'auditagent.llm.openai.model-name'"
-    },
-    {
-      "name": "auditagent.scanner.max-target-bytes",
-      "type": "java.lang.String",
-      "description": "A description for 'auditagent.scanner.max-target-bytes'"
-    },
-    {
-      "name": "auditagent.scanner.max-memory-mb",
-      "type": "java.lang.String",
-      "description": "A description for 'auditagent.scanner.max-memory-mb'"
-    },
-    {
-      "name": "auditagent.scanner.rule-timeout-seconds",
-      "type": "java.lang.String",
-      "description": "A description for 'auditagent.scanner.rule-timeout-seconds'"
-    },
-    {
-      "name": "auditagent.github.app-id",
-      "type": "java.lang.String",
-      "description": "A description for 'auditagent.github.app-id'"
-    },
-    {
-      "name": "auditagent.github.client-id",
-      "type": "java.lang.String",
-      "description": "A description for 'auditagent.github.client-id'"
-    },
-    {
-      "name": "auditagent.github.client-secret",
-      "type": "java.lang.String",
-      "description": "A description for 'auditagent.github.client-secret'"
-    },
-    {
-      "name": "auditagent.github.private-key",
-      "type": "java.lang.String",
-      "description": "A description for 'auditagent.github.private-key'"
-    },
-    {
-      "name": "auditagent.github.webhook-secret",
-      "type": "java.lang.String",
-      "description": "A description for 'auditagent.github.webhook-secret'"
-    },
-    {
-      "name": "auditagent.github.token-encryption-key",
-      "type": "java.lang.String",
-      "description": "A description for 'auditagent.github.token-encryption-key'"
-    },
-    {
-      "name": "auditagent.github.callback-url",
-      "type": "java.lang.String",
-      "description": "A description for 'auditagent.github.callback-url'"
-    },
-    {
-      "name": "auditagent.github.frontend-url",
-      "type": "java.lang.String",
-      "description": "A description for 'auditagent.github.frontend-url'"
-    },
-    {
-      "name": "auditagent.github.installation-url",
-      "type": "java.lang.String",
-      "description": "A description for 'auditagent.github.installation-url'"
-    },
-    {
-      "name": "auditagent.github.api-url",
-      "type": "java.lang.String",
-      "description": "A description for 'auditagent.github.api-url'"
-    },
-    {
-      "name": "auditagent.github.authorize-url",
-      "type": "java.lang.String",
-      "description": "A description for 'auditagent.github.authorize-url'"
-    },
-    {
-      "name": "auditagent.github.token-url",
-      "type": "java.lang.String",
-      "description": "A description for 'auditagent.github.token-url'"
-    },
-    {
-      "name": "auditagent.github.workspace-root",
-      "type": "java.lang.String",
-      "description": "A description for 'auditagent.github.workspace-root'"
-    },
-    {
-      "name": "auditagent.github.secure-cookies",
-      "type": "java.lang.String",
-      "description": "A description for 'auditagent.github.secure-cookies'"
-    },
-    {
-      "name": "auditagent.github.session-hours",
-      "type": "java.lang.String",
-      "description": "A description for 'auditagent.github.session-hours'"
-    },
-    {
-      "name": "auditagent.github.api-version",
-      "type": "java.lang.String",
-      "description": "A description for 'auditagent.github.api-version'"
-    }
-  ]
-}
+{"properties": [
+  {
+    "name": "auditagent.scanner.timeout-seconds",
+    "type": "java.lang.Integer",
+    "description": "Maximum wall-clock time allowed for one Semgrep process.",
+    "defaultValue": 900
+  },
+  {
+    "name": "auditagent.scanner.heartbeat-seconds",
+    "type": "java.lang.Integer",
+    "description": "Interval between Semgrep liveness progress events.",
+    "defaultValue": 15
+  },
+  {
+    "name": "auditagent.agent.max-iterations",
+    "type": "java.lang.Integer",
+    "description": "Maximum number of LLM reasoning iterations before the agent gives up.",
+    "defaultValue": 15
+  },
+  {
+    "name": "auditagent.agent.compile-timeout-seconds",
+    "type": "java.lang.Integer",
+    "description": "Timeout in seconds for project compilation commands.",
+    "defaultValue": 120
+  },
+  {
+    "name": "auditagent.agent.test-timeout-seconds",
+    "type": "java.lang.Integer",
+    "description": "Timeout in seconds for running unit tests.",
+    "defaultValue": 180
+  },
+  {
+    "name": "auditagent.agent.backup-dir",
+    "type": "java.lang.String",
+    "description": "Directory (relative to repo root) where file backups are stored before patching.",
+    "defaultValue": ".auditagent/backups"
+  },
+  {
+    "name": "auditagent.agent.max-file-read-lines",
+    "type": "java.lang.Integer",
+    "description": "Maximum number of file lines returned in a single read_file tool call.",
+    "defaultValue": 200
+  },
+  {
+    "name": "auditagent.agent.max-retries",
+    "type": "java.lang.Integer",
+    "description": "Maximum number of retry attempts when a patch fails verification.",
+    "defaultValue": 3
+  },
+  {
+    "name": "auditagent.agent.llm-call-timeout-seconds",
+    "type": "java.lang.Integer",
+    "description": "Timeout in seconds for individual LLM API calls during the agent loop.",
+    "defaultValue": 120
+  },
+  {
+    "name": "auditagent.agent.max-tool-result-chars",
+    "type": "java.lang.Integer",
+    "description": "Maximum characters to store per tool result in conversation memory to prevent context bloat.",
+    "defaultValue": 4000
+  },
+  {
+    "name": "auditagent.agent.max-history-messages",
+    "type": "java.lang.Integer",
+    "description": "Maximum messages to keep in the conversation history sliding window.",
+    "defaultValue": 40
+  },
+  {
+    "name": "auditagent.agent.max-consecutive-empty-responses",
+    "type": "java.lang.Integer",
+    "description": "Maximum consecutive empty LLM responses before aborting the agent loop.",
+    "defaultValue": 3
+  },
+  {
+    "name": "auditagent.agent.llm-temperature",
+    "type": "java.lang.Double",
+    "description": "Temperature parameter for the LangChain4j Bedrock model used in the agentic loop.",
+    "defaultValue": 0.2
+  },
+  {
+    "name": "auditagent.agent.llm-max-output-tokens",
+    "type": "java.lang.Integer",
+    "description": "Maximum output tokens for the LangChain4j Bedrock model used in the agentic loop.",
+    "defaultValue": 4096
+  },
+  {
+    "name": "auditagent.database.path",
+    "type": "java.lang.String",
+    "description": "Path to the DuckDB database file.",
+    "defaultValue": "audit_reports.duckdb"
+  },
+  {
+    "name": "auditagent.memory.enabled",
+    "type": "java.lang.Boolean",
+    "description": "Enable durable memory persistence and retrieval.",
+    "defaultValue": true
+  },
+  {
+    "name": "auditagent.memory.fts-enabled",
+    "type": "java.lang.Boolean",
+    "description": "Enable DuckDB FTS BM25 retrieval with metadata fallback.",
+    "defaultValue": true
+  },
+  {
+    "name": "auditagent.memory.retention-days",
+    "type": "java.lang.Integer",
+    "description": "Retention period for redacted message, tool, and error detail.",
+    "defaultValue": 30
+  },
+  {
+    "name": "auditagent.memory.context-token-budget",
+    "type": "java.lang.Integer",
+    "description": "Estimated token budget for durable conversation context.",
+    "defaultValue": 12000
+  },
+  {
+    "name": "auditagent.memory.candidate-limit",
+    "type": "java.lang.Integer",
+    "description": "Maximum repository-memory candidates considered during retrieval.",
+    "defaultValue": 50
+  },
+  {
+    "name": "auditagent.memory.top-k",
+    "type": "java.lang.Integer",
+    "description": "Maximum approved repository memories injected into agent context.",
+    "defaultValue": 8
+  },
+  {
+    "name": "auditagent.memory.max-chat-chars",
+    "type": "java.lang.Integer",
+    "description": "Maximum persisted characters per redacted chat message.",
+    "defaultValue": 8000
+  },
+  {
+    "name": "auditagent.memory.max-tool-chars",
+    "type": "java.lang.Integer",
+    "description": "Maximum persisted characters per redacted tool result.",
+    "defaultValue": 4000
+  },
+  {
+    "name": "auditagent.llm.provider",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.llm.provider'"
+  },
+  {
+    "name": "auditagent.llm.openai.base-url",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.llm.openai.base-url'"
+  },
+  {
+    "name": "auditagent.llm.openai.api-key",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.llm.openai.api-key'"
+  },
+  {
+    "name": "auditagent.llm.openai.api-key",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.llm.openai.api-key'"
+  },
+  {
+    "name": "auditagent.llm.openai.model-name",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.llm.openai.model-name'"
+  },
+  {
+    "name": "auditagent.scanner.max-target-bytes",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.scanner.max-target-bytes'"
+  },
+  {
+    "name": "auditagent.scanner.max-memory-mb",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.scanner.max-memory-mb'"
+  },
+  {
+    "name": "auditagent.scanner.rule-timeout-seconds",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.scanner.rule-timeout-seconds'"
+  },
+  {
+    "name": "auditagent.github.app-id",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.github.app-id'"
+  },
+  {
+    "name": "auditagent.github.client-id",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.github.client-id'"
+  },
+  {
+    "name": "auditagent.github.client-secret",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.github.client-secret'"
+  },
+  {
+    "name": "auditagent.github.private-key",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.github.private-key'"
+  },
+  {
+    "name": "auditagent.github.webhook-secret",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.github.webhook-secret'"
+  },
+  {
+    "name": "auditagent.github.token-encryption-key",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.github.token-encryption-key'"
+  },
+  {
+    "name": "auditagent.github.callback-url",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.github.callback-url'"
+  },
+  {
+    "name": "auditagent.github.frontend-url",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.github.frontend-url'"
+  },
+  {
+    "name": "auditagent.github.installation-url",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.github.installation-url'"
+  },
+  {
+    "name": "auditagent.github.api-url",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.github.api-url'"
+  },
+  {
+    "name": "auditagent.github.authorize-url",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.github.authorize-url'"
+  },
+  {
+    "name": "auditagent.github.token-url",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.github.token-url'"
+  },
+  {
+    "name": "auditagent.github.workspace-root",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.github.workspace-root'"
+  },
+  {
+    "name": "auditagent.github.secure-cookies",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.github.secure-cookies'"
+  },
+  {
+    "name": "auditagent.github.session-hours",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.github.session-hours'"
+  },
+  {
+    "name": "auditagent.github.api-version",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.github.api-version'"
+  },
+  {
+    "name": "auditagent.llm.openai.supervisor-model-name",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.llm.openai.supervisor-model-name'"
+  },
+  {
+    "name": "auditagent.agent.sandbox-enabled",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.agent.sandbox-enabled'"
+  },
+  {
+    "name": "auditagent.agent.sandbox-image",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.agent.sandbox-image'"
+  },
+  {
+    "name": "auditagent.agent.sandbox-memory-limit",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.agent.sandbox-memory-limit'"
+  },
+  {
+    "name": "auditagent.agent.sandbox-cpu-limit",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.agent.sandbox-cpu-limit'"
+  },
+  {
+    "name": "auditagent.memory.summarization-enabled",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.memory.summarization-enabled'"
+  },
+  {
+    "name": "auditagent.memory.max-tool-output-chars",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.memory.max-tool-output-chars'"
+  }
+]}
