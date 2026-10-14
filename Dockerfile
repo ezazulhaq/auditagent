@@ -25,7 +25,7 @@ RUN npm run build
 # ------------------------------------------------------------------------------
 # Stage 2: Backend Builder
 # ------------------------------------------------------------------------------
-FROM eclipse-temurin:21-jdk-bookworm AS backend-builder
+FROM eclipse-temurin:21-jdk AS backend-builder
 WORKDIR /app
 
 COPY pom.xml mvnw ./
@@ -36,12 +36,17 @@ COPY src/ ./src/
 # Inject pre-built frontend static assets into Spring Boot's static resources
 COPY --from=frontend-builder /app/src/main/resources/static/ ./src/main/resources/static/
 
+# Populate application-local.yaml from application-example.yaml if not present
+RUN if [ ! -f src/main/resources/application-local.yaml ]; then \
+        cp src/main/resources/application-example.yaml src/main/resources/application-local.yaml; \
+    fi
+
 RUN ./mvnw clean package -DskipTests -B
 
 # ------------------------------------------------------------------------------
 # Stage 3: Runtime Image with Built-in Tools
 # ------------------------------------------------------------------------------
-FROM eclipse-temurin:21-jdk-bookworm AS runtime
+FROM eclipse-temurin:21-jdk AS runtime
 
 LABEL maintainer="AuditAgent Core Team" \
       description="AuditAgent AI-assisted security auditing and automated remediation platform"
