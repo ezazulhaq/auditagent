@@ -199,5 +199,5 @@ This catalog connects each feature to its user/business outcome and main impleme
 | Frontend SSE protocol | CRLF/LF, comments, chunking, multiline data, and EOF frames are supported. | `readJsonSse()` |
 | Environment-specific Spring profiles | Local, development, and production settings can be separated without committing credentials. | base `application.yaml`, tracked `application-example.yaml`, ignored `application-{local,dev,prod}.yaml` files |
 | Dev Container configuration | Standardized development container configured with Java 21, Node.js 24, and Python 3.12. | `.devcontainer/devcontainer.json` |
-| Docker Compose full-stack orchestration | Complete containerized ecosystem managing PostgreSQL 16, AuditAgent application, optional frontend dev server, sandbox image builder, and pgAdmin. | `docker-compose.yml`, `.env.example`, `.dockerignore` |
+| Docker Compose orchestration | Containerized application deployment connecting to external PostgreSQL databases, with optional frontend dev server and sandbox image builder. | `docker-compose.yml`, `.env.example`, `.dockerignore` |
 | Containerized built-in toolchain | Production container equipped with all auditing and remediation tools: Java 21 JDK, Semgrep CLI, Maven, Gradle, Python 3, and Git. | `Dockerfile`, `Dockerfile.sandbox`, `frontend/Dockerfile.dev` |

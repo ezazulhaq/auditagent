@@ -425,17 +425,15 @@ java -jar target/auditagent-2.0.0.jar
 
 ### Docker and Docker Compose deployment
 
-AuditAgent provides a complete containerized deployment via `docker-compose.yml` that packages all required backend services, database persistence, and built-in scanning/remediation tools.
+AuditAgent provides a containerized deployment via `docker-compose.yml` that packages the application, embedded frontend, DuckDB memory persistence, and built-in scanning/remediation tools, connecting to an external or public PostgreSQL database.
 
 #### Services defined in Compose
 
 | Service | Image / Build | Default Port | Profile | Description |
 |---|---|---|---|---|
-| `postgres` | `postgres:16-alpine` | `5432` | default | Primary transactional storage for reports, findings, users, runs, checkpoints, and tokens. |
 | `auditagent` | `Dockerfile` (multi-stage) | `8173` | default | Full-stack application containing Spring Boot, static UI, and all built-in CLI tools. |
 | `frontend` | `frontend/Dockerfile.dev` | `5173` | `dev`, `frontend-dev` | Vite development server with Hot Module Replacement (HMR) proxying `/api` to the backend. |
 | `sandbox` | `Dockerfile.sandbox` | - | `sandbox`, `all` | Isolated execution container (`auditagent-sandbox:latest`) used when `AUDITAGENT_SANDBOX_ENABLED=true`. |
-| `pgadmin` | `dpage/pgadmin4:latest` | `5050` | `tools`, `admin` | Web-based database management interface for PostgreSQL administration. |
 
 #### Built-in tools in the container
 
@@ -455,9 +453,9 @@ The production `Dockerfile` builds a Debian-based container equipped with the fu
    ```bash
    cp .env.example .env
    ```
-   Edit `.env` to configure your OpenAI/OpenRouter credentials and GitHub App keys.
+   Edit `.env` to configure your PostgreSQL connection parameters (`POSTGRES_HOSTNAME`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` or `POSTGRES_URL`), OpenAI/OpenRouter credentials, and GitHub App keys.
 
-2. **Start the core services (PostgreSQL + AuditAgent)**:
+2. **Start the application**:
    ```bash
    docker compose up --build -d
    ```
@@ -473,21 +471,16 @@ The production `Dockerfile` builds a Debian-based container equipped with the fu
    docker compose --profile sandbox build
    ```
 
-5. **Start PostgreSQL administration tool (pgAdmin on port 5050)**:
-   ```bash
-   docker compose --profile tools up -d
-   ```
-
-6. **View logs and check health**:
+5. **View logs and check health**:
    ```bash
    docker compose logs -f auditagent
    docker compose ps
    ```
 
-7. **Stop and cleanup**:
+6. **Stop and cleanup**:
    ```bash
    docker compose down
-   # To also wipe database volumes:
+   # To also wipe workspace/DuckDB volumes:
    docker compose down -v
    ```
 
