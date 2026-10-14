@@ -47,10 +47,10 @@ services:
       - "${AUDITAGENT_PORT:-8173}:8173"
     environment:
       # Database Configuration
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-auditagent}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${POSTGRES_HOSTNAME}:${POSTGRES_PORT:-5432}/postgres
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-auditagent}
+      POSTGRES_URL: jdbc:postgresql://${POSTGRES_HOSTNAME}:${POSTGRES_PORT:-5432}/postgres
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
