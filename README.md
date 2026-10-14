@@ -112,6 +112,28 @@ The easiest way to start both the Spring Boot backend and the Vite frontend simu
 
 *(Note: Logs are output to `backend.log` and `frontend.log` in the root directory)*
 
+### Running with Docker Compose 🐳
+
+AuditAgent includes a complete Docker Compose environment with PostgreSQL and all built-in tools (Java 21, Semgrep CLI, Maven, Gradle, Python 3, Git) packaged into the container:
+
+```bash
+# 1. Copy the example environment file and configure your API keys
+cp .env.example .env
+
+# 2. Build and launch the full stack (PostgreSQL + AuditAgent)
+docker compose up --build -d
+
+# 3. Optional: Run with live frontend development server (Vite on port 5173)
+docker compose --profile dev up --build
+
+# 4. Optional: Build the isolated agent execution sandbox image
+docker compose --profile sandbox build
+```
+
+*   **Application & UI:** `http://localhost:8173`
+*   **Vite Dev Server (with `--profile dev`):** `http://localhost:5173`
+*   **pgAdmin (with `--profile tools`):** `http://localhost:5050`
+
 ### Running Manually
 
 **Backend:**
