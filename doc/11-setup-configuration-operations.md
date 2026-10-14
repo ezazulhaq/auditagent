@@ -25,6 +25,9 @@ cd ..
 
 Use `npm ci` for reproducible installation from `package-lock.json`.
 
+> [!TIP]
+> When updating or modifying dependencies in `frontend/package.json`, always run `npm install` within `frontend/` to keep `package-lock.json` synchronized. Multi-stage Docker builds and automated pipelines use `npm ci`, which strictly requires that `package.json` and `package-lock.json` remain in parity.
+
 ## Spring configuration profiles
 
 The tracked `src/main/resources/application.yaml` contains only common settings and selects the `local` profile by
