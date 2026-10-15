@@ -9,7 +9,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface GraphNodeEventRepository extends JpaRepository<GraphNodeEvent, String> {
-    List<GraphNodeEvent> findByRunIdOrderByCreatedAtAsc(String runId);
+    @Query("SELECT e FROM GraphNodeEvent e WHERE e.run.runId = :runId ORDER BY e.createdAt ASC")
+    List<GraphNodeEvent> findByRunIdOrderByCreatedAtAsc(@Param("runId") String runId);
 
     @Modifying
     @Query("UPDATE GraphNodeEvent e SET e.detailJson = NULL WHERE e.expiresAt < :now")

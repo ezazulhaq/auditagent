@@ -50,4 +50,12 @@ public class ManagedRepository {
     @Column(nullable = false)
     private java.time.LocalDateTime updatedAt;
 
+    @OneToMany(mappedBy = "repository", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    private java.util.List<ScanSnapshot> snapshots = new java.util.ArrayList<>();
+
+    @OneToMany(mappedBy = "repository", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    private java.util.List<ScanHistoryStats> historyStats = new java.util.ArrayList<>();
+
 }

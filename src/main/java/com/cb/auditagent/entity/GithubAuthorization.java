@@ -16,6 +16,10 @@ public class GithubAuthorization {
     @EqualsAndHashCode.Include
     private String userId;
 
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", insertable = false, updatable = false, foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
+    private AppUser user;
+
     @jakarta.validation.constraints.NotNull
     @Column(nullable = false, columnDefinition = "TEXT")
     private String accessTokenEncrypted;
@@ -30,5 +34,13 @@ public class GithubAuthorization {
     @jakarta.validation.constraints.NotNull
     @Column(nullable = false)
     private java.time.LocalDateTime updatedAt;
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
 
 }

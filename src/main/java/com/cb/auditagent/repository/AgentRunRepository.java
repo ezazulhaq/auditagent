@@ -11,25 +11,29 @@ import java.util.List;
 import java.util.Optional;
 
 public interface AgentRunRepository extends JpaRepository<AgentRun, String> {
-    Optional<AgentRun> findFirstByThreadIdAndStatusInOrderByUpdatedAtDesc(String threadId, Collection<String> statuses);
+    @Query("SELECT r FROM AgentRun r WHERE r.thread.threadId = :threadId AND r.status IN :statuses ORDER BY r.updatedAt DESC")
+    List<AgentRun> findByThreadIdAndStatusInOrderByUpdatedAtDesc(@Param("threadId") String threadId, @Param("statuses") Collection<String> statuses);
 
-    List<AgentRun> findByThreadIdAndStatusInOrderByUpdatedAtDesc(String threadId, Collection<String> statuses);
+    default Optional<AgentRun> findFirstByThreadIdAndStatusInOrderByUpdatedAtDesc(String threadId, Collection<String> statuses) {
+        return findByThreadIdAndStatusInOrderByUpdatedAtDesc(threadId, statuses).stream().findFirst();
+    }
 
-    @Query("SELECT r FROM AgentRun r WHERE (r.threadId = :threadId OR r.repoPath = :repoPath) AND r.status IN :statuses")
+    @Query("SELECT r FROM AgentRun r WHERE (r.thread.threadId = :threadId OR r.repoPath = :repoPath) AND r.status IN :statuses")
     List<AgentRun> findActiveRunsByThreadOrRepo(@Param("threadId") String threadId, @Param("repoPath") String repoPath,
             @Param("statuses") Collection<String> statuses);
 
-    List<AgentRun> findByThreadId(String threadId);
+    @Query("SELECT r FROM AgentRun r WHERE r.thread.threadId = :threadId")
+    List<AgentRun> findByThreadId(@Param("threadId") String threadId);
 
-    @Modifying
-    @Query("DELETE FROM AgentRun r WHERE r.threadId = :threadId")
+    @Modifying(clearAutomatically = true)
+    @Query("DELETE FROM AgentRun r WHERE r.thread.threadId = :threadId")
     void deleteByThreadId(@Param("threadId") String threadId);
 
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE AgentRun r SET r.errorDetail = NULL WHERE r.updatedAt < :cutoff")
     int clearExpiredErrorDetails(@Param("cutoff") LocalDateTime cutoff);
 
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE AgentRun r SET r.checkpointJson = :checkpointJson, r.updatedAt = :now WHERE r.runId = :runId")
     int updateCheckpointJson(@Param("runId") String runId, @Param("checkpointJson") String checkpointJson,
             @Param("now") LocalDateTime now);

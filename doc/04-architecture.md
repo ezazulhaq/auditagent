@@ -144,7 +144,13 @@ Controllers translate HTTP into application operations. `ApiSecurityFilter` hand
 
 ### Persistence
 
-`DatabaseService` owns all PostgreSQL schema and access. Services should not create ad-hoc tables or raw alternative persistence paths.
+`DatabaseService` acts as a unified facade for all PostgreSQL data operations, delegating domain responsibilities to four focused domain data services:
+- `ConversationDataService`: owns `MemoryThread` (Aggregate Root) and `MemoryMessage`.
+- `RemediationDataService`: owns `AgentRun` (Aggregate Root), `AgentStep`, `VerificationResult`, `RunChange`, `GraphCheckpoint`, `GraphNodeEvent`, `SubagentState`, `RunPublication`, `RepositoryMemory`, and `GlobalRemediationPattern`.
+- `UserDataService`: owns `AppUser` (Aggregate Root), `UserSession`, `GithubAuthorization`, `UserNotification`, and `OauthState`.
+- `ScanDataService`: owns `ManagedRepository` (Aggregate Root), `ScanSnapshot`, `ScanHistoryStats`, `Report`, `VulnerabilityEntity`, `WebhookDelivery`, and `TokenUsage`.
+
+The persistence layer follows Domain-Driven Design (DDD) with bidirectional JPA relationships, delegate accessors for backward-compatibility, and dual cascading (JPA `CascadeType.ALL` on parent collections plus Hibernate `@OnDelete(action = OnDeleteAction.CASCADE)` for PostgreSQL-level foreign key cascades). Before schema updates occur at startup, `DatabasePreflightCleanup` purges legacy orphaned child records to prevent foreign key constraint violations. Services interact via `DatabaseService` or their respective domain data service; direct ad-hoc tables or raw persistence paths are prohibited.
 
 ### Presentation
 

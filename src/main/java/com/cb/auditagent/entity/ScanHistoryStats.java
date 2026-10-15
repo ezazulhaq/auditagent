@@ -1,7 +1,23 @@
 package com.cb.auditagent.entity;
 
-import jakarta.persistence.*;
-import lombok.*;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "scan_history_stats", indexes = {
@@ -18,40 +34,53 @@ public class ScanHistoryStats {
     @EqualsAndHashCode.Include
     private String historyId;
 
-    @jakarta.validation.constraints.NotNull
-    @Column(nullable = false)
-    private Long repositoryId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "repository_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
+    private ManagedRepository repository;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private String branch;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private String baseSha;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private java.time.LocalDateTime createdAt;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private Integer totalFindings;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private Integer highSeverity;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private Integer mediumSeverity;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private Integer lowSeverity;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private Integer infoSeverity;
+
+    public Long getRepositoryId() {
+        return repository != null ? repository.getRepositoryId() : null;
+    }
+
+    public void setRepositoryId(Long repositoryId) {
+        if (repositoryId != null) {
+            this.repository = ManagedRepository.builder().repositoryId(repositoryId).build();
+        } else {
+            this.repository = null;
+        }
+    }
 
 }

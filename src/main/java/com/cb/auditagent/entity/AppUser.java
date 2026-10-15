@@ -36,4 +36,15 @@ public class AppUser {
     @Column(nullable = false)
     private java.time.LocalDateTime updatedAt;
 
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    private java.util.List<UserSession> sessions = new java.util.ArrayList<>();
+
+    @OneToOne(mappedBy = "user", fetch = FetchType.LAZY)
+    private GithubAuthorization authorization;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    private java.util.List<UserNotification> notifications = new java.util.ArrayList<>();
+
 }

@@ -18,11 +18,15 @@ public class MemoryMessage {
     @EqualsAndHashCode.Include
     private String messageId;
 
-    @jakarta.validation.constraints.NotNull
-    @Column(nullable = false)
-    private String threadId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "thread_id", nullable = false)
+    @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE)
+    private MemoryThread thread;
 
-    private String runId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "run_id")
+    @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.SET_NULL)
+    private AgentRun run;
 
     @jakarta.validation.constraints.NotNull
     @Column(nullable = false)
@@ -51,5 +55,29 @@ public class MemoryMessage {
     private java.time.LocalDateTime createdAt;
 
     private java.time.LocalDateTime expiresAt;
+
+    public String getThreadId() {
+        return thread != null ? thread.getThreadId() : null;
+    }
+
+    public void setThreadId(String threadId) {
+        if (threadId != null) {
+            this.thread = MemoryThread.builder().threadId(threadId).build();
+        } else {
+            this.thread = null;
+        }
+    }
+
+    public String getRunId() {
+        return run != null ? run.getRunId() : null;
+    }
+
+    public void setRunId(String runId) {
+        if (runId != null) {
+            this.run = AgentRun.builder().runId(runId).build();
+        } else {
+            this.run = null;
+        }
+    }
 
 }

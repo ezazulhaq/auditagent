@@ -1,7 +1,23 @@
 package com.cb.auditagent.entity;
 
-import jakarta.persistence.*;
-import lombok.*;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "user_notifications",
@@ -17,24 +33,37 @@ public class UserNotification {
     @EqualsAndHashCode.Include
     private String id;
 
-    @jakarta.validation.constraints.NotNull
-    @Column(nullable = false)
-    private String userId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
+    private AppUser user;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private String type;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false, columnDefinition = "TEXT")
     private String message;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private Boolean isRead;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private java.time.LocalDateTime createdAt;
+
+    public String getUserId() {
+        return user != null ? user.getUserId() : null;
+    }
+
+    public void setUserId(String userId) {
+        if (userId != null) {
+            this.user = AppUser.builder().userId(userId).build();
+        } else {
+            this.user = null;
+        }
+    }
 
 }

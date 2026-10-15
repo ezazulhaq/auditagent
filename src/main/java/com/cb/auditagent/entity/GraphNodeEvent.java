@@ -17,13 +17,15 @@ public class GraphNodeEvent {
     @EqualsAndHashCode.Include
     private String eventId;
 
-    @jakarta.validation.constraints.NotNull
-    @Column(nullable = false)
-    private String runId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "run_id", nullable = false)
+    @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE)
+    private AgentRun run;
 
-    @jakarta.validation.constraints.NotNull
-    @Column(nullable = false)
-    private String checkpointId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "checkpoint_id", nullable = false)
+    @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE)
+    private GraphCheckpoint checkpoint;
 
     @jakarta.validation.constraints.NotNull
     @Column(nullable = false)
@@ -43,5 +45,29 @@ public class GraphNodeEvent {
     private java.time.LocalDateTime createdAt;
 
     private java.time.LocalDateTime expiresAt;
+
+    public String getRunId() {
+        return run != null ? run.getRunId() : null;
+    }
+
+    public void setRunId(String runId) {
+        if (runId != null) {
+            this.run = AgentRun.builder().runId(runId).build();
+        } else {
+            this.run = null;
+        }
+    }
+
+    public String getCheckpointId() {
+        return checkpoint != null ? checkpoint.getCheckpointId() : null;
+    }
+
+    public void setCheckpointId(String checkpointId) {
+        if (checkpointId != null) {
+            this.checkpoint = GraphCheckpoint.builder().checkpointId(checkpointId).build();
+        } else {
+            this.checkpoint = null;
+        }
+    }
 
 }
