@@ -185,6 +185,9 @@ This catalog connects each feature to its user/business outcome and main impleme
 | Deterministic ranking | Fingerprint, rule, category/type, BM25, language/framework/file, confidence, use, recency. | weighted score |
 | Retrieval health | Frontend thread restore receives `ftsAvailable`. | memory response |
 | Forget scopes | Conversation/run detail and approved repository memory are separate operations. | memory DELETE endpoints |
+| DDD Aggregate Roots & Cascading | Domain-Driven Design aggregate roots (`MemoryThread`, `AgentRun`, `AppUser`, `ManagedRepository`) manage lifecycle with JPA mappings and dual cascading (JPA `CascadeType.ALL` + Hibernate `@OnDelete` for PostgreSQL native `ON DELETE CASCADE`). | JPA entity mappings, `entity/` package |
+| Modular Domain Data Services | Persistence partitioned into four focused domain data services (`ConversationDataService`, `RemediationDataService`, `UserDataService`, `ScanDataService`) behind the `DatabaseService` unified facade. | `com.cb.auditagent.service.data.*`, `DatabaseService` |
+| Startup Pre-flight Orphan Cleanup | Deletes legacy orphaned child records across messages, runs, steps, and checkpoints prior to Hibernate schema update to avoid foreign key constraint violations. | `DatabasePreflightCleanup` |
 
 ## Observability and compatibility
 

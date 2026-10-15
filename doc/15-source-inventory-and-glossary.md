@@ -23,6 +23,7 @@
 | `AgentConfig.java` | Validated remediation/tool limits and Docker sandbox settings. |
 | `ApiSecurityFilter.java` | API session and CSRF enforcement. |
 | `CorsConfig.java` | Exact frontend-origin credentialed CORS. |
+| `DatabasePreflightCleanup.java` | Startup pre-flight bean purging legacy orphaned child records before Hibernate updates schema. |
 | `GitHubAppConfig.java` | GitHub endpoints, secrets, cookies, workspace settings. |
 | `Jackson2Config.java` | Jackson compatibility bean. |
 | `LangChainModelConfig.java` | Tool-calling OpenAI model. |
@@ -103,7 +104,7 @@
 |---|---|
 | `AgentToolService.java` | Secure model tools and managed processes; Docker sandbox wrapping. |
 | `ConversationMemoryService.java` | Durable LangChain message history, context summarization, and aggressive tool output truncation. |
-| `DatabaseService.java` | Complete PostgreSQL persistence/migration/retrieval boundary and global pattern accumulation (`saveGlobalPatternTx`). |
+| `DatabaseService.java` | Unified persistence facade delegating to Conversation, Remediation, User, and Scan domain data services. |
 | `FilePatchService.java` | Backup, rollback, diff, and legacy patch helper. |
 | `FindingFingerprint.java` | Stable normalized SHA-256 finding identity. |
 | `GitHubApiClient.java` | OAuth/App/installation/repository/PR HTTP APIs and PR diff retrieval (`getPullRequestDiff`). |
@@ -129,6 +130,15 @@
 | `SkillManagerService.java` | Dynamic skill discovery/parsing. |
 | `SourceControlProvider.java` | Repository/workspace abstraction. |
 | `TokenCipher.java` | AES-GCM OAuth encryption. |
+
+### `service/data`
+
+| File | Purpose |
+|---|---|
+| `ConversationDataService.java` | Domain data service managing `MemoryThread` aggregate root and `MemoryMessage` collections. |
+| `RemediationDataService.java` | Domain data service managing `AgentRun` aggregate root, steps, verification results, changes, checkpoints, and repository memories. |
+| `UserDataService.java` | Domain data service managing `AppUser` aggregate root, user sessions, GitHub authorizations, OAuth state, and notifications. |
+| `ScanDataService.java` | Domain data service managing `ManagedRepository` aggregate root, scan snapshots, scan history stats, reports, vulnerabilities, webhooks, and token usage. |
 
 ## Frontend production files
 

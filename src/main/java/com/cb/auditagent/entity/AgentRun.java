@@ -17,13 +17,14 @@ public class AgentRun {
     @EqualsAndHashCode.Include
     private String runId;
 
-    @jakarta.validation.constraints.NotNull
-    @Column(nullable = false)
-    private String threadId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "thread_id", nullable = false)
+    @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE)
+    private MemoryThread thread;
 
-    @jakarta.validation.constraints.NotNull
-    @Column(nullable = false)
-    private String vulnerabilityId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "vulnerability_id", nullable = false, foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
+    private VulnerabilityEntity vulnerability;
 
     private String findingFingerprint;
 
@@ -87,5 +88,52 @@ public class AgentRun {
     private java.time.LocalDateTime updatedAt;
 
     private java.time.LocalDateTime completedAt;
+
+    @OneToMany(mappedBy = "run", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    private java.util.List<AgentStep> steps = new java.util.ArrayList<>();
+
+    @OneToMany(mappedBy = "run", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    private java.util.List<VerificationResult> verificationResults = new java.util.ArrayList<>();
+
+    @OneToMany(mappedBy = "run", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    private java.util.List<RunChange> changes = new java.util.ArrayList<>();
+
+    @OneToMany(mappedBy = "run", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    private java.util.List<GraphCheckpoint> checkpoints = new java.util.ArrayList<>();
+
+    @OneToMany(mappedBy = "run", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    private java.util.List<SubagentState> subagentStates = new java.util.ArrayList<>();
+
+    @OneToOne(mappedBy = "run", fetch = FetchType.LAZY)
+    private RunPublication publication;
+
+    public String getThreadId() {
+        return thread != null ? thread.getThreadId() : null;
+    }
+
+    public void setThreadId(String threadId) {
+        if (threadId != null) {
+            this.thread = MemoryThread.builder().threadId(threadId).build();
+        } else {
+            this.thread = null;
+        }
+    }
+
+    public String getVulnerabilityId() {
+        return vulnerability != null ? vulnerability.getId() : null;
+    }
+
+    public void setVulnerabilityId(String vulnerabilityId) {
+        if (vulnerabilityId != null) {
+            this.vulnerability = VulnerabilityEntity.builder().id(vulnerabilityId).build();
+        } else {
+            this.vulnerability = null;
+        }
+    }
 
 }

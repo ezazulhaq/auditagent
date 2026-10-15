@@ -1,7 +1,23 @@
 package com.cb.auditagent.entity;
 
-import jakarta.persistence.*;
-import lombok.*;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "run_changes", indexes = {
@@ -18,11 +34,12 @@ public class RunChange {
     @EqualsAndHashCode.Include
     private String changeId;
 
-    @jakarta.validation.constraints.NotNull
-    @Column(nullable = false)
-    private String runId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "run_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
+    private AgentRun run;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(length = 1024, nullable = false)
     private String filePath;
 
@@ -33,12 +50,24 @@ public class RunChange {
     @Column(length = 1024)
     private String backupPath;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private String state;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private java.time.LocalDateTime createdAt;
+
+    public String getRunId() {
+        return run != null ? run.getRunId() : null;
+    }
+
+    public void setRunId(String runId) {
+        if (runId != null) {
+            this.run = AgentRun.builder().runId(runId).build();
+        } else {
+            this.run = null;
+        }
+    }
 
 }

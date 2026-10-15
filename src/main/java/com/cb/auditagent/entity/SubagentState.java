@@ -1,7 +1,24 @@
 package com.cb.auditagent.entity;
 
-import jakarta.persistence.*;
-import lombok.*;
+import java.time.LocalDateTime;
+
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "subagent_state")
@@ -16,19 +33,20 @@ public class SubagentState {
     @EqualsAndHashCode.Include
     private String stateId;
 
-    @jakarta.validation.constraints.NotNull
-    @Column(nullable = false)
-    private String runId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "run_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
+    private AgentRun run;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private String parentCheckpointId;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private String childAgent;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private Integer sequenceNumber;
 
@@ -38,14 +56,26 @@ public class SubagentState {
     @Column(columnDefinition = "TEXT")
     private String resultJson;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private String status;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
-    private java.time.LocalDateTime createdAt;
+    private LocalDateTime createdAt;
 
-    private java.time.LocalDateTime expiresAt;
+    private LocalDateTime expiresAt;
+
+    public String getRunId() {
+        return run != null ? run.getRunId() : null;
+    }
+
+    public void setRunId(String runId) {
+        if (runId != null) {
+            this.run = AgentRun.builder().runId(runId).build();
+        } else {
+            this.run = null;
+        }
+    }
 
 }
