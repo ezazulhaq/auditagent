@@ -1,7 +1,23 @@
 package com.cb.auditagent.entity;
 
-import jakarta.persistence.*;
-import lombok.*;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "graph_node_events",
@@ -19,19 +35,19 @@ public class GraphNodeEvent {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "run_id", nullable = false)
-    @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private AgentRun run;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "checkpoint_id", nullable = false)
-    @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private GraphCheckpoint checkpoint;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private String nodeName;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private String status;
 
@@ -40,7 +56,7 @@ public class GraphNodeEvent {
     @Column(columnDefinition = "TEXT")
     private String detailJson;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private java.time.LocalDateTime createdAt;
 

@@ -1,7 +1,17 @@
 package com.cb.auditagent.entity;
 
-import jakarta.persistence.*;
-import lombok.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "repository_memories",
@@ -17,7 +27,7 @@ public class RepositoryMemory {
     @EqualsAndHashCode.Include
     private String memoryId;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private String repoPath;
 
@@ -49,27 +59,27 @@ public class RepositoryMemory {
     @Column(columnDefinition = "TEXT")
     private String searchText;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private Double confidence;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private String sourceRunId;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private Boolean approved;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private Integer usageCount;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private java.time.LocalDateTime createdAt;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private java.time.LocalDateTime updatedAt;
 
