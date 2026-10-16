@@ -115,15 +115,14 @@ public class ScanOrchestratorService {
                 Report report = new Report(reportKey, markdown, html, findings, metadata);
                 emit(sink, resultEvent("complete", report, repository, branch, baseSha,
                         "Scan complete at " + shortSha(baseSha) + ". Found " + findings.size() + " issue(s)."));
-                sink.tryEmitComplete();
             } catch (Exception e) {
                 logger.error("Managed GitHub scan failed: {}", safeMessage(e));
                 String code = e instanceof ScanTimeoutException ? "SCAN_TIMEOUT" : "SCAN_FAILED";
                 emit(sink, Map.of("type", "error", "code", code, "message", safeMessage(e)));
-                sink.tryEmitComplete();
             } finally {
                 if (workspace != null)
                     safeCleanup(workspace);
+                sink.tryEmitComplete();
             }
         });
         return sink.asFlux();

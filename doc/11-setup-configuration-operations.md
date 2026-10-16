@@ -13,6 +13,8 @@
 
 Apache PDFBox is resolved through Maven and is packaged with the backend. Enterprise report generation needs no browser rendering service, office suite, headless Chromium, reporting CDN, or additional report configuration. PDFs are produced in application memory, so platform memory limits should allow for the largest expected persisted finding set and concurrent report requests. On first PDF use, PDFBox may inspect installed fonts and stores only reusable font metadata below `<java.io.tmpdir>/auditagent-pdfbox-font-cache`; the service identity must be able to write to its normal JVM temporary directory. No report content is written there.
 
+Annotation processing (Lombok) is managed by `spring-boot-starter-parent` with `provided` scope, aligning AST transformation rules with Java 21 compliance and preventing dialect/AST mismatches in both `javac` and Eclipse JDT Language Server (`jdt.ls`) environments.
+
 ## Clone and install
 
 ```bash
