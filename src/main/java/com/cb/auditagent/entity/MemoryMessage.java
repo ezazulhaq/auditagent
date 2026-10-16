@@ -1,7 +1,24 @@
 package com.cb.auditagent.entity;
 
-import jakarta.persistence.*;
-import lombok.*;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "memory_messages",
@@ -20,7 +37,7 @@ public class MemoryMessage {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "thread_id", nullable = false)
-    @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private MemoryThread thread;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -28,15 +45,15 @@ public class MemoryMessage {
     @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.SET_NULL)
     private AgentRun run;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private Long sequenceNumber;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private String role;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private String messageType;
 
@@ -50,7 +67,7 @@ public class MemoryMessage {
     @Column(columnDefinition = "TEXT")
     private String metadataJson;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private java.time.LocalDateTime createdAt;
 
