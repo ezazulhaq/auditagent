@@ -94,12 +94,15 @@ Tracks:
 - automated PR publication progress state;
 - PR preview data;
 - grouped finding status tracking;
+- batch analysis state (`batchState`: active, total, completed, failed, currentVulnId);
+- active analyzing status per vulnerability (`isAnalyzingMap`).
 
 It:
 
 - hydrates recoverable state;
 - clears stale remediation when a new scan begins;
 - starts analysis and consumes run-bound events;
+- executes multi-finding concurrent batch analysis (`analyzeBatch`) with cancellation (`cancelBatch`);
 - loads the current preview;
 - sends the exact vulnerability and digest in a decision;
 - refreshes the report after decisions/publication;
@@ -150,6 +153,8 @@ Performs local sorting and filtering, then reports the original selected finding
 Search is null-safe, case-insensitive, whitespace-trimmed, and uses AND semantics for multiple terms across ID, type, path, description, rule ID, language, severity, and status. Severity buttons show counts for all four levels. The lifecycle-status selector is derived from statuses present in the current audit and ordered through the remediation lifecycle, including intermediate and failure states. Search, severity, and status compose; Reset and the no-match recovery action clear all three.
 
 The responsive inventory presents severity, type, ID, filename/line, directory, and lifecycle status with horizontally scrollable severity controls, stacked mobile filters, mobile card rows, and a desktop table layout. Result-count changes are announced through a polite live region.
+
+It features checkbox multi-selection with header select-all and per-file grouping controls. When items are selected, a floating action bar allows triggering bulk "Analyze" (invoking `analyzeBatch`) and deferred "Ignore". During batch execution, the floating bar morphs into a live progress indicator (`Analyzing X of Y vulnerabilities...`) with a percentage bar, failed counter, and a "Cancel Batch" button that aborts the pipeline. Finding rows actively being remediated display an inline spinning `LoaderCircle` next to their status badge.
 
 ### `FindingDrawer`
 

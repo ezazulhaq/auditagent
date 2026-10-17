@@ -48,6 +48,7 @@
 | File | Fields/use |
 |---|---|
 | `AnalyzeRequest.java` | repository ID, branch, finding ID, thread ID. |
+| `BatchAnalyzeRequest.java` | repository ID, branch, thread ID, finding ID list (`vulnIds`). |
 | `ChatRequest.java` | repository ID, branch, message, thread ID. |
 | `ChatResponse.java` | assistant response wrapper. |
 | `MemoryThreadRequest.java` | optional repository ID and branch. |

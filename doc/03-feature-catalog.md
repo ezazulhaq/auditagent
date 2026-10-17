@@ -66,7 +66,7 @@ This catalog connects each feature to its user/business outcome and main impleme
 | Keyboard shortcuts | `Ctrl+K` to search/focus repository, `Ctrl+J` to toggle chat, `Esc` to close drawers/modals, `1/2/3` to switch tabs. Improves power-user navigation. | `useKeyboardShortcuts`, `App.jsx` |
 | Scan history timeline | Historical view of finding severities over recent scans for the same repository and branch. | `scan_history_stats`, `DashboardView`, `GET /api/reports/history` |
 | Severity-prioritized finding inventory | Stable `HIGH` to `MEDIUM` to `LOW` to `INFO` ordering; multi-term search across finding metadata; count-aware severity and lifecycle-status filters; responsive reset and no-result recovery actions. These view-only controls do not mutate findings or remediation state. | `FindingsView`, `filterFindings()` |
-| Bulk action bar on findings | Checkbox selection on findings with bulk "Ignore" or "Analyze" actions allowing triaging in batches. A floating action bar summarizes selection. | `FindingsView`, `App.jsx` |
+| Bulk action bar on findings | Checkbox selection on findings with bulk "Analyze" action triggering the concurrent batch remediation pipeline, and deferred bulk "Ignore". A floating action bar summarizes selection, renders live batch progress with an inline cancel button during execution, and individual rows show in-place analysis spinners. | `FindingsView`, `App.jsx`, `useRemediationController` |
 | Finding drawer | Detailed code, verified PR preview, side-by-side & unified diff viewer, lifecycle-aware actions, full-screen mobile presentation, initial close focus, and Escape dismissal. | `FindingDrawer`, `DiffViewer` |
 | Workspace tabs | Sticky, horizontally scrollable Dashboard, Findings, Audit Report, and Documentation navigation. | `WorkspaceTabs` |
 | In-app documentation viewer | Renders markdown files directly in the frontend using `@tailwindcss/typography`, removing the need to leave the application to read guides. | `DocsMainPanel`, `DocsSidebar`, `DocHandler` |
@@ -114,6 +114,7 @@ This catalog connects each feature to its user/business outcome and main impleme
 | Unified audit workflow | Scan, chat, and remediation are orchestrated under a single unified graph timeline. | `AuditWorkflowGraph` |
 | Graph visualization | Real-time graph execution timeline with node-level progress and tool details. | `GraphTimeline.jsx`, `graph_step` SSE events |
 | Token streaming | Real-time chat token streaming via SSE to improve UX. | `ChatNode`, `ChatWidget.jsx` |
+| Batch remediation pipeline | Analyzes multiple vulnerabilities concurrently via a dedicated bounded-concurrency worker pool (`auditagent.agent.batch-concurrency`, default 2) on virtual threads. Each vulnerability receives an isolated Git workspace, independent run, DuckDB checkpoints, and separate verified PR preview up to `AWAITING_APPROVAL`. Failures are isolated, and the SSE stream multiplexes batch progress and item events. | `POST /api/analyze/batch`, `RemediationWorkflowService.analyzeBatch()`, `BatchAnalyzeRequest`, `useRemediationController` |
 
 ## Agent tools and verification
 

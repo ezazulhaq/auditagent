@@ -168,6 +168,13 @@ export function createAuditApi({ baseUrl = API_BASE_URL, fetchImpl = fetch } = {
       }, onEvent);
     },
 
+    analyzeBatch(payload, onEvent, signal) {
+      return stream('/analyze/batch', {
+        method: 'POST', signal, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }, onEvent);
+    },
+
     async approvalPreview(runId, signal) {
       const response = await request(`/runs/${encodeURIComponent(runId)}/approval-preview`, { signal });
       if (!response.ok) throw await errorFor(response);

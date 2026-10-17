@@ -26,11 +26,14 @@ describe('App scan lifecycle', () => {
       getNotifications: vi.fn().mockResolvedValue([]), markNotificationsRead: vi.fn().mockResolvedValue({}),
     };
     render(<ToastProvider><App api={api} /></ToastProvider>);
-    const repositorySelect = await screen.findByLabelText(/Repository/i);
-    await waitFor(() => expect(repositorySelect.options).toHaveLength(2));
-    fireEvent.change(repositorySelect, { target: { value: '42' } });
-    const branchSelect = screen.getByLabelText(/Branch/i);
-    await waitFor(() => expect(branchSelect.options).toHaveLength(2));
+    const scanButton = await screen.findByRole('button', { name: /Run Scan/i });
+    const form = scanButton.closest('form');
+    const repositoryButton = form.querySelector('button');
+    await waitFor(() => expect(repositoryButton).not.toBeDisabled());
+    fireEvent.click(repositoryButton);
+    const repoOption = await screen.findByText(/octo\/repo/i);
+    fireEvent.click(repoOption);
+    await waitFor(() => expect(screen.getByRole('button', { name: /Run Scan/i })).not.toBeDisabled());
     fireEvent.click(screen.getByRole('button', { name: /Run Scan/i }));
     await waitFor(() => expect(api.scan).toHaveBeenCalled());
     expect(await screen.findByTitle('AuditAgent PDF Report')).toHaveAttribute('src', 'blob:audit-report');

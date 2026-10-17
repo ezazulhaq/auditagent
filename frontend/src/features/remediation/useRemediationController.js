@@ -11,11 +11,14 @@ export function useRemediationController({ api, toast, onMessage, onReport, onFi
   const [isAnalyzingMap, setIsAnalyzingMap] = useState({});
   const [isPublishingMap, setIsPublishingMap] = useState({});
   const [graphStepsMap, setGraphStepsMap] = useState({});
+  const [batchState, setBatchState] = useState(null);
 
   const abortRefs = useRef({});
+  const batchAbortRef = useRef(null);
 
   useEffect(() => () => {
     Object.values(abortRefs.current).forEach(c => c?.abort());
+    if (batchAbortRef.current) batchAbortRef.current.abort();
   }, []);
 
   const hydrate = useCallback((data) => {
@@ -27,12 +30,14 @@ export function useRemediationController({ api, toast, onMessage, onReport, onFi
       data.activeRuns.forEach(run => {
         if (!run.vulnerabilityId && run.vulnerability_id) run.vulnerabilityId = run.vulnerability_id;
         if (!run.runId && run.run_id) run.runId = run.run_id;
+        if (!run.vulnerabilityId && data.activeFinding) run.vulnerabilityId = data.activeFinding.id;
         newRuns[run.vulnerabilityId] = run;
       });
     } else if (data.activeRun) {
       const run = data.activeRun;
       if (!run.vulnerabilityId && run.vulnerability_id) run.vulnerabilityId = run.vulnerability_id;
       if (!run.runId && run.run_id) run.runId = run.run_id;
+      if (!run.vulnerabilityId && data.activeFinding) run.vulnerabilityId = data.activeFinding.id;
       newRuns[run.vulnerabilityId] = run;
     }
 
@@ -73,11 +78,13 @@ export function useRemediationController({ api, toast, onMessage, onReport, onFi
   }, []);
 
   const analyze = useCallback(async (finding, repoId, br, threadId) => {
-    const vulnId = finding.id;
-    if (!repositoryId || !branch) { toast.error('No repository or branch selected.'); return; }
-    if (!vulnId) { toast.error('No vulnerability selected.'); return; }
+    const vulnId = finding?.id;
+    const targetRepoId = repoId ?? repositoryId;
+    const targetBranch = br ?? branch;
+    if (!targetRepoId || !targetBranch) { toast?.error?.('No repository or branch selected.'); return; }
+    if (!vulnId) { toast?.error?.('No vulnerability selected.'); return; }
 
-    // Start analysis
+    setSelectedFinding(finding);
     setIsAnalyzingMap(prev => ({ ...prev, [vulnId]: true }));
     setPreviews(prev => ({ ...prev, [vulnId]: null }));
     updateRun(vulnId, null);
@@ -92,7 +99,7 @@ export function useRemediationController({ api, toast, onMessage, onReport, onFi
       const runId = crypto.randomUUID();
       updateRun(vulnId, { runId, status: 'ACTIVE', vulnerabilityId: vulnId });
 
-      await api.analyze({ vulnId: finding.id, repositoryId: Number(repositoryId), branch, threadId }, event => {
+      await api.analyze({ vulnId, repositoryId: Number(targetRepoId), branch: targetBranch, threadId }, event => {
         if (event.type === 'graph_step') {
           setGraphStepsMap(prev => {
             const steps = prev[vulnId] || [];
@@ -104,8 +111,8 @@ export function useRemediationController({ api, toast, onMessage, onReport, onFi
         } else if (event.type === 'workspace_prepared') {
           updateRun(vulnId, prev => ({ ...(prev || {}), status: 'ACTIVE', runId: event.runId }));
         } else if (event.type === 'status') {
-          if (event.message.startsWith('Remediation failed')) {
-            toast?.error(event.message);
+          if (event.message?.startsWith('Remediation failed')) {
+            toast?.error?.(event.message);
           } else {
             onMessage('agent', event.message);
           }
@@ -132,17 +139,137 @@ export function useRemediationController({ api, toast, onMessage, onReport, onFi
             status: event.runStatus ?? prev?.status
           }));
           if (event.runStatus === 'PUBLISHED' || event.runStatus === 'PR_OPEN') {
-            refreshReport(repositoryId, branch).catch(() => { });
+            refreshReport(targetRepoId, targetBranch).catch(() => { });
           }
         }
       }, controller.signal);
     } catch (error) {
       if (error.name !== 'AbortError') {
-        toast?.error(`Analysis failed: ${error.message}`);
+        toast?.error?.(`Analysis failed: ${error.message}`);
         onMessage('agent', `Analysis failed: ${error.message}`);
       }
     } finally {
       setIsAnalyzingMap(prev => ({ ...prev, [vulnId]: false }));
+    }
+  }, [api, onMessage, toast, refreshReport, repositoryId, branch, updateRun]);
+
+  const cancelBatch = useCallback(() => {
+    if (batchAbortRef.current) {
+      batchAbortRef.current.abort();
+      batchAbortRef.current = null;
+    }
+    setBatchState(null);
+    setIsAnalyzingMap({});
+  }, []);
+
+  const analyzeBatch = useCallback(async (findingsToAnalyze, repoId, br, threadId) => {
+    const targetRepoId = repoId ?? repositoryId;
+    const targetBranch = br ?? branch;
+    if (!targetRepoId || !targetBranch) { toast?.error?.('No repository or branch selected.'); return; }
+    if (!findingsToAnalyze || findingsToAnalyze.length === 0) { toast?.error?.('No vulnerabilities selected.'); return; }
+
+    const vulnIds = findingsToAnalyze.map(f => typeof f === 'string' ? f : f?.id).filter(Boolean);
+    if (vulnIds.length === 0) return;
+
+    setIsAnalyzingMap(prev => {
+      const next = { ...prev };
+      vulnIds.forEach(id => { next[id] = true; });
+      return next;
+    });
+    setPreviews(prev => {
+      const next = { ...prev };
+      vulnIds.forEach(id => { delete next[id]; });
+      return next;
+    });
+    setRuns(prev => {
+      const next = { ...prev };
+      vulnIds.forEach(id => { next[id] = { status: 'QUEUED', vulnerabilityId: id }; });
+      return next;
+    });
+    setGraphStepsMap(prev => {
+      const next = { ...prev };
+      vulnIds.forEach(id => { next[id] = []; });
+      return next;
+    });
+
+    if (batchAbortRef.current) batchAbortRef.current.abort();
+    const controller = new AbortController();
+    batchAbortRef.current = controller;
+
+    setBatchState({
+      active: true,
+      total: vulnIds.length,
+      completed: 0,
+      failed: 0,
+      cancel: () => controller.abort()
+    });
+
+    try {
+      await api.analyzeBatch({
+        repositoryId: Number(targetRepoId),
+        branch: targetBranch,
+        threadId,
+        vulnIds
+      }, event => {
+        const eventVulnId = event.vulnId;
+
+        if (event.type === 'batch_start') {
+          setBatchState(prev => ({ ...(prev || {}), active: true, total: event.total ?? vulnIds.length }));
+        } else if (event.type === 'batch_progress') {
+          setBatchState(prev => ({
+            ...(prev || {}),
+            active: true,
+            total: event.total ?? prev?.total ?? vulnIds.length,
+            completed: event.completed ?? prev?.completed ?? 0,
+            failed: event.failed ?? prev?.failed ?? 0,
+          }));
+        } else if (event.type === 'batch_complete') {
+          setBatchState(null);
+          refreshReport(targetRepoId, targetBranch, true).catch(() => {});
+        }
+
+        if (eventVulnId) {
+          if (event.type === 'graph_step') {
+            setGraphStepsMap(prev => {
+              const steps = prev[eventVulnId] || [];
+              if (!steps.find(s => s.node === event.node)) {
+                return { ...prev, [eventVulnId]: [...steps, { node: event.node, status: event.status, time: Date.now() }] };
+              }
+              return prev;
+            });
+          } else if (event.type === 'workspace_prepared') {
+            updateRun(eventVulnId, prev => ({ ...(prev || {}), status: 'ACTIVE', runId: event.runId }));
+          } else if (event.type === 'approval_ready') {
+            setPreviews(prev => ({ ...prev, [eventVulnId]: event.preview }));
+            updateRun(eventVulnId, prev => ({ ...(prev || {}), runId: event.runId, status: 'AWAITING_APPROVAL' }));
+          } else if (event.type === 'analysis_complete') {
+            if (event.preview) setPreviews(prev => ({ ...prev, [eventVulnId]: event.preview }));
+            updateRun(eventVulnId, prev => ({
+              ...(prev || {}), runId: event.runId ?? prev?.runId,
+              status: event.requires_approval ? 'AWAITING_APPROVAL' : (prev?.status || 'FAILED')
+            }));
+            setIsAnalyzingMap(prev => ({ ...prev, [eventVulnId]: false }));
+          } else if (event.type === 'status') {
+            if (event.status === 'FAILED') {
+              updateRun(eventVulnId, prev => ({ ...(prev || {}), status: 'FAILED' }));
+              setIsAnalyzingMap(prev => ({ ...prev, [eventVulnId]: false }));
+            }
+          }
+        }
+      }, controller.signal);
+    } catch (error) {
+      if (error.name !== 'AbortError') {
+        toast?.error?.(`Batch analysis failed: ${error.message}`);
+        onMessage?.('agent', `Batch analysis failed: ${error.message}`);
+      }
+    } finally {
+      setBatchState(null);
+      setIsAnalyzingMap(prev => {
+        const next = { ...prev };
+        vulnIds.forEach(id => { next[id] = false; });
+        return next;
+      });
+      refreshReport(targetRepoId, targetBranch, true).catch(() => {});
     }
   }, [api, onMessage, toast, refreshReport, repositoryId, branch, updateRun]);
 
@@ -275,7 +402,7 @@ export function useRemediationController({ api, toast, onMessage, onReport, onFi
 
   // Provide derived values for the currently selected finding to keep App.jsx happy
   const activeRun = selectedFinding ? runs[selectedFinding.id] : null;
-  const activeRunId = activeRun?.runId;
+  const activeRunId = activeRun?.runId ?? null;
   const isAnalyzing = selectedFinding ? isAnalyzingMap[selectedFinding.id] : false;
   const isPublishing = selectedFinding ? isPublishingMap[selectedFinding.id] : false;
   const awaitingApproval = activeRun?.status === 'AWAITING_APPROVAL';
@@ -286,12 +413,12 @@ export function useRemediationController({ api, toast, onMessage, onReport, onFi
   return {
     selectedFinding, setSelectedFinding, isAnalyzing, isPublishing, awaitingApproval,
     approvalPreview, loadApprovalPreview: () => selectedFinding && loadApprovalPreview(selectedFinding.id),
-    activeRun, activeRunId, publication, graphSteps, runs, // Export runs so App can pass it down
-    hydrate, resetForScan, analyze,
-    decide: (decision, repoId, br, reason) => decide(selectedFinding.id, decision, repoId, br, reason),
-    retryPublish: (repoId, br) => retryPublish(selectedFinding.id, repoId, br),
-    resume: (threadId) => resume(selectedFinding.id, threadId),
-    discard: () => discard(selectedFinding.id),
+    activeRun, activeRunId, publication, graphSteps, runs, isAnalyzingMap,
+    hydrate, resetForScan, analyze, analyzeBatch, cancelBatch, batchState,
+    decide: (decision, repoId, br, reason) => decide(selectedFinding?.id, decision, repoId, br, reason),
+    retryPublish: (repoId, br) => retryPublish(selectedFinding?.id, repoId, br),
+    resume: (threadId) => resume(selectedFinding?.id, threadId),
+    discard: () => discard(selectedFinding?.id),
     refreshReport,
   };
 }
