@@ -223,7 +223,18 @@ public class GitHubProvider implements SourceControlProvider, PullRequestProvide
                 for (RemoteRefUpdate update : result.getRemoteUpdates()) {
                     if (update.getStatus() != RemoteRefUpdate.Status.OK
                             && update.getStatus() != RemoteRefUpdate.Status.UP_TO_DATE) {
-                        throw new IllegalStateException("GitHub rejected branch push: " + update.getStatus());
+                        String detail = update.getMessage();
+                        if (detail == null || detail.isBlank()) {
+                            detail = result.getMessages();
+                        }
+                        String msg = "GitHub rejected branch push (" + update.getStatus() + ")";
+                        if (detail != null && !detail.isBlank()) {
+                            msg += ": " + detail.trim();
+                        }
+                        if (msg.contains("without `workflows` permission") || msg.contains("without workflows permission")) {
+                            msg += ". To remediate GitHub Actions workflow files (.github/workflows/), grant 'Workflows: Read and write' permission in your GitHub App settings (Developer settings -> GitHub Apps -> Permissions & events -> Repository permissions -> Workflows) and accept the updated permissions for this repository.";
+                        }
+                        throw new IllegalStateException(msg);
                     }
                 }
             }

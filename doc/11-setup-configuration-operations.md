@@ -86,6 +86,7 @@ Create a GitHub App with:
   - Metadata: read;
   - Contents: read and write;
   - Pull requests: read and write;
+  - Workflows: read and write (required if remediating CI/CD workflows under `.github/workflows/`);
 - subscribed event: Pull request.
 
 Install the App on the intended repositories. The frontend can show `GITHUB_APP_INSTALLATION_URL` when no repository is available.
@@ -143,7 +144,7 @@ In the owning user or organization, open **Settings → Developer settings → G
 3. Leave expiring user authorization tokens enabled so OAuth supplies refresh tokens.
 4. Enable webhooks, set the exact `/api/webhooks/github` URL, paste `GITHUB_APP_WEBHOOK_SECRET`, and keep SSL
    verification enabled.
-5. Grant only Metadata read, Contents read/write, and Pull requests read/write.
+5. Grant Metadata read, Contents read/write, Pull requests read/write, and Workflows read/write (required if remediating CI/CD workflows under `.github/workflows/`).
 6. Subscribe to the Pull request event.
 7. Select the appropriate visibility: account-only for a private internal deployment, or a broader option only when
    other accounts must install it.
@@ -535,7 +536,7 @@ response. Redeliver the event to confirm idempotency. A request without a valid 
 | Login state mismatch | Callback host changed, browser rejected the state cookie, another browser initiated login, or the ten-minute state was reused/expired. A non-UTC server is supported; immediate failures should be checked against the UTC-normalized auth-expiry query and an accurate system clock. |
 | `Could not authenticate GitHub App` | App ID/private key mismatch, unreadable key file, malformed PEM, or server clock skew. |
 | Login works but repositories are empty | App is not installed on the repository, org access is pending, or user access was revoked. |
-| Publication returns 403 | App Contents/PR permissions are missing/unapproved, or the user lacks push permission. |
+| Publication returns 403 or rejection | App Contents/PR permissions are missing/unapproved, the user lacks push permission, or changes touch `.github/workflows/` without the GitHub App's `Workflows: read and write` permission. |
 | Webhook signature fails | GitHub and server secrets differ, or a proxy modified the raw request body. |
 | Webhook never arrives | URL/TLS/network is invalid, webhook is disabled, or Pull request is not subscribed. |
 | Workspace preparation fails | Ownership, disk capacity, unsafe root, or a stale workspace directory is blocking preparation. |
