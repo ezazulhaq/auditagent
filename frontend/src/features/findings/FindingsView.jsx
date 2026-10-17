@@ -1,4 +1,4 @@
-import { ChevronRight, ChevronDown, ChevronUp, FileCode2, Filter, RotateCcw, Search, ShieldAlert, X, List, FolderTree, Folder } from 'lucide-react';
+import { ChevronRight, ChevronDown, ChevronUp, FileCode2, Filter, LoaderCircle, RotateCcw, Search, ShieldAlert, X, List, FolderTree, Folder } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { FINDING_SEVERITY_ORDER, filterFindings, getDirectoryPath, getFileName } from '../../utils/auditSelectors';
 
@@ -24,7 +24,7 @@ const statusClass = {
 const statusOrder = ['DETECTED', 'ANALYZING', 'GENERATING_FIX', 'VERIFYING', 'PATCH_FAILED', 'AWAITING_APPROVAL', 'PR_OPEN', 'FIXED', 'IGNORED'];
 const formatStatus = (value) => value.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, character => character.toUpperCase());
 
-function FindingRow({ finding, runs, onSelect, hideLocation = false, isSelected, onToggleSelect }) {
+function FindingRow({ finding, runs, onSelect, hideLocation = false, isSelected, onToggleSelect, isAnalyzing = false }) {
   const findingStatus = (runs?.[finding.id] ? runs[finding.id].status : finding.status) || 'DETECTED';
   return (
     <div className="group flex w-full items-start md:items-stretch border-b border-slate-700/20 transition last:border-0 hover:bg-cyan-400/[0.035]">
@@ -41,7 +41,12 @@ function FindingRow({ finding, runs, onSelect, hideLocation = false, isSelected,
 
         <div className="flex w-full items-center justify-between md:contents">
           <span><span className={`inline-flex min-w-18 items-center justify-center rounded-md border px-2 py-1 text-[9px] font-bold tracking-[0.08em] ${severityClass[finding.severity] || severityClass.INFO}`}>{finding.severity}</span></span>
-          <span className="md:hidden"><span className={`inline-flex rounded-md px-2 py-1 text-[9px] font-bold tracking-wide ${statusClass[findingStatus] || statusClass.DETECTED}`}>{formatStatus(findingStatus)}</span></span>
+          <span className="md:hidden">
+            <span className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[9px] font-bold tracking-wide ${statusClass[findingStatus] || statusClass.DETECTED}`}>
+              {isAnalyzing && <LoaderCircle size={10} className="animate-spin text-cyan-400" />}
+              {formatStatus(findingStatus)}
+            </span>
+          </span>
         </div>
 
         <span className="min-w-0 w-full mt-1 md:mt-0">
@@ -60,7 +65,12 @@ function FindingRow({ finding, runs, onSelect, hideLocation = false, isSelected,
           </span>
         )}
 
-        <span className="hidden md:block"><span className={`inline-flex rounded-md px-2 py-1 text-[9px] font-bold tracking-wide ${statusClass[findingStatus] || statusClass.DETECTED}`}>{formatStatus(findingStatus)}</span></span>
+        <span className="hidden md:block">
+          <span className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[9px] font-bold tracking-wide ${statusClass[findingStatus] || statusClass.DETECTED}`}>
+            {isAnalyzing && <LoaderCircle size={10} className="animate-spin text-cyan-400" />}
+            {formatStatus(findingStatus)}
+          </span>
+        </span>
 
         <ChevronRight size={17} className="text-slate-700 transition group-hover:translate-x-0.5 group-hover:text-cyan-300 hidden md:block" />
       </div>
@@ -68,7 +78,7 @@ function FindingRow({ finding, runs, onSelect, hideLocation = false, isSelected,
   );
 }
 
-function FileGroup({ filePath, findings, runs, onSelect, selectedIds, onToggleSelect, onToggleGroup }) {
+function FileGroup({ filePath, findings, runs, onSelect, selectedIds, onToggleSelect, onToggleGroup, isAnalyzingMap }) {
   const [expanded, setExpanded] = useState(true);
   const groupSelectedCount = findings.filter(f => selectedIds.has(f.id)).length;
   const isAllSelected = groupSelectedCount === findings.length && findings.length > 0;
@@ -114,6 +124,7 @@ function FileGroup({ filePath, findings, runs, onSelect, selectedIds, onToggleSe
               hideLocation={true}
               isSelected={selectedIds.has(finding.id)}
               onToggleSelect={onToggleSelect}
+              isAnalyzing={Boolean(isAnalyzingMap?.[finding.id])}
             />
           ))}
         </div>
@@ -122,7 +133,7 @@ function FileGroup({ filePath, findings, runs, onSelect, selectedIds, onToggleSe
   );
 }
 
-export function FindingsView({ findings, runs, onSelect, onBulkAction, onRefresh }) {
+export function FindingsView({ findings, runs, onSelect, onBulkAction, onRefresh, batchState, onCancelBatch, isAnalyzingMap }) {
   const [query, setQuery] = useState('');
   const [severity, setSeverity] = useState('ALL');
   const [status, setStatus] = useState('ALL');
@@ -283,6 +294,7 @@ export function FindingsView({ findings, runs, onSelect, onBulkAction, onRefresh
                 onSelect={onSelect}
                 isSelected={selectedIds.has(finding.id)}
                 onToggleSelect={handleToggleSelect}
+                isAnalyzing={Boolean(isAnalyzingMap?.[finding.id])}
               />
             ))}
           </div>
@@ -301,13 +313,48 @@ export function FindingsView({ findings, runs, onSelect, onBulkAction, onRefresh
               selectedIds={selectedIds}
               onToggleSelect={handleToggleSelect}
               onToggleGroup={handleToggleGroup}
+              isAnalyzingMap={isAnalyzingMap}
             />
           ))}
         </div>
       </section>
     )}
 
-    {selectedIds.size > 0 && (
+    {batchState?.active ? (
+      <div className="sticky bottom-6 z-40 flex justify-center pointer-events-none mt-4 animate-fade-in" data-testid="batch-progress-bar">
+        <div className="pointer-events-auto flex items-center gap-4 rounded-2xl border border-cyan-500/30 bg-[#0b1a2b]/95 px-6 py-3 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-xl">
+          <div className="flex items-center gap-3">
+            <LoaderCircle size={16} className="animate-spin text-cyan-400 shrink-0" />
+            <div className="flex flex-col">
+              <span className="text-xs font-semibold text-slate-200">
+                Analyzing {batchState.completed + batchState.failed} of {batchState.total} vulnerabilities...
+              </span>
+              <div className="mt-1 h-1.5 w-40 overflow-hidden rounded-full bg-slate-800">
+                <div
+                  className="h-full bg-cyan-400 transition-all duration-300"
+                  style={{
+                    width: `${batchState.total > 0 ? Math.round(((batchState.completed + batchState.failed) / batchState.total) * 100) : 0}%`
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+          {batchState.failed > 0 && (
+            <span className="rounded bg-rose-400/10 px-1.5 py-0.5 text-[10px] font-medium text-rose-300">
+              {batchState.failed} failed
+            </span>
+          )}
+          <div className="h-5 w-px bg-slate-700/50" />
+          <button
+            type="button"
+            onClick={onCancelBatch}
+            className="flex items-center gap-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs font-bold text-rose-300 transition hover:bg-rose-500/20"
+          >
+            Cancel Batch
+          </button>
+        </div>
+      </div>
+    ) : selectedIds.size > 0 ? (
       <div className="sticky bottom-6 z-40 flex justify-center pointer-events-none mt-4 animate-fade-in">
         <div className="pointer-events-auto flex items-center gap-4 rounded-2xl border border-slate-700/50 bg-[#0b1a2b]/95 px-6 py-3 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-xl">
           <span className="flex items-center gap-2 text-[13px] font-semibold text-slate-200">
@@ -316,7 +363,10 @@ export function FindingsView({ findings, runs, onSelect, onBulkAction, onRefresh
           </span>
           <div className="h-5 w-px bg-slate-700/50" />
           <button
-            onClick={() => { if (onBulkAction) onBulkAction('analyze', Array.from(selectedIds)); }}
+            onClick={() => {
+              if (onBulkAction) onBulkAction('analyze', Array.from(selectedIds));
+              setSelectedIds(new Set());
+            }}
             className="flex items-center gap-1.5 rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-bold text-[#04202b] transition hover:bg-cyan-400">
             Analyze
           </button>
@@ -333,6 +383,6 @@ export function FindingsView({ findings, runs, onSelect, onBulkAction, onRefresh
           </button>
         </div>
       </div>
-    )}
+    ) : null}
   </div>;
 }

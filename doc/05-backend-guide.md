@@ -101,7 +101,7 @@ Coordinates the repository scanning workflow. It handles cache checks, scan exec
 
 ### `RemediationWorkflowService`
 
-Orchestrates the AI remediation lifecycle. It delegates complex multi-agent flows to LangGraph4j, manages stateful transitions (cloning, fixing, verifying), handles manual resume/discard actions, and processes autonomous publication.
+Orchestrates the AI remediation lifecycle for individual vulnerabilities and multi-vulnerability batches (`analyzeBatch`). It executes the multi-agent Star Topology graph via LangGraph4j, manages stateful transitions (cloning, fixing, verifying) up to `AWAITING_APPROVAL`, handles manual resume/discard actions, and processes autonomous publication. In batch mode, it bounds concurrency using a semaphore configured by `AgentConfig.getBatchConcurrency()` on virtual threads, keeps an active worker registry for instant cancellation, isolates failures so one errored finding does not abort the batch, and multiplexes SSE batch progress and graph step events.
 
 ### `PullRequestLifecycleService`
 

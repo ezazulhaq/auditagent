@@ -35,6 +35,7 @@ public class RemediationWorkflowService {
     private final RemediationWorkflowGraph workflowGraph;
     private final RepositoryAccessService repositoryAccess;
     private final ReporterService reporter;
+    private final com.cb.auditagent.config.AgentConfig agentConfig;
 
     public RemediationWorkflowService(
             DatabaseService database,
@@ -48,6 +49,24 @@ public class RemediationWorkflowService {
             RemediationWorkflowGraph workflowGraph,
             RepositoryAccessService repositoryAccess,
             ReporterService reporter) {
+        this(database, sourceControl, pullRequests, github, auth, llm, objectMapper, redactor,
+                workflowGraph, repositoryAccess, reporter, new com.cb.auditagent.config.AgentConfig());
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public RemediationWorkflowService(
+            DatabaseService database,
+            SourceControlProvider sourceControl,
+            PullRequestProvider pullRequests,
+            GitHubApiClient github,
+            GitHubAuthService auth,
+            LlmService llm,
+            ObjectMapper objectMapper,
+            MemoryRedactor redactor,
+            RemediationWorkflowGraph workflowGraph,
+            RepositoryAccessService repositoryAccess,
+            ReporterService reporter,
+            com.cb.auditagent.config.AgentConfig agentConfig) {
         this.database = database;
         this.sourceControl = sourceControl;
         this.pullRequests = pullRequests;
@@ -59,6 +78,7 @@ public class RemediationWorkflowService {
         this.workflowGraph = workflowGraph;
         this.repositoryAccess = repositoryAccess;
         this.reporter = reporter;
+        this.agentConfig = agentConfig;
     }
 
     public Flux<String> analyze(AuthenticatedUser user, String threadId, long repositoryId,
@@ -135,6 +155,233 @@ public class RemediationWorkflowService {
             }
         });
         return sink.asFlux();
+    }
+
+    public Flux<String> analyzeBatch(AuthenticatedUser user, String threadId, long repositoryId,
+            String branch, List<String> vulnerabilityIds) {
+        requireThreadOwner(threadId, user);
+        ManagedRepository repository = repositoryAccess.requireRepositoryAccess(user, repositoryId);
+        ScanSnapshot snapshot = database.findLatestScanSnapshot(repositoryId, branch)
+                .orElseThrow(() -> new IllegalStateException("Run a scan for this repository branch first"));
+
+        List<String> distinctVulnIds = vulnerabilityIds == null ? List.of()
+                : vulnerabilityIds.stream().filter(id -> id != null && !id.isBlank()).distinct().toList();
+        if (distinctVulnIds.isEmpty()) {
+            throw new IllegalArgumentException("vulnIds must not be empty");
+        }
+
+        Sinks.Many<String> sink = Sinks.many().unicast().onBackpressureBuffer();
+        java.util.concurrent.atomic.AtomicBoolean cancelled = new java.util.concurrent.atomic.AtomicBoolean(false);
+        java.util.Set<Thread> activeWorkerThreads = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+        Thread.startVirtualThread(() -> {
+            java.util.Timer keepAliveTimer = new java.util.Timer(true);
+            keepAliveTimer.scheduleAtFixedRate(new java.util.TimerTask() {
+                @Override
+                public void run() {
+                    try {
+                        emit(sink, Map.of("type", "keepalive"));
+                    } catch (Exception ignore) {
+                    }
+                }
+            }, 15000, 15000);
+
+            try {
+                int total = distinctVulnIds.size();
+                int concurrency = Math.max(1, agentConfig != null ? agentConfig.getBatchConcurrency() : 2);
+                java.util.concurrent.Semaphore semaphore = new java.util.concurrent.Semaphore(concurrency);
+                java.util.concurrent.atomic.AtomicInteger completedCount = new java.util.concurrent.atomic.AtomicInteger(0);
+                java.util.concurrent.atomic.AtomicInteger failedCount = new java.util.concurrent.atomic.AtomicInteger(0);
+                java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(total);
+
+                emit(sink, Map.of(
+                        "type", "batch_start",
+                        "total", total,
+                        "vulnIds", distinctVulnIds));
+
+                for (String vulnId : distinctVulnIds) {
+                    if (cancelled.get()) {
+                        latch.countDown();
+                        continue;
+                    }
+                    try {
+                        semaphore.acquire();
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        latch.countDown();
+                        break;
+                    }
+
+                    if (cancelled.get()) {
+                        semaphore.release();
+                        latch.countDown();
+                        continue;
+                    }
+
+                    Thread.startVirtualThread(() -> {
+                        Thread current = Thread.currentThread();
+                        activeWorkerThreads.add(current);
+                        try {
+                            if (cancelled.get()) {
+                                return;
+                            }
+                            processSingleRemediationInBatch(user, threadId, repository, snapshot, vulnId, sink, cancelled);
+                            completedCount.incrementAndGet();
+                        } catch (Exception e) {
+                            failedCount.incrementAndGet();
+                            logger.error("Remediation failed for vuln {}: {}", vulnId, safeMessage(e));
+                            try {
+                                database.getVulnerabilityById(vulnId).ifPresent(v -> {
+                                    if (v.getStatus() == VulnerabilityStatus.ANALYZING) {
+                                        v.setStatus(VulnerabilityStatus.DETECTED);
+                                        database.updateVulnerabilityStatus(v.getId(), v.getStatus(), null);
+                                    }
+                                });
+                            } catch (Exception ignored) {
+                            }
+                            Map<String, Object> errEvent = new HashMap<>();
+                            errEvent.put("type", "status");
+                            errEvent.put("vulnId", vulnId);
+                            errEvent.put("status", "FAILED");
+                            errEvent.put("message", "Remediation failed for " + vulnId + ": " + safeMessage(e));
+                            emit(sink, errEvent);
+                        } finally {
+                            activeWorkerThreads.remove(current);
+                            semaphore.release();
+                            Map<String, Object> progressEvent = new HashMap<>();
+                            progressEvent.put("type", "batch_progress");
+                            progressEvent.put("vulnId", vulnId);
+                            progressEvent.put("completed", completedCount.get());
+                            progressEvent.put("failed", failedCount.get());
+                            progressEvent.put("total", total);
+                            emit(sink, progressEvent);
+                            latch.countDown();
+                        }
+                    });
+                }
+
+                try {
+                    latch.await();
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                }
+
+                Map<String, Object> completeEvent = new HashMap<>();
+                completeEvent.put("type", "batch_complete");
+                completeEvent.put("total", total);
+                completeEvent.put("completed", completedCount.get());
+                completeEvent.put("failed", failedCount.get());
+                completeEvent.put("cancelled", cancelled.get());
+                completeEvent.put("message", String.format("Batch completed: %d succeeded, %d failed of %d total.",
+                        completedCount.get(), failedCount.get(), total));
+                emit(sink, completeEvent);
+                sink.tryEmitComplete();
+            } catch (Exception e) {
+                logger.error("Batch remediation failed: {}", safeMessage(e));
+                emit(sink, Map.of("type", "status", "message", "Batch remediation failed: " + safeMessage(e)));
+                sink.tryEmitComplete();
+            } finally {
+                keepAliveTimer.cancel();
+            }
+        });
+
+        return sink.asFlux().doOnCancel(() -> {
+            cancelled.set(true);
+            for (Thread t : activeWorkerThreads) {
+                try {
+                    t.interrupt();
+                } catch (Exception ignore) {
+                }
+            }
+        });
+    }
+
+    private void processSingleRemediationInBatch(AuthenticatedUser user, String threadId,
+            ManagedRepository repository, ScanSnapshot snapshot, String vulnerabilityId,
+            Sinks.Many<String> sink, java.util.concurrent.atomic.AtomicBoolean cancelled) throws Exception {
+        String workflowId = threadId + "-" + vulnerabilityId;
+        database.deleteGraphCheckpoints(workflowId);
+        Map<String, Object> state = new HashMap<>();
+        state.put("authenticatedUser", user);
+        state.put("threadId", threadId);
+        state.put("repositoryId", repository.repositoryId());
+        state.put("branch", snapshot.branch());
+        state.put("vulnerabilityId", vulnerabilityId);
+
+        var config = org.bsc.langgraph4j.RunnableConfig.builder().threadId(workflowId).build();
+        var stream = workflowGraph.getGraph().stream(org.bsc.langgraph4j.GraphInput.args(state), config);
+
+        for (var node : stream) {
+            if (cancelled.get() || Thread.currentThread().isInterrupted()) {
+                logger.info("Batch cancelled, stopping processing for vuln {}", vulnerabilityId);
+                break;
+            }
+            String nodeName = node.node();
+            com.cb.auditagent.graph.workflow.WorkflowState s = node.state();
+
+            Map<String, Object> stepEvent = new HashMap<>();
+            stepEvent.put("type", "graph_step");
+            stepEvent.put("vulnId", vulnerabilityId);
+            stepEvent.put("runId", s.getRunId() != null ? s.getRunId() : "");
+            stepEvent.put("node", nodeName);
+            stepEvent.put("status", "completed");
+            emit(sink, stepEvent);
+
+            if ("clone_workspace".equals(nodeName)) {
+                Map<String, Object> prepEvent = new HashMap<>();
+                prepEvent.put("type", "workspace_prepared");
+                prepEvent.put("vulnId", vulnerabilityId);
+                prepEvent.put("runId", s.getRunId() != null ? s.getRunId() : "");
+                prepEvent.put("repository", repository.fullName());
+                prepEvent.put("branch", snapshot.branch());
+                prepEvent.put("baseSha", snapshot.baseSha());
+                emit(sink, prepEvent);
+            } else if ("approval_ready".equals(nodeName)) {
+                if (s.getApprovalPreview() != null) {
+                    Map<String, Object> approvalEvent = new HashMap<>();
+                    approvalEvent.put("type", "approval_ready");
+                    approvalEvent.put("vulnId", vulnerabilityId);
+                    approvalEvent.put("runId", s.getRunId() != null ? s.getRunId() : "");
+                    approvalEvent.put("preview", s.getApprovalPreview());
+                    emit(sink, approvalEvent);
+                }
+                Map<String, Object> completeEvent = new HashMap<>();
+                completeEvent.put("type", "analysis_complete");
+                completeEvent.put("vulnId", vulnerabilityId);
+                completeEvent.put("runId", s.getRunId() != null ? s.getRunId() : "");
+                completeEvent.put("requires_approval", true);
+                completeEvent.put("preview", s.getApprovalPreview() != null ? s.getApprovalPreview() : Map.of());
+                completeEvent.put("message", s.getWorkflowMessage() != null ? s.getWorkflowMessage()
+                        : "Remediation verified. Awaiting human approval.");
+                emit(sink, completeEvent);
+            } else if ("publish".equals(nodeName)) {
+                Map<String, Object> pubProgress = new HashMap<>();
+                pubProgress.put("type", "publish_progress");
+                pubProgress.put("vulnId", vulnerabilityId);
+                pubProgress.put("runId", s.getRunId() != null ? s.getRunId() : "");
+                pubProgress.put("phase", "TRACKING_PR");
+                pubProgress.put("message", s.getWorkflowMessage() != null ? s.getWorkflowMessage() : "Pull request created.");
+                emit(sink, pubProgress);
+
+                if (s.getPullRequestNumber() != null && s.getPullRequestUrl() != null) {
+                    Map<String, Object> prEvent = new HashMap<>();
+                    prEvent.put("type", "pr_created");
+                    prEvent.put("vulnId", vulnerabilityId);
+                    prEvent.put("runId", s.getRunId());
+                    prEvent.put("pullRequestNumber", s.getPullRequestNumber());
+                    prEvent.put("pullRequestUrl", s.getPullRequestUrl());
+                    emit(sink, prEvent);
+                }
+
+                Map<String, Object> doneEvent = new HashMap<>();
+                doneEvent.put("type", "complete");
+                doneEvent.put("vulnId", vulnerabilityId);
+                doneEvent.put("runId", s.getRunId() != null ? s.getRunId() : "");
+                doneEvent.put("runStatus", "PUBLISHED");
+                doneEvent.put("message", s.getWorkflowMessage() != null ? s.getWorkflowMessage() : "Pull request created.");
+                emit(sink, doneEvent);
+            }
+        }
     }
 
     public ApprovalPreview approvalPreview(AuthenticatedUser user, String runId) {

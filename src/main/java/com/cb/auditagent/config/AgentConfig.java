@@ -68,6 +68,10 @@ public class AgentConfig {
     /** CPU limit for sandbox containers (e.g. "2.0" for 2 CPUs) */
     private String sandboxCpuLimit = "2.0";
 
+    /** Maximum number of concurrent remediation workflows in a batch */
+    @Min(1)
+    private int batchConcurrency = 2;
+
     // Getters and Setters
 
     public boolean isUseMultiAgent() {
@@ -188,5 +192,13 @@ public class AgentConfig {
 
     public void setSandboxCpuLimit(String sandboxCpuLimit) {
         this.sandboxCpuLimit = sandboxCpuLimit;
+    }
+
+    public int getBatchConcurrency() {
+        return batchConcurrency;
+    }
+
+    public void setBatchConcurrency(int batchConcurrency) {
+        this.batchConcurrency = batchConcurrency;
     }
 }

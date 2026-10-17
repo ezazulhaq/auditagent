@@ -334,6 +334,7 @@ Semgrep also requires a short, writable JVM OS-temp root (`java.io.tmpdir`), esp
 | Property | Default | Meaning |
 |---|---:|---|
 | `auditagent.agent.max-iterations` | 15 | Model/tool rounds. |
+| `auditagent.agent.batch-concurrency` | 2 | Maximum concurrent remediation tasks executed in batch analysis. |
 | `auditagent.llm.provider` | openai-compatible | Configures the LLM provider (e.g. OpenRouter/Gemini or direct OpenAI). |
 | `auditagent.llm.openai.base-url` | empty | API Base URL for OpenAI-compatible endpoints. |
 | `auditagent.llm.openai.api-key` | empty | API key for the OpenAI-compatible endpoint. |
