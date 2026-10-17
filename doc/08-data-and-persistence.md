@@ -378,6 +378,9 @@ AuditAgent organizes persistence around Domain-Driven Design (DDD) Aggregate Roo
      - `AgentRun.thread` maps `@ManyToOne` with `ON DELETE CASCADE`.
      - `AgentRun.vulnerability` maps `@ManyToOne` using `ConstraintMode.NO_CONSTRAINT` because agent runs can analyze in-memory/synthetic findings prior to report persistence.
      - `RunPublication` maps scalar PK with `@JoinColumn(insertable = false, updatable = false, foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))` to prevent unmanaged transient graph cascades during publication updates.
+   - Concurrency & Active Run Constraints:
+     - In managed remediation (`createManagedAgentRun`), active run validation (`findActiveRunsByVulnOrWorkspace`) is constrained to finding identity (`vulnerability_id` / `findingFingerprint`) and isolated workspace directory rather than locking the entire thread. This enables concurrent batch remediation across distinct findings within the same repository thread while preventing duplicate active or interrupted runs on the same finding or workspace.
+     - In legacy unmanaged execution (`createAgentRun`), active runs remain constrained by thread or host repository directory (`findActiveRunsByThreadOrRepo`).
 
 3. **User & Authentication Aggregate**:
    - Aggregate Root: `AppUser` (`app_users`)

@@ -184,4 +184,42 @@ class DomainDataServicesTest {
         List<RepositoryMemory> memories = remediationDataService.searchRepositoryMemories("test/remediation", vuln);
         assertNotNull(memories);
     }
+
+    @Test
+    void testCreateManagedAgentRunAllowsConcurrentRunsInSameThread() {
+        String threadId = conversationDataService.getOrCreateMemoryThread("test-client-mng", "test/managed");
+        Vulnerability vuln1 = new Vulnerability("VULN-MNG-1", "src/A.java", 10, "code1",
+                Severity.HIGH, "sqli", "SQLi 1", "java");
+        vuln1.setFindingFingerprint("fp-1");
+        Vulnerability vuln2 = new Vulnerability("VULN-MNG-2", "src/B.java", 20, "code2",
+                Severity.MEDIUM, "xss", "XSS 2", "java");
+        vuln2.setFindingFingerprint("fp-2");
+        scanDataService.saveReport("test/managed", "md", "html", List.of(vuln1, vuln2), new ScanMetadata());
+
+        AgentRunRecord run1 = remediationDataService.createManagedAgentRun(threadId, vuln1, "/workspaces/run-1", 10);
+        assertNotNull(run1);
+        assertEquals(AgentRunStatus.ACTIVE, run1.status());
+
+        // Concurrently creating managed run 2 for a different vulnerability under the same threadId MUST succeed
+        AgentRunRecord run2 = remediationDataService.createManagedAgentRun(threadId, vuln2, "/workspaces/run-2", 10);
+        assertNotNull(run2);
+        assertEquals(AgentRunStatus.ACTIVE, run2.status());
+
+        // Both runs should be recoverable in this thread
+        List<AgentRunRecord> activeRuns = remediationDataService.findRecoverableRuns(threadId);
+        assertEquals(2, activeRuns.size());
+
+        // Duplicate run for the SAME vulnerability or fingerprint should be rejected
+        IllegalStateException exVuln = assertThrows(IllegalStateException.class, () ->
+                remediationDataService.createManagedAgentRun(threadId, vuln1, "/workspaces/run-3", 10));
+        assertTrue(exVuln.getMessage().contains("already active for this vulnerability or workspace"));
+
+        // Duplicate run for the SAME workspace path should be rejected
+        Vulnerability vuln3 = new Vulnerability("VULN-MNG-3", "src/C.java", 30, "code3",
+                Severity.LOW, "info", "Info 3", "java");
+        vuln3.setFindingFingerprint("fp-3");
+        IllegalStateException exWs = assertThrows(IllegalStateException.class, () ->
+                remediationDataService.createManagedAgentRun(threadId, vuln3, "/workspaces/run-1", 10));
+        assertTrue(exWs.getMessage().contains("already active for this vulnerability or workspace"));
+    }
 }
