@@ -31,6 +31,8 @@ public class DatabasePreflightCleanup {
 
             // Checkpoint events referencing graph_checkpoints
             "DELETE FROM graph_node_events WHERE checkpoint_id IS NOT NULL AND checkpoint_id NOT IN (SELECT checkpoint_id FROM graph_checkpoints)",
+            "ALTER TABLE graph_checkpoints DROP CONSTRAINT IF EXISTS fkkwd3mb6en0vpjr7htgsq30xsv",
+            "ALTER TABLE graph_checkpoints ALTER COLUMN run_id DROP NOT NULL",
 
             // Memory and runs referencing memory_threads
             "DELETE FROM memory_messages WHERE thread_id IS NOT NULL AND thread_id NOT IN (SELECT thread_id FROM memory_threads)",

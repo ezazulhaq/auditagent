@@ -20,7 +20,7 @@ public interface GraphCheckpointRepository extends JpaRepository<GraphCheckpoint
         return findCheckpointsByRun(runId).stream().findFirst();
     }
 
-    @Query("SELECT c.checkpointId FROM GraphCheckpoint c WHERE c.thread.threadId = :threadId ORDER BY c.createdAt ASC")
+    @Query("SELECT c.checkpointId FROM GraphCheckpoint c WHERE c.threadId = :threadId ORDER BY c.createdAt ASC")
     List<String> findCheckpointIdsByThreadIdOrderByCreatedAtAsc(@Param("threadId") String threadId);
 
     @Modifying(clearAutomatically = true)
@@ -28,6 +28,6 @@ public interface GraphCheckpointRepository extends JpaRepository<GraphCheckpoint
     int nullifyExpiredStateJson(@Param("now") LocalDateTime now);
 
     @Modifying(clearAutomatically = true)
-    @Query("DELETE FROM GraphCheckpoint c WHERE c.thread.threadId = :threadId")
+    @Query("DELETE FROM GraphCheckpoint c WHERE c.threadId = :threadId")
     void deleteByThreadId(@Param("threadId") String threadId);
 }
