@@ -22,6 +22,10 @@ public interface AgentRunRepository extends JpaRepository<AgentRun, String> {
     List<AgentRun> findActiveRunsByThreadOrRepo(@Param("threadId") String threadId, @Param("repoPath") String repoPath,
             @Param("statuses") Collection<String> statuses);
 
+    @Query("SELECT r FROM AgentRun r LEFT JOIN r.vulnerability v WHERE ((:vulnId IS NOT NULL AND v.id = :vulnId) OR (:fingerprint IS NOT NULL AND r.findingFingerprint = :fingerprint) OR (:workspacePath IS NOT NULL AND r.repoPath = :workspacePath)) AND r.status IN :statuses")
+    List<AgentRun> findActiveRunsByVulnOrWorkspace(@Param("vulnId") String vulnId, @Param("fingerprint") String fingerprint,
+            @Param("workspacePath") String workspacePath, @Param("statuses") Collection<String> statuses);
+
     @Query("SELECT r FROM AgentRun r WHERE r.thread.threadId = :threadId")
     List<AgentRun> findByThreadId(@Param("threadId") String threadId);
 

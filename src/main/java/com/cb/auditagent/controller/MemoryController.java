@@ -59,7 +59,7 @@ public class MemoryController {
     public ResponseEntity<?> forgetThread(@PathVariable String threadId, ServerWebExchange exchange) {
         AuthenticatedUser user = auth.requireUser(exchange);
         requireOwner(threadId, user);
-        database.findRecoverableRun(threadId).ifPresent(run -> remediationWorkflow.discard(user, run.runId()));
+        database.findRecoverableRuns(threadId).forEach(run -> remediationWorkflow.discard(user, run.runId()));
         database.deleteMemoryThread(threadId);
         return ResponseEntity.ok(Map.of("threadId", threadId, "forgotten", true));
     }
