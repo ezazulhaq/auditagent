@@ -17,6 +17,7 @@ The `DatabaseCheckpointSaver (formerly DuckDbCheckpointSaver)` intercepts every 
 This guarantees that:
 - Server restarts or process crashes do not lose the conversation or patch progress.
 - Human-in-the-loop workflows (like the `approval_ready` interrupt) can cleanly suspend execution, freeing up virtual threads, and securely resume only upon authenticated user input (`decide` API).
+- Native lifecycle hooks and interruption registration (`registerInterruption`, `release`) conform to the LangGraph4j 1.9.5 `BaseCheckpointSaver` contract.
 
 ## Multi-agent topology & unified workflow (phases 3 and 4)
 

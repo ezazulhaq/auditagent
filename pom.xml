@@ -29,9 +29,9 @@
 	<properties>
 		<java.version>21</java.version>
 		<spring-ai.version>2.0.0-RC1</spring-ai.version>
-		<langchain4j.version>1.10.0</langchain4j.version>
-		<langchain4j-http-client.version>1.13.0-beta23</langchain4j-http-client.version>
-		<langgraph4j.version>1.9.0-beta1</langgraph4j.version>
+		<langchain4j.version>1.22.0</langchain4j.version>
+		<langchain4j-http-client.version>1.22.0-beta32</langchain4j-http-client.version>
+		<langgraph4j.version>1.9.5</langgraph4j.version>
 		<jgit.version>7.6.0.202603022253-r</jgit.version>
 	</properties>
 	<dependencies>
