@@ -548,8 +548,8 @@ Each scan also creates a short `aa-*` directory directly under `java.io.tmpdir`.
 
 ## Dependency and build notes
 
-- LangGraph4j (`1.9.0-beta1`) provides the graph-based orchestration and requires Java 17+.
-- `langchain4j-open-ai` is included to support OpenRouter, Gemini, and other OpenAI-compatible API proxies.
+- LangGraph4j (`1.9.5`) provides the graph-based orchestration and requires Java 17+.
+- LangChain4j (`1.22.0`) and `langchain4j-open-ai` are included to support OpenRouter, Gemini, and other OpenAI-compatible API proxies.
 - `async-generator-5.0.0` provides async streaming compatibility for the graph engine.
 - Spring Boot 4 and Spring AI release candidate require deliberate Jackson/AWS alignment.
 - JUnit BOM is pinned to JUnit 6 for Spring Framework 7 compatibility.

@@ -4,13 +4,16 @@ import com.cb.auditagent.service.DatabaseService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.bsc.langgraph4j.RunnableConfig;
+import org.bsc.langgraph4j.action.InterruptionMetadata;
 import org.bsc.langgraph4j.checkpoint.BaseCheckpointSaver;
 import org.bsc.langgraph4j.checkpoint.Checkpoint;
+import org.bsc.langgraph4j.state.AgentState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 @Component
 public class DuckDbCheckpointSaver implements BaseCheckpointSaver {
@@ -132,6 +135,22 @@ public class DuckDbCheckpointSaver implements BaseCheckpointSaver {
     @Override
     public Tag release(RunnableConfig config) throws Exception {
         return new Tag(config.threadId().orElse("default"), java.util.Collections.emptyList());
+    }
+
+    @Override
+    public Tag release(RunnableConfig config, String message) throws Exception {
+        return release(config);
+    }
+
+    @Override
+    public Tag releaseOnError(RunnableConfig config, Throwable error) throws Exception {
+        return release(config);
+    }
+
+    @Override
+    public <State extends AgentState> CompletableFuture<InterruptionMetadata<State>> registerInterruption(
+            RunnableConfig config, InterruptionMetadata<State> metadata) {
+        return CompletableFuture.completedFuture(metadata);
     }
 
     @Override
