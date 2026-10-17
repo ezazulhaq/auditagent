@@ -114,9 +114,12 @@ public class DuckDbCheckpointSaver implements BaseCheckpointSaver {
 
         String json = mapper.writeValueAsString(checkpoint.getState());
 
-        String runId = threadId;
-        if (threadId.contains("-")) {
-            runId = threadId.substring(0, threadId.indexOf("-"));
+        String runId = null;
+        if (checkpoint.getState() != null) {
+            Object r = checkpoint.getState().get("runId");
+            if (r != null && !r.toString().isBlank()) {
+                runId = r.toString();
+            }
         }
 
         String combinedNodeName = checkpoint.getNodeId();

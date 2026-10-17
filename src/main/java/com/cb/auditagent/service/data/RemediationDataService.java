@@ -538,7 +538,11 @@ public class RemediationDataService {
             String nodeName, String stateJson, String interruptReason) {
         GraphCheckpoint c = new GraphCheckpoint();
         c.setCheckpointId(checkpointId);
-        c.setRunId(runId);
+        if (runId != null && agentRunRepository.existsById(runId)) {
+            c.setRunId(runId);
+        } else {
+            c.setRunId(null);
+        }
         c.setThreadId(threadId);
         c.setParentCheckpointId(parentId);
         c.setNodeName(nodeName);

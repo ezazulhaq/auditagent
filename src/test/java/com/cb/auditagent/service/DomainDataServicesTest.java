@@ -167,6 +167,14 @@ class DomainDataServicesTest {
         assertEquals("{\"k\":\"v\"}", loaded[0]);
         assertEquals("node_start", loaded[1]);
 
+        // Verify checkpoint can be saved without an active run (e.g., initial graph checkpoint before run creation)
+        String workflowId = threadId + "-VULN-REM-1";
+        remediationDataService.saveGraphCheckpoint("chk-init", null, workflowId, null, "validate_access", "{\"step\":\"init\"}", null);
+        String[] loadedInit = remediationDataService.loadGraphCheckpoint("chk-init");
+        assertEquals(2, loadedInit.length);
+        assertEquals("{\"step\":\"init\"}", loadedInit[0]);
+        assertEquals(List.of("chk-init"), remediationDataService.listGraphCheckpoints(workflowId));
+
         remediationDataService.saveNodeEvent("ev-1", run.runId(), "chk-1", "node_start", "SUCCESS", 25L, "{\"detail\":1}");
         List<String> events = remediationDataService.getNodeEvents(run.runId());
         assertEquals(1, events.size());

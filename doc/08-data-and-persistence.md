@@ -85,8 +85,8 @@ Message types are `SYSTEM`, `TEXT`, `TOOL_REQUEST`, and `TOOL_RESULT` as used by
 Stores LangGraph4j state snapshots after every node execution.
 
 - `checkpoint_id`: Unique identifier for the checkpoint.
-- `run_id`: The remediation run ID.
-- `thread_id`: The conversation thread ID.
+- `run_id`: The remediation run ID (nullable; populated once workspace clone initializes `agent_runs`).
+- `thread_id`: The LangGraph4j workflow execution thread ID (e.g., `<threadId>-<vulnId>`).
 - `graph_name`: The name of the graph being executed.
 - `node_name`: The graph node that produced this state.
 - `iteration`: The iteration loop counter.
@@ -370,7 +370,7 @@ AuditAgent organizes persistence around Domain-Driven Design (DDD) Aggregate Roo
      - `AgentStep` (`agent_steps`): `@ManyToOne` to `AgentRun`.
      - `VerificationResult` (`verification_results`): `@ManyToOne` to `AgentRun`.
      - `RunChange` (`run_changes`): `@ManyToOne` to `AgentRun`.
-     - `GraphCheckpoint` (`graph_checkpoints`): `@ManyToOne` to `AgentRun`, with child `GraphNodeEvent` collection (`CascadeType.ALL`).
+     - `GraphCheckpoint` (`graph_checkpoints`): Optional `@ManyToOne` to `AgentRun` (`run_id` is nullable to allow graph preflight/validation checkpoints prior to workspace cloning and run creation), with child `GraphNodeEvent` collection (`CascadeType.ALL`). The `thread_id` field stores the LangGraph4j workflow execution identifier (`<threadId>-<vulnId>`) decoupled from `memory_threads`.
      - `GraphNodeEvent` (`graph_node_events`): `@ManyToOne` to `GraphCheckpoint` and `AgentRun`.
      - `SubagentState` (`subagent_states`): `@ManyToOne` to `AgentRun`.
      - `RunPublication` (`run_publications`): `@OneToOne` to `AgentRun`.

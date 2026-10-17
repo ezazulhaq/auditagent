@@ -39,14 +39,13 @@ public class GraphCheckpoint {
     private String checkpointId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "run_id", nullable = false)
+    @JoinColumn(name = "run_id", nullable = true)
     @OnDelete(action = OnDeleteAction.CASCADE)
     private AgentRun run;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "thread_id", nullable = false)
-    @OnDelete(action = OnDeleteAction.CASCADE)
-    private MemoryThread thread;
+    @NotNull
+    @Column(name = "thread_id", nullable = false)
+    private String threadId;
 
     private String parentCheckpointId;
 
@@ -82,15 +81,11 @@ public class GraphCheckpoint {
     }
 
     public String getThreadId() {
-        return thread != null ? thread.getThreadId() : null;
+        return threadId;
     }
 
     public void setThreadId(String threadId) {
-        if (threadId != null) {
-            this.thread = MemoryThread.builder().threadId(threadId).build();
-        } else {
-            this.thread = null;
-        }
+        this.threadId = threadId;
     }
 
 }
