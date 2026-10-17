@@ -13,6 +13,8 @@
 
 Apache PDFBox is resolved through Maven and is packaged with the backend. Enterprise report generation needs no browser rendering service, office suite, headless Chromium, reporting CDN, or additional report configuration. PDFs are produced in application memory, so platform memory limits should allow for the largest expected persisted finding set and concurrent report requests. On first PDF use, PDFBox may inspect installed fonts and stores only reusable font metadata below `<java.io.tmpdir>/auditagent-pdfbox-font-cache`; the service identity must be able to write to its normal JVM temporary directory. No report content is written there.
 
+Annotation processing (Lombok) is managed by `spring-boot-starter-parent` with `provided` scope, aligning AST transformation rules with Java 21 compliance and preventing dialect/AST mismatches in both `javac` and Eclipse JDT Language Server (`jdt.ls`) environments.
+
 ## Clone and install
 
 ```bash
@@ -81,6 +83,7 @@ Create a GitHub App with:
   - Metadata: read;
   - Contents: read and write;
   - Pull requests: read and write;
+  - Workflows: read and write (required if remediating CI/CD workflows under `.github/workflows/`);
 - subscribed event: Pull request.
 
 Install the App on the intended repositories. The frontend can show `GITHUB_APP_INSTALLATION_URL` when no repository is available.
@@ -138,7 +141,7 @@ In the owning user or organization, open **Settings → Developer settings → G
 3. Leave expiring user authorization tokens enabled so OAuth supplies refresh tokens.
 4. Enable webhooks, set the exact `/api/webhooks/github` URL, paste `GITHUB_APP_WEBHOOK_SECRET`, and keep SSL
    verification enabled.
-5. Grant only Metadata read, Contents read/write, and Pull requests read/write.
+5. Grant Metadata read, Contents read/write, Pull requests read/write, and Workflows read/write (required if remediating CI/CD workflows under `.github/workflows/`).
 6. Subscribe to the Pull request event.
 7. Select the appropriate visibility: account-only for a private internal deployment, or a broader option only when
    other accounts must install it.
@@ -468,7 +471,7 @@ response. Redeliver the event to confirm idempotency. A request without a valid 
 | Login state mismatch | Callback host changed, browser rejected the state cookie, another browser initiated login, or the ten-minute state was reused/expired. A non-UTC server is supported; immediate failures should be checked against the UTC-normalized auth-expiry query and an accurate system clock. |
 | `Could not authenticate GitHub App` | App ID/private key mismatch, unreadable key file, malformed PEM, or server clock skew. |
 | Login works but repositories are empty | App is not installed on the repository, org access is pending, or user access was revoked. |
-| Publication returns 403 | App Contents/PR permissions are missing/unapproved, or the user lacks push permission. |
+| Publication returns 403 or rejection | App Contents/PR permissions are missing/unapproved, the user lacks push permission, or changes touch `.github/workflows/` without the GitHub App's `Workflows: read and write` permission. |
 | Webhook signature fails | GitHub and server secrets differ, or a proxy modified the raw request body. |
 | Webhook never arrives | URL/TLS/network is invalid, webhook is disabled, or Pull request is not subscribed. |
 | Workspace preparation fails | Ownership, disk capacity, unsafe root, or a stale workspace directory is blocking preparation. |
@@ -546,8 +549,8 @@ Each scan also creates a short `aa-*` directory directly under `java.io.tmpdir`.
 
 ## Dependency and build notes
 
-- LangGraph4j (`1.9.0-beta1`) provides the graph-based orchestration and requires Java 17+.
-- `langchain4j-open-ai` is included to support OpenRouter, Gemini, and other OpenAI-compatible API proxies.
+- LangGraph4j (`1.9.5`) provides the graph-based orchestration and requires Java 17+.
+- LangChain4j (`1.22.0`) and `langchain4j-open-ai` are included to support OpenRouter, Gemini, and other OpenAI-compatible API proxies.
 - `async-generator-5.0.0` provides async streaming compatibility for the graph engine.
 - Spring Boot 4 and Spring AI release candidate require deliberate Jackson/AWS alignment.
 - JUnit BOM is pinned to JUnit 6 for Spring Framework 7 compatibility.

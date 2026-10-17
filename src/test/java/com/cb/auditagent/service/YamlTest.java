@@ -3,9 +3,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import com.cb.auditagent.config.GitHubAppConfig;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@SpringBootTest(properties = {"spring.profiles.active=local"})
+@SpringBootTest(properties = {"spring.profiles.active=local", "spring.ai.openai.api-key=dummy"})
 public class YamlTest {
     @Autowired
     private GitHubAppConfig config;

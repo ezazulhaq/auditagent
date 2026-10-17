@@ -33,7 +33,7 @@ AuditAgent must:
 - Run ownership is resolved through thread owner plus publication user.
 - Finding must belong to the selected scan report.
 - Repository reads are revalidated with the user token.
-- Publication revalidates user push and App write permissions.
+- Publication revalidates user push and App write permissions (including Workflows write permissions when modifying `.github/workflows/`).
 - Run ID and vulnerability ID must match.
 - Base branch and file state must remain unchanged.
 - Deleting scan history revalidates current user repository read access before bulk removal.

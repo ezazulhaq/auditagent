@@ -11,6 +11,9 @@ import java.util.Optional;
 public interface UserSessionRepository extends JpaRepository<UserSession, String> {
     Optional<UserSession> findBySessionHashAndExpiresAtAfter(String sessionHash, LocalDateTime now);
 
+    @Query("SELECT s FROM UserSession s JOIN FETCH s.user WHERE s.sessionHash = :sessionHash AND s.expiresAt > :now")
+    Optional<UserSession> findWithUserBySessionHashAndExpiresAtAfter(@Param("sessionHash") String sessionHash, @Param("now") LocalDateTime now);
+
     @Modifying
     @Query("DELETE FROM UserSession s WHERE s.expiresAt < :now")
     int deleteExpiredSessions(@Param("now") LocalDateTime now);

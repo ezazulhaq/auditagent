@@ -125,6 +125,12 @@ public class GitHubApiClient {
                 && !permissions.path("metadata").asText().isBlank();
     }
 
+    public boolean installationHasWorkflowPermission(long installationId) {
+        JsonNode permissions = sendJson("GET", api("/app/installations/" + installationId), appJwt(), null)
+                .path("permissions");
+        return "write".equalsIgnoreCase(permissions.path("workflows").asText());
+    }
+
     public PrInfo createPullRequest(ManagedRepository repository, String baseBranch, String branchName,
             String title, String body, String installationToken) {
         JsonNode payload = objectMapper.valueToTree(Map.of("title", title, "body", body, "head", branchName,

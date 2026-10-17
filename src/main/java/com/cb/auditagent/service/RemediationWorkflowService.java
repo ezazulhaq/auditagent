@@ -187,7 +187,23 @@ public class RemediationWorkflowService {
                 }
                 sink.tryEmitComplete();
             } catch (Exception e) {
-                emit(sink, java.util.Map.of("type", "publish_failed", "runId", runId, "runStatus", safeRunStatus(runId),
+                database.getAgentRun(runId).ifPresent(r -> {
+                    database.updateAgentRun(runId, AgentPhase.FAILED, AgentRunStatus.PUBLISH_FAILED,
+                            r.iteration(), r.retryCount(), r.patchApplied(), r.compilePassed(),
+                            r.rescanPassed(), r.testsPassed(), r.checkpointJson(), r.finalSummary(),
+                            "PUBLISH_FAILED", safeMessage(e));
+                });
+                database.getRunPublication(runId).ifPresent(p -> {
+                    RunPublicationRecord failedPub = new RunPublicationRecord(
+                            p.runId(), p.userId(), p.repositoryId(),
+                            p.installationId(), p.reportKey(), p.baseBranch(),
+                            p.baseSha(), p.workspacePath(), p.branchName(),
+                            p.approvalDigest(), user.login(),
+                            p.approvedAt() != null ? p.approvedAt() : LocalDateTime.now(ZoneOffset.UTC),
+                            p.commitSha(), "FAILED", null, null, null, safeMessage(e));
+                    database.saveRunPublication(failedPub);
+                });
+                emit(sink, java.util.Map.of("type", "publish_failed", "runId", runId, "runStatus", "PUBLISH_FAILED",
                         "message", safeMessage(e)));
                 sink.tryEmitComplete();
             }
@@ -326,6 +342,11 @@ public class RemediationWorkflowService {
         }
         Path workspace = Path.of(publication.workspacePath());
         List<String> pendingFiles = sourceControl.changedFiles(workspace);
+        boolean touchesWorkflows = pendingFiles.stream()
+                .anyMatch(f -> f.replace('\\', '/').startsWith(".github/workflows/"));
+        if (touchesWorkflows && !github.installationHasWorkflowPermission(publication.installationId())) {
+            throw new SecurityException("Remediation touches GitHub Actions workflow files (.github/workflows/), which requires the GitHub App to have 'Workflows: Read and write' permission. Please grant 'Workflows: Read and write' permission in your GitHub App settings (Developer settings -> GitHub Apps -> Permissions & events -> Repository permissions -> Workflows) and accept the updated permissions for this repository.");
+        }
         if (publication.commitSha() != null) {
             if (!publication.commitSha().equalsIgnoreCase(sourceControl.workspaceHead(workspace))
                     || !pendingFiles.isEmpty()) {

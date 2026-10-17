@@ -85,8 +85,8 @@ Message types are `SYSTEM`, `TEXT`, `TOOL_REQUEST`, and `TOOL_RESULT` as used by
 Stores LangGraph4j state snapshots after every node execution.
 
 - `checkpoint_id`: Unique identifier for the checkpoint.
-- `run_id`: The remediation run ID.
-- `thread_id`: The conversation thread ID.
+- `run_id`: The remediation run ID (nullable; populated once workspace clone initializes `agent_runs`).
+- `thread_id`: The LangGraph4j workflow execution thread ID (e.g., `<threadId>-<vulnId>`).
 - `graph_name`: The name of the graph being executed.
 - `node_name`: The graph node that produced this state.
 - `iteration`: The iteration loop counter.
@@ -353,7 +353,73 @@ Usage counters increment for selected memories.
 
 DuckDB's `fts` extension is loaded or installed. The index covers title, summary, root cause, remediation pattern, and search text using Porter stemming, English stopwords, accent stripping, and lowercase normalization. A rebuild occurs when source/index versions differ. Failure sets `ftsAvailable=false`, records a safe failure, and preserves metadata retrieval.
 
-This is lexical retrieval, not vector similarity.
+## Entity Relationships, Aggregate Roots, and Modular Domain Data Services
+
+AuditAgent organizes persistence around Domain-Driven Design (DDD) Aggregate Roots and modular domain data services behind the unified `DatabaseService` facade:
+
+### Aggregate Roots and Child Entities
+
+1. **Conversation Aggregate**:
+   - Aggregate Root: `MemoryThread` (`memory_threads`)
+   - Children: `MemoryMessage` (`memory_messages`) with `@ManyToOne` pointing to `MemoryThread`, and referencing `AgentRun` with `OnDeleteAction.SET_NULL`.
+   - Collections: `MemoryThread.messages` (`CascadeType.ALL`, orphan removal) and `MemoryThread.runs` (`CascadeType.ALL`, orphan removal).
+
+2. **Remediation Aggregate**:
+   - Aggregate Root: `AgentRun` (`agent_runs`)
+   - Children:
+     - `AgentStep` (`agent_steps`): `@ManyToOne` to `AgentRun`.
+     - `VerificationResult` (`verification_results`): `@ManyToOne` to `AgentRun`.
+     - `RunChange` (`run_changes`): `@ManyToOne` to `AgentRun`.
+     - `GraphCheckpoint` (`graph_checkpoints`): Optional `@ManyToOne` to `AgentRun` (`run_id` is nullable to allow graph preflight/validation checkpoints prior to workspace cloning and run creation), with child `GraphNodeEvent` collection (`CascadeType.ALL`). The `thread_id` field stores the LangGraph4j workflow execution identifier (`<threadId>-<vulnId>`) decoupled from `memory_threads`.
+     - `GraphNodeEvent` (`graph_node_events`): `@ManyToOne` to `GraphCheckpoint` and `AgentRun`.
+     - `SubagentState` (`subagent_states`): `@ManyToOne` to `AgentRun`.
+     - `RunPublication` (`run_publications`): `@OneToOne` to `AgentRun`.
+   - Foreign Keys & Loose Navigation:
+     - `AgentRun.thread` maps `@ManyToOne` with `ON DELETE CASCADE`.
+     - `AgentRun.vulnerability` maps `@ManyToOne` using `ConstraintMode.NO_CONSTRAINT` because agent runs can analyze in-memory/synthetic findings prior to report persistence.
+     - `RunPublication` maps scalar PK with `@JoinColumn(insertable = false, updatable = false, foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))` to prevent unmanaged transient graph cascades during publication updates.
+
+3. **User & Authentication Aggregate**:
+   - Aggregate Root: `AppUser` (`app_users`)
+   - Children:
+     - `UserSession` (`user_sessions`): `@ManyToOne` to `AppUser`.
+     - `GithubAuthorization` (`github_authorizations`): `@OneToOne` to `AppUser` with `@JoinColumn(insertable = false, updatable = false, foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))`.
+     - `UserNotification` (`user_notifications`): `@ManyToOne` to `AppUser`.
+
+4. **Repository & Scanning Aggregate**:
+   - Aggregate Root: `ManagedRepository` (`managed_repositories`)
+   - Children:
+     - `ScanSnapshot` (`scan_snapshots`): `@ManyToOne` to `ManagedRepository`.
+     - `ScanHistoryStats` (`scan_history_stats`): `@ManyToOne` to `ManagedRepository`.
+
+### Dual Cascading Strategy
+
+All aggregate boundaries enforce **dual cascading**:
+- **Application Level**: JPA `CascadeType.ALL` with `orphanRemoval = true` on parent collections ensures in-memory entity graph lifecycle management.
+- **Database Level**: Hibernate `@OnDelete(action = OnDeleteAction.CASCADE)` instructs Hibernate DDL generation to apply native PostgreSQL `ON DELETE CASCADE` constraints on child foreign keys. Deleting a `MemoryThread` or `AgentRun` cleanly cascades at the database engine level.
+
+### Delegate Accessors
+
+To ensure zero breaking changes across existing domain mappers, record constructors, and controllers, every refactored child entity retains delegate ID accessors:
+- `getThreadId()`, `setThreadId(String)`
+- `getRunId()`, `setRunId(String)`
+- `getUserId()`, `setUserId(String)`
+- `getRepositoryId()`, `setRepositoryId(Long)`
+- `getVulnerabilityId()`, `setVulnerabilityId(String)`
+
+### Startup Pre-flight Orphan Cleanup
+
+Before Hibernate applies schema updates (`ddl-auto: update`), existing databases might contain orphaned child rows (e.g. messages or steps with invalid foreign references). `DatabasePreflightCleanup` executes via `DataSource` prior to `LocalContainerEntityManagerFactoryBean` initialization to purge orphaned records from child tables (`memory_messages`, `agent_runs`, `agent_steps`, `verification_results`, `run_changes`, `graph_checkpoints`, `graph_node_events`, `subagent_states`, `user_sessions`, `user_notifications`, `scan_snapshots`, `scan_history_stats`), ensuring seamless foreign key constraint creation.
+
+### Domain Data Services
+
+`DatabaseService` no longer injects all 24 raw repositories. Instead, persistence logic is partitioned into four domain data services in `com.cb.auditagent.service.data`:
+- `ConversationDataService`: Encapsulates `MemoryThreadRepository` and `MemoryMessageRepository`.
+- `RemediationDataService`: Encapsulates `AgentRunRepository`, `AgentStepRepository`, `VerificationResultRepository`, `RunChangeRepository`, `GraphCheckpointRepository`, `GraphNodeEventRepository`, `SubagentStateRepository`, `RunPublicationRepository`, `RepositoryMemoryRepository`, and `GlobalRemediationPatternRepository`.
+- `UserDataService`: Encapsulates `AppUserRepository`, `UserSessionRepository`, `GithubAuthorizationRepository`, `UserNotificationRepository`, and `OauthStateRepository`.
+- `ScanDataService`: Encapsulates `ManagedRepositoryRepository`, `ScanSnapshotRepository`, `ScanHistoryStatsRepository`, `ReportRepository`, `VulnerabilityEntityRepository`, `WebhookDeliveryRepository`, and `TokenUsageRepository`.
+
+`DatabaseService` remains as the unified public facade, preserving its exact method signatures and transactional contracts.
 
 ## Deletion semantics
 

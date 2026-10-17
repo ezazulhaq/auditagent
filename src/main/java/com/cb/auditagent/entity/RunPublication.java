@@ -1,7 +1,23 @@
 package com.cb.auditagent.entity;
 
-import jakarta.persistence.*;
-import lombok.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.ConstraintMode;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.ForeignKey;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "run_publications",
@@ -17,35 +33,39 @@ public class RunPublication {
     @EqualsAndHashCode.Include
     private String runId;
 
-    @jakarta.validation.constraints.NotNull
-    @Column(nullable = false)
-    private String userId;
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "run_id", insertable = false, updatable = false, foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
+    private AgentRun run;
 
-    @jakarta.validation.constraints.NotNull
-    @Column(nullable = false)
-    private Long repositoryId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
+    private AppUser user;
 
-    @jakarta.validation.constraints.NotNull
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "repository_id", foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
+    private ManagedRepository repository;
+
+    @NotNull
     @Column(nullable = false)
     private Long installationId;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private String reportKey;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private String baseBranch;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private String baseSha;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private String workspacePath;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private String branchName;
 
@@ -57,7 +77,7 @@ public class RunPublication {
 
     private String commitSha;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private String pushStatus;
 
@@ -70,8 +90,40 @@ public class RunPublication {
     @Column(columnDefinition = "TEXT")
     private String publishError;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private java.time.LocalDateTime updatedAt;
+
+    public String getRunId() {
+        return runId;
+    }
+
+    public void setRunId(String runId) {
+        this.runId = runId;
+    }
+
+    public String getUserId() {
+        return user != null ? user.getUserId() : null;
+    }
+
+    public void setUserId(String userId) {
+        if (userId != null) {
+            this.user = AppUser.builder().userId(userId).build();
+        } else {
+            this.user = null;
+        }
+    }
+
+    public Long getRepositoryId() {
+        return repository != null ? repository.getRepositoryId() : null;
+    }
+
+    public void setRepositoryId(Long repositoryId) {
+        if (repositoryId != null) {
+            this.repository = ManagedRepository.builder().repositoryId(repositoryId).build();
+        } else {
+            this.repository = null;
+        }
+    }
 
 }

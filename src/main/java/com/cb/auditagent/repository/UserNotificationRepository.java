@@ -8,9 +8,10 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface UserNotificationRepository extends JpaRepository<UserNotification, String> {
-    List<UserNotification> findTop100ByUserIdOrderByCreatedAtDesc(String userId);
+    @Query("SELECT n FROM UserNotification n WHERE n.user.userId = :userId ORDER BY n.createdAt DESC")
+    List<UserNotification> findTop100ByUserIdOrderByCreatedAtDesc(@Param("userId") String userId);
 
     @Modifying
-    @Query("UPDATE UserNotification n SET n.isRead = true WHERE n.userId = :userId")
+    @Query("UPDATE UserNotification n SET n.isRead = true WHERE n.user.userId = :userId")
     int markAllAsReadByUserId(@Param("userId") String userId);
 }
