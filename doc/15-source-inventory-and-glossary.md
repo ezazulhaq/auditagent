@@ -306,7 +306,7 @@ Get-ChildItem rules -Directory | ForEach-Object {
 | `AWAITING_APPROVAL` | Verified diff autonomously published. |
 | `PR_OPEN` | Published and awaiting merge/close. |
 | `FIXED` | GitHub confirmed merge. |
-| `IGNORED` | Legacy/manual skipped state; current structured rejection returns the finding to `DETECTED`. |
+| `IGNORED` | Finding explicitly identified as a false positive or manually skipped; unverified run failures transition to `PATCH_FAILED` instead. |
 
 ### Recoverable run
 

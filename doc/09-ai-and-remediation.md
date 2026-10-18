@@ -259,3 +259,4 @@ At restart, `ACTIVE`/`PUBLISHING` runs become interrupted.
 - The skill says tests are optional, but the code's verification gate requires a test attempt or explicit skip.
 - Target rescan requires zero findings of any kind in the file, which can be stricter than "original finding disappeared."
 - `LangChain` model temperature/output settings are in metadata defaults even though not explicitly present under `auditagent.agent` in `application.yaml`.
+- In `ApprovalReadyNode`, runs completing with zero changed files distinguish explicit false-positive claims from failures/aborts: explicit assertions mark the finding `IGNORED`, while aborted or unpatched runs transition the finding to `PATCH_FAILED` so valid vulnerabilities are not prematurely silenced or blocked from retry.

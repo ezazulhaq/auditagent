@@ -205,6 +205,7 @@ Planning, workspace preparation, context, patching, verifying, approval, committ
 - Scan failures emit a `status` event and clean the scan workspace.
 - Remediation failure persists a failed/conflicted run when possible, updates the finding, cleans the workspace, and emits status.
 - Unverified completion cleans the workspace and transitions to a failed state.
+- In `ApprovalReadyNode`, if the workspace changed files list is empty, the node distinguishes explicit false-positive assertions from remediation failures/aborts. Only explicit false-positive conclusions transition the finding to `IGNORED`; agent timeouts, loop exhaustion, or failed fix attempts transition the finding to `PATCH_FAILED` and mark the run `FAILED`.
 - Approved verification autonomously proceeds through `ApprovalReadyNode` and `PublicationNode`.
 - Grouped file findings are bulk updated to `PR_OPEN` and then `FIXED` by the webhook processor.
 - Successful PR creation cleans the local workspace because remote state is durable.
