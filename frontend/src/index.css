@@ -18,19 +18,26 @@
     /* Semantic Surface Tokens (Dark - Modern DevSecOps) */
     --surface-canvas: #0b0f19;
     --surface-panel: #0f1523;
-    --surface-panel-border: rgba(148, 163, 184, 0.12);
     --surface-card: #131b2e;
     --surface-card-subtle: #0f1728;
-    --surface-card-border: rgba(148, 163, 184, 0.14);
     --surface-elevated: #162035;
     --surface-inset: #090d16;
+
+    /* Border Tokens (Dark - soft, low-contrast framing) */
+    --border-subtle: rgba(148, 163, 184, 0.09);
+    --border-medium: rgba(148, 163, 184, 0.16);
+    --border-strong: rgba(148, 163, 184, 0.26);
+    --border-focus: rgba(34, 211, 238, 0.45);
+
+    --surface-panel-border: var(--border-subtle);
+    --surface-card-border: var(--border-subtle);
 
     /* Backward compatibility mappings */
     --app-bg: var(--surface-canvas);
     --app-panel: var(--surface-panel);
     --app-panel-strong: var(--surface-card);
-    --app-border: var(--surface-card-border);
-    --app-border-strong: rgba(148, 163, 184, 0.24);
+    --app-border: var(--border-subtle);
+    --app-border-strong: var(--border-medium);
     --app-accent: #22d3ee;
 
     /* Text Hierarchy (Dark) */
@@ -77,19 +84,26 @@
     /* Semantic Surface Tokens (Light - Crisp Studio) */
     --surface-canvas: #f8fafc;
     --surface-panel: #ffffff;
-    --surface-panel-border: #e2e8f0;
     --surface-card: #ffffff;
     --surface-card-subtle: #f8fafc;
-    --surface-card-border: #e2e8f0;
     --surface-elevated: #ffffff;
     --surface-inset: #f1f5f9;
+
+    /* Border Tokens (Light - crisp subtle framing) */
+    --border-subtle: #e2e8f0;
+    --border-medium: #cbd5e1;
+    --border-strong: #94a3b8;
+    --border-focus: rgba(8, 145, 178, 0.45);
+
+    --surface-panel-border: var(--border-subtle);
+    --surface-card-border: var(--border-subtle);
 
     /* Backward compatibility mappings */
     --app-bg: var(--surface-canvas);
     --app-panel: var(--surface-panel);
     --app-panel-strong: var(--surface-card-subtle);
-    --app-border: var(--surface-card-border);
-    --app-border-strong: #cbd5e1;
+    --app-border: var(--border-subtle);
+    --app-border-strong: var(--border-medium);
     --app-accent: #0891b2;
 
     /* Text Hierarchy (Light) */
