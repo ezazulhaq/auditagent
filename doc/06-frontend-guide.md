@@ -7,7 +7,8 @@ The frontend uses React 19, Vite 5, Tailwind CSS 4, Lucide React, Vitest, Testin
 - Development: Vite port 5173 with `/api` proxy.
 - Production build: output replaces `src/main/resources/static`.
 - Entry: `frontend/src/main.jsx`.
-- Global Tailwind, design tokens, reusable surface/field/action primitives, focus treatment, reduced-motion behavior, and scrollbar/diff helpers: `index.css`.
+- Global Tailwind, semantic design tokens (`--surface-*`, `--border-*`, `--text-*`, `--accent-*`, `--sev-*`), typography pairing (Plus Jakarta Sans for UI + JetBrains Mono for code/metrics), reusable surface/field/action primitives, focus treatment, reduced-motion behavior, and scrollbar/diff helpers: `index.css`.
+- Fonts imported in `frontend/index.html`: Plus Jakarta Sans (400-800) and JetBrains Mono (400-700) with preconnect links.
 - `App.css` contains older starter-style rules and is not imported by the current `App.jsx`.
 
 ## Application orchestration

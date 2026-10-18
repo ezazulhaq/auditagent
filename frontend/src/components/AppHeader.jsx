@@ -16,7 +16,7 @@ export function AppHeader({ metadata, counts, user, onLogout, findings = [], onS
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
   return (
-    <header className="sticky top-0 z-30 h-18 shrink-0 border-b border-slate-700/25 bg-[#071321]/88 px-4 backdrop-blur-xl md:px-6 xl:px-8">
+    <header className="sticky top-0 z-30 h-18 shrink-0 border-b border-[var(--surface-panel-border)] bg-[var(--surface-panel)]/90 px-4 backdrop-blur-xl md:px-6 xl:px-8">
       <div className="mx-auto flex h-full max-w-450 items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-3">
           <button
@@ -27,16 +27,16 @@ export function AppHeader({ metadata, counts, user, onLogout, findings = [], onS
           >
             {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
-          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cyan-300/20 bg-linear-to-br from-cyan-300/16 to-blue-500/8 text-cyan-300 shadow-lg shadow-cyan-950/30">
+          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cyan-400/25 bg-linear-to-br from-cyan-400/15 to-indigo-500/10 text-cyan-300 shadow-md shadow-cyan-950/20">
             <ShieldCheck size={22} strokeWidth={1.8} />
-            <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#071321] bg-emerald-400" />
+            <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-[var(--surface-panel)] bg-emerald-400" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h1 className="truncate text-[15px] font-bold tracking-tight text-white sm:text-base">AuditAgent</h1>
-              <span className="hidden rounded-md border border-slate-700/70 bg-slate-800/45 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-slate-400 sm:inline">Enterprise</span>
+              <h1 className="truncate text-[15px] font-bold tracking-tight text-white sm:text-base font-sans">AuditAgent</h1>
+              <span className="hidden rounded-md border border-cyan-400/20 bg-cyan-400/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-cyan-300 sm:inline">Enterprise</span>
             </div>
-            <p className="truncate text-[10px] font-medium tracking-wide text-slate-500 sm:text-[11px]">AI security operations workspace</p>
+            <p className="truncate text-[10px] font-medium tracking-wide text-slate-400 sm:text-[11px]">AI security operations workspace</p>
           </div>
         </div>
 
@@ -44,8 +44,8 @@ export function AppHeader({ metadata, counts, user, onLogout, findings = [], onS
           <div className="hidden items-center gap-2 rounded-xl border border-slate-700/30 bg-slate-900/35 px-3 py-2 lg:flex">
             <Activity size={14} className="text-emerald-400" />
             <div className="max-w-52 truncate text-xs">
-              <span className="font-semibold text-slate-300">{metadata?.projectName || 'Workspace ready'}</span>
-              <span className="ml-2 text-slate-600">{metadata ? `${metadata.totalFilesScanned ?? 0} files analyzed` : 'Select a repository'}</span>
+              <span className="font-semibold text-slate-200">{metadata?.projectName || 'Workspace ready'}</span>
+              <span className="ml-2 text-slate-500">{metadata ? `${metadata.totalFilesScanned ?? 0} files analyzed` : 'Select a repository'}</span>
             </div>
           </div>
 
@@ -53,17 +53,17 @@ export function AppHeader({ metadata, counts, user, onLogout, findings = [], onS
             <button
               type="button"
               onClick={() => onShowFindings?.('High Severity Findings', findings.filter(f => f.severity === 'HIGH'))}
-              className="flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-300 transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-cyan-400 rounded-sm"
+              className="flex items-center gap-1.5 text-[11px] text-slate-400 hover:text-slate-200 transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-cyan-400 rounded-sm"
             >
-              <b className="text-sm text-rose-400">{counts.high}</b> High
+              <b className="font-mono text-sm font-bold tabular-nums text-rose-400">{counts.high}</b> High
             </button>
             <span className="h-4 w-px bg-slate-700/70" />
             <button
               type="button"
               onClick={() => onShowFindings?.('Medium Severity Findings', findings.filter(f => f.severity === 'MEDIUM'))}
-              className="flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-300 transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-cyan-400 rounded-sm"
+              className="flex items-center gap-1.5 text-[11px] text-slate-400 hover:text-slate-200 transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-cyan-400 rounded-sm"
             >
-              <b className="text-sm text-amber-300">{counts.medium}</b> Medium
+              <b className="font-mono text-sm font-bold tabular-nums text-amber-300">{counts.medium}</b> Medium
             </button>
           </div>
 
@@ -89,7 +89,7 @@ export function AppHeader({ metadata, counts, user, onLogout, findings = [], onS
               </button>
 
               {isUserMenuOpen && (
-                <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-700 bg-[#0a1421] py-2 shadow-2xl z-50">
+                <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-700/70 bg-[#0f1728] py-2 shadow-2xl z-50">
                   <div className="px-4 py-2 border-b border-slate-700/50 mb-1">
                     <p className="truncate text-sm font-semibold text-white">{user?.name || user?.login || 'Signed in'}</p>
                     <p className="truncate text-xs text-slate-400">{user?.login || 'User'}</p>

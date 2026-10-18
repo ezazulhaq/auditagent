@@ -100,9 +100,9 @@ export function DiffViewer({ diffText, initialMode = 'side-by-side' }) {
   if (!diffText) return null;
 
   return (
-    <div className="rounded-xl border border-slate-700/35 overflow-hidden bg-[#050d18]">
+    <div className="rounded-xl border border-[var(--border-subtle)] overflow-hidden bg-[var(--surface-inset)]">
       {/* Header controls */}
-      <div className="flex items-center justify-between border-b border-slate-700/35 bg-slate-900/60 px-3 py-2">
+      <div className="flex items-center justify-between border-b border-[var(--border-subtle)] bg-[var(--surface-panel)]/90 px-3 py-2">
         <div className="flex items-center gap-2">
           <FileDiff size={13} className="text-cyan-300" />
           <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
@@ -111,7 +111,7 @@ export function DiffViewer({ diffText, initialMode = 'side-by-side' }) {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center rounded-lg border border-slate-700/50 bg-slate-950/60 p-0.5">
+          <div className="flex items-center rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-inset)] p-0.5">
             <button
               onClick={() => setViewMode('side-by-side')}
               className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-semibold transition ${
@@ -144,17 +144,18 @@ export function DiffViewer({ diffText, initialMode = 'side-by-side' }) {
 
       {/* Content View */}
       {viewMode === 'unified' ? (
-        <div className="relative overflow-hidden">
+        <div className="relative overflow-hidden font-mono">
           <SyntaxHighlighter
             language="diff"
             style={vscDarkPlus}
             customStyle={{
               margin: 0,
               padding: '1rem',
-              background: '#050d18',
+              background: '#090e18',
               fontSize: '11px',
               lineHeight: '1.25rem',
               maxHeight: '26rem',
+              fontFamily: 'var(--font-mono)',
             }}
           >
             {diffText}

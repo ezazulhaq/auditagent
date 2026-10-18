@@ -9,7 +9,7 @@ export function ScanPanel({ config, onConfigChange, onScan, scan, repositories =
 
   if (!isOpen) {
     return (
-      <aside className="hidden lg:flex shrink-0 border-b border-slate-700/25 bg-[#081522]/82 lg:h-[calc(100vh-72px)] lg:w-14 lg:border-b-0 lg:border-r flex-col items-center py-5">
+      <aside className="hidden lg:flex shrink-0 border-b border-[var(--surface-panel-border)] bg-[var(--surface-panel)]/90 lg:h-[calc(100vh-72px)] lg:w-14 lg:border-b-0 lg:border-r flex-col items-center py-5">
         <button onClick={onToggle} className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700/40 bg-slate-900/45 text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition" title="Expand panel">
           <ChevronRight size={16} />
         </button>
@@ -32,7 +32,7 @@ export function ScanPanel({ config, onConfigChange, onScan, scan, repositories =
   ];
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 w-4/5 max-w-88 flex-col overflow-y-auto bg-[#081522] shadow-2xl lg:static lg:h-[calc(100vh-72px)] lg:w-88 lg:shrink-0 lg:border-r lg:border-slate-700/25 lg:bg-[#081522]/82 lg:shadow-none">
+    <aside className="fixed inset-y-0 left-0 z-40 w-4/5 max-w-88 flex-col overflow-y-auto bg-[var(--surface-panel)] shadow-2xl lg:static lg:h-[calc(100vh-72px)] lg:w-88 lg:shrink-0 lg:border-r lg:border-[var(--surface-panel-border)] lg:bg-[var(--surface-panel)]/85 lg:shadow-none">
       <div className="p-5 sm:p-6 lg:p-5 xl:p-6">
         <div className="mb-6 flex items-start justify-between gap-3">
           <div>
