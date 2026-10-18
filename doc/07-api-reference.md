@@ -252,6 +252,33 @@ Events:
 
 `agent_progress.step` values currently include `agent_thinking`, `tool_call`, `tool_result`, `agent_nudge`, `agent_error`, and `agent_complete`.
 
+### `POST /api/analyze/batch` — SSE
+
+Executes concurrent remediation across multiple vulnerabilities using a bounded worker pool configured via `auditagent.agent.batch-concurrency` (default `2`) on virtual threads. Each vulnerability runs through an isolated Git clone and dedicated state machine graph up to `AWAITING_APPROVAL`. Errors on individual vulnerabilities do not abort other queued or executing items.
+
+Header: `X-CSRF-Token` required for authenticated session.
+
+Body:
+
+```json
+{
+  "repositoryId": 42,
+  "branch": "main",
+  "threadId": "uuid",
+  "vulnIds": ["VULN-ABC123", "VULN-DEF456"]
+}
+```
+
+Events:
+
+- `batch_start`: `{ "type": "batch_start", "total": 2, "concurrency": 2 }`
+- `status`: status logs tagged with `vulnId`
+- `graph_step`: state transition events within graph execution tagged with `vulnId`
+- `batch_progress`: `{ "type": "batch_progress", "vulnId": "VULN-ABC123", "completed": 1, "failed": 0, "total": 2, "status": "COMPLETED" }`
+- `analysis_complete`: `{ "type": "analysis_complete", "vulnId": "VULN-ABC123", "runId": "...", "runStatus": "AWAITING_APPROVAL", ... }`
+- `batch_error`: `{ "type": "batch_error", "vulnId": "VULN-DEF456", "error": "...", "completed": 1, "failed": 1, "total": 2 }`
+- `batch_complete`: `{ "type": "batch_complete", "total": 2, "completed": 1, "failed": 1, "message": "Batch analysis finished." }`
+
 ### `GET /api/runs/{runId}/approval-preview` (Legacy/Debugging)
 
 Response:

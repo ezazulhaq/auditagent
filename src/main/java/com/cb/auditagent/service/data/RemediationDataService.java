@@ -176,9 +176,11 @@ public class RemediationDataService {
     @Transactional
     public AgentRunRecord createManagedAgentRun(String threadId, Vulnerability vulnerability, String workspacePath,
             int maxIterations) {
-        if (!agentRunRepository.findActiveRunsByThreadOrRepo(threadId, workspacePath, List.of("ACTIVE", "INTERRUPTED"))
+        String vulnId = vulnerability != null ? vulnerability.getId() : null;
+        String fingerprint = vulnerability != null ? vulnerability.getFindingFingerprint() : null;
+        if (!agentRunRepository.findActiveRunsByVulnOrWorkspace(vulnId, fingerprint, workspacePath, List.of("ACTIVE", "INTERRUPTED"))
                 .isEmpty()) {
-            throw new IllegalStateException("An agent run is already active for this repository or thread");
+            throw new IllegalStateException("An agent run is already active for this vulnerability or workspace");
         }
         AgentRun run = new AgentRun();
         run.setRunId(UUID.randomUUID().toString());

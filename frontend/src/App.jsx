@@ -75,7 +75,8 @@ export default function App({ api = auditApi }) {
   const remediation = useRemediationController({ api, toast, onMessage: addMessage, onReport: handleRemediationReport, onFindings: handleFindings, repositoryId: config.repositoryId, branch: config.branch });
   const { activeRun, runs, analyze, approvalPreview, awaitingApproval, decide, discard, hydrate, isAnalyzing,
     isPublishing, loadApprovalPreview, publication, resetForScan, resume, retryPublish,
-    selectedFinding, setSelectedFinding, graphSteps } = remediation;
+    selectedFinding, setSelectedFinding, graphSteps,
+    analyzeBatch, cancelBatch, batchState, isAnalyzingMap } = remediation;
 
   useEffect(() => {
     if (!authSession?.authenticated) return undefined;
@@ -233,13 +234,13 @@ export default function App({ api = auditApi }) {
   const handleBulkAction = useCallback((action, selectedIds) => {
     chat.setIsOpen(true);
     if (action === 'analyze') {
-      chat.addMessage('system', `Bulk analyze initiated for ${selectedIds.length} findings. (Backend batch processing pending)`);
-      const firstFinding = findings.find(f => f.id === selectedIds[0]);
-      if (firstFinding) analyzeFinding(firstFinding);
+      const selectedFindings = findings.filter(f => selectedIds.includes(f.id));
+      chat.addMessage('system', `Bulk analyze started for ${selectedFindings.length} vulnerabilities.`);
+      analyzeBatch(selectedFindings, config.repositoryId, config.branch, threadId);
     } else if (action === 'ignore') {
       chat.addMessage('system', `Bulk ignore requested for ${selectedIds.length} findings. (Backend batch processing pending)`);
     }
-  }, [findings, analyzeFinding, chat]);
+  }, [findings, analyzeBatch, config.repositoryId, config.branch, threadId, chat]);
 
   const [activeModal, setActiveModal] = useState(null);
 
@@ -282,7 +283,7 @@ export default function App({ api = auditApi }) {
         <WorkspaceTabs activeTab={activeTab} onChange={setActiveTab} findingCount={findings.length} />
         <div className="min-h-0 flex-1 overflow-auto scroll-smooth">
           {activeTab === 'dashboard' && <DashboardView metadata={metadata} findings={findings} counts={counts} scanHistory={scanHistory} repositoryLabel={result?.repository || selectedRepository?.fullName || ''} onSelect={setSelectedFinding} onShowFindings={(title, modalFindings) => setActiveModal({ title, findings: modalFindings })} onClearHistory={clearScanHistory} />}
-          {activeTab === 'findings' && <FindingsView findings={findings} runs={runs} onSelect={setSelectedFinding} onBulkAction={handleBulkAction} onRefresh={refreshReport} />}
+          {activeTab === 'findings' && <FindingsView findings={findings} runs={runs} onSelect={setSelectedFinding} onBulkAction={handleBulkAction} onRefresh={refreshReport} batchState={batchState} onCancelBatch={cancelBatch} isAnalyzingMap={isAnalyzingMap} />}
           {activeTab === 'report' && <ReportView key={`${config.repositoryId}:${config.branch}`} api={api} repositoryId={config.repositoryId} branch={config.branch}
             reportAvailable={result?.reportAvailable ?? Boolean(result?.htmlReport)} projectName={metadata?.projectName || selectedRepository?.name} />}
         </div>
@@ -298,7 +299,7 @@ export default function App({ api = auditApi }) {
       onForgetConversation={forgetConversation} onForgetRepository={forgetRepository} />
     {isViewingTokenUsage && <TokenUsageLayout api={api} theme={theme} onClose={() => setIsViewingTokenUsage(false)} />}
     <Modal isOpen={activeModal !== null} onClose={() => setActiveModal(null)} title={activeModal?.title || 'Findings'}>
-      {activeModal && <FindingsView findings={activeModal.findings} runs={runs} onSelect={(finding) => { setActiveModal(null); setSelectedFinding(finding); }} onBulkAction={(action, ids) => { setActiveModal(null); handleBulkAction(action, ids); }} onRefresh={refreshReport} />}
+      {activeModal && <FindingsView findings={activeModal.findings} runs={runs} onSelect={(finding) => { setActiveModal(null); setSelectedFinding(finding); }} onBulkAction={(action, ids) => { setActiveModal(null); handleBulkAction(action, ids); }} onRefresh={refreshReport} batchState={batchState} onCancelBatch={cancelBatch} isAnalyzingMap={isAnalyzingMap} />}
     </Modal>
     <ConfirmDialog
       isOpen={confirmAction !== null}

@@ -16,6 +16,7 @@ import org.springframework.web.server.ServerWebExchange;
 import com.cb.auditagent.domain.ReportArtifact;
 import com.cb.auditagent.domain.ScanSnapshot;
 import com.cb.auditagent.dto.AnalyzeRequest;
+import com.cb.auditagent.dto.BatchAnalyzeRequest;
 import com.cb.auditagent.dto.ChatRequest;
 import com.cb.auditagent.dto.ScanRequest;
 import com.cb.auditagent.service.DatabaseService;
@@ -73,6 +74,18 @@ public class AuditController {
         }
         return remediationWorkflow.analyze(auth.requireUser(exchange), request.getThreadId(), request.getRepositoryId(),
                 request.getBranch(), request.getVulnId());
+    }
+
+    @PostMapping(value = "/analyze/batch", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<String> analyzeBatch(@RequestBody BatchAnalyzeRequest request, ServerWebExchange exchange) {
+        if (request.getRepositoryId() == null || request.getBranch() == null || request.getBranch().isBlank()) {
+            throw new IllegalArgumentException("repositoryId and branch are required");
+        }
+        if (request.getVulnIds() == null || request.getVulnIds().isEmpty()) {
+            throw new IllegalArgumentException("vulnIds must not be empty");
+        }
+        return remediationWorkflow.analyzeBatch(auth.requireUser(exchange), request.getThreadId(),
+                request.getRepositoryId(), request.getBranch(), request.getVulnIds());
     }
 
     @GetMapping("/reports")

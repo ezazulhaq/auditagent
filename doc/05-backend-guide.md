@@ -101,7 +101,7 @@ Coordinates the repository scanning workflow. It handles cache checks, scan exec
 
 ### `RemediationWorkflowService`
 
-Orchestrates the AI remediation lifecycle. It delegates complex multi-agent flows to LangGraph4j, manages stateful transitions (cloning, fixing, verifying), handles manual resume/discard actions, and processes autonomous publication.
+Orchestrates the AI remediation lifecycle for individual vulnerabilities and multi-vulnerability batches (`analyzeBatch`). It executes the multi-agent Star Topology graph via LangGraph4j, manages stateful transitions (cloning, fixing, verifying) up to `AWAITING_APPROVAL`, handles manual resume/discard actions, and processes autonomous publication. In batch mode, it bounds concurrency using a semaphore configured by `AgentConfig.getBatchConcurrency()` on virtual threads, keeps an active worker registry for instant cancellation, isolates failures so one errored finding does not abort the batch, and multiplexes SSE batch progress and graph step events.
 
 ### `PullRequestLifecycleService`
 
@@ -205,6 +205,7 @@ Planning, workspace preparation, context, patching, verifying, approval, committ
 - Scan failures emit a `status` event and clean the scan workspace.
 - Remediation failure persists a failed/conflicted run when possible, updates the finding, cleans the workspace, and emits status.
 - Unverified completion cleans the workspace and transitions to a failed state.
+- In `ApprovalReadyNode`, if the workspace changed files list is empty, the node distinguishes explicit false-positive assertions from remediation failures/aborts. Only explicit false-positive conclusions transition the finding to `IGNORED`; agent timeouts, loop exhaustion, or failed fix attempts transition the finding to `PATCH_FAILED` and mark the run `FAILED`.
 - Approved verification autonomously proceeds through `ApprovalReadyNode` and `PublicationNode`.
 - Grouped file findings are bulk updated to `PR_OPEN` and then `FIXED` by the webhook processor.
 - Successful PR creation cleans the local workspace because remote state is durable.

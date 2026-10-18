@@ -58,4 +58,41 @@ describe('FindingsView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
     expect(screen.getByText('SQL Injection')).toBeInTheDocument();
   });
+
+  it('renders floating batch progress bar when batchState is active and handles cancel', () => {
+    const onCancelBatch = vi.fn();
+    const batchState = { active: true, total: 3, completed: 1, failed: 0 };
+    render(
+      <FindingsView
+        findings={findings}
+        onSelect={vi.fn()}
+        batchState={batchState}
+        onCancelBatch={onCancelBatch}
+        isAnalyzingMap={{ 'VULN-HIGH01': true }}
+      />
+    );
+
+    expect(screen.getByTestId('batch-progress-bar')).toBeInTheDocument();
+    expect(screen.getByText('Analyzing 1 of 3 vulnerabilities...')).toBeInTheDocument();
+    const cancelButton = screen.getByRole('button', { name: /Cancel Batch/i });
+    fireEvent.click(cancelButton);
+    expect(onCancelBatch).toHaveBeenCalledOnce();
+  });
+
+  it('triggers bulk analyze action when multiple findings are selected', () => {
+    const onBulkAction = vi.fn();
+    render(<FindingsView findings={findings} onSelect={vi.fn()} onBulkAction={onBulkAction} />);
+
+    const checkboxes = screen.getAllByRole('checkbox');
+    // First checkbox is header select-all, followed by individual finding rows
+    fireEvent.click(checkboxes[1]);
+    fireEvent.click(checkboxes[2]);
+
+    expect(screen.getByText(/selected/i)).toBeInTheDocument();
+    const analyzeButton = screen.getByRole('button', { name: 'Analyze' });
+    fireEvent.click(analyzeButton);
+
+    expect(onBulkAction).toHaveBeenCalledWith('analyze', expect.arrayContaining(['VULN-HIGH01', 'VULN-HIGH02']));
+  });
 });
+

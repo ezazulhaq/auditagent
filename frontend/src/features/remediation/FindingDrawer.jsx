@@ -123,7 +123,7 @@ export function FindingDrawer({ finding, isAnalyzing, isPublishing, awaitingAppr
       : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-200';
 
   return <div className={`fixed inset-0 z-40 flex justify-end backdrop-blur-sm ${theme === 'light' ? 'bg-slate-800/30' : 'bg-[#020812]/72'}`} onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
-    <section role="dialog" aria-modal="true" aria-label="Finding details" style={{ width: window.innerWidth < 1024 ? '100%' : `min(100%, ${drawerWidth}px)` }} className={`animate-slide-in-right relative flex h-full w-full flex-col lg:border-l border-slate-700/35 shadow-[-30px_0_80px_rgba(0,0,0,0.36)] ${theme === 'light' ? 'bg-[#091624]/85 backdrop-blur-2xl' : 'bg-[#091624]'}`}>
+    <section role="dialog" aria-modal="true" aria-label="Finding details" style={{ width: window.innerWidth < 1024 ? '100%' : `${drawerWidth}px`, maxWidth: '100%' }} className={`animate-slide-in-right relative flex h-full w-full flex-col lg:border-l border-slate-700/35 shadow-[-30px_0_80px_rgba(0,0,0,0.36)] ${theme === 'light' ? 'bg-[#091624]/85 backdrop-blur-2xl' : 'bg-[#091624]'}`}>
       <div
         className="hidden lg:block absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-cyan-500/50 active:bg-cyan-500/50 z-50 transition-colors"
         onMouseDown={(e) => {
