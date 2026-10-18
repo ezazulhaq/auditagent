@@ -266,7 +266,7 @@ export default function App({ api = auditApi }) {
   if (!authSession.authenticated) return <LoginPage configured={authSession.configured} error={authError} onLogin={() => window.location.assign(api.loginUrl())} />;
 
   return <div className="app-shell flex min-h-dvh flex-col text-slate-200 lg:h-dvh lg:overflow-hidden relative">
-    <AppHeader metadata={metadata} counts={counts} user={authSession.user} onLogout={logout} findings={findings} onShowObservability={() => setIsViewingTokenUsage(true)} onShowFindings={(title, modalFindings) => setActiveModal({ title, findings: modalFindings })} theme={theme} onToggleTheme={toggleTheme} onTourClick={() => setIsTourOpen(true)} onShowDocs={() => setIsViewingDocs(true)} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} isSidebarOpen={isSidebarOpen} />
+    <AppHeader api={api} metadata={metadata} counts={counts} user={authSession.user} onLogout={logout} findings={findings} onShowObservability={() => setIsViewingTokenUsage(true)} onShowFindings={(title, modalFindings) => setActiveModal({ title, findings: modalFindings })} theme={theme} onToggleTheme={toggleTheme} onTourClick={() => setIsTourOpen(true)} onShowDocs={() => setIsViewingDocs(true)} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} isSidebarOpen={isSidebarOpen} />
     <div className="relative mx-auto flex w-full max-w-450 flex-1 flex-col lg:min-h-0 lg:flex-row">
       {/* Mobile overlay */}
       {isSidebarOpen && (
