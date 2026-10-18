@@ -2,7 +2,20 @@ import { AlertTriangle, ArrowRight, CheckCircle2, Clock3, Code2, FileSearch, Git
 import { useMemo } from 'react';
 import { getFileName } from '../../utils/auditSelectors';
 
-export function DashboardView({ metadata, findings, counts, scanHistory = [], repositoryLabel, onSelect, onShowFindings, onClearHistory }) {
+export function DashboardView({ metadata, findings, counts, scanHistory = [], repositoryLabel, onSelect: _onSelect, onShowFindings, onClearHistory }) {
+  const fileVulnerabilityCounts = useMemo(() => {
+    if (!findings) return [];
+    const fileCounts = new Map();
+    findings.forEach(f => {
+      if (!f.filePath) return;
+      fileCounts.set(f.filePath, (fileCounts.get(f.filePath) || 0) + 1);
+    });
+    return Array.from(fileCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([filePath, count]) => ({ filePath, count, fileFindings: findings.filter(f => f.filePath === filePath) }));
+  }, [findings]);
+
   if (!metadata) return <EmptyWorkspace />;
 
   const cards = [
@@ -23,38 +36,26 @@ export function DashboardView({ metadata, findings, counts, scanHistory = [], re
   const posture = counts.high > 0 ? 'Action required' : counts.medium > 0 ? 'Review recommended' : 'No priority findings';
   const postureTone = counts.high > 0 ? 'text-rose-300' : counts.medium > 0 ? 'text-amber-200' : 'text-emerald-300';
 
-  const fileVulnerabilityCounts = useMemo(() => {
-    const fileCounts = new Map();
-    findings.forEach(f => {
-      if (!f.filePath) return;
-      fileCounts.set(f.filePath, (fileCounts.get(f.filePath) || 0) + 1);
-    });
-    return Array.from(fileCounts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 6)
-      .map(([filePath, count]) => ({ filePath, count, fileFindings: findings.filter(f => f.filePath === filePath) }));
-  }, [findings]);
-
   return <div className="animate-fade-in space-y-6 p-4 sm:p-6 xl:p-8 2xl:p-10">
-    <section className="flex flex-col gap-4 border-b border-slate-700/25 pb-6 xl:flex-row xl:items-end xl:justify-between">
+    <section className="flex flex-col gap-4 border-b border-[var(--border-subtle)] pb-6 xl:flex-row xl:items-end xl:justify-between">
       <div className="min-w-0">
         <p className="eyebrow">Latest security audit</p>
-        <h2 className="mt-2 truncate text-2xl font-semibold tracking-tight text-white sm:text-3xl">{metadata.projectName || 'Repository security overview'}</h2>
-        <p className="mt-2 flex items-center gap-1.5 truncate text-xs text-slate-500"><GitBranch size={13} className="shrink-0" /> {repositoryLabel}</p>
+        <h2 className="mt-2 truncate text-2xl font-bold tracking-tight text-white sm:text-3xl font-sans">{metadata.projectName || 'Repository security overview'}</h2>
+        <p className="mt-2 flex items-center gap-1.5 truncate text-xs text-slate-400 font-mono"><GitBranch size={13} className="shrink-0 text-slate-500" /> {repositoryLabel}</p>
       </div>
       <div className="flex flex-col items-start xl:items-end gap-3">
-        <button onClick={onClearHistory} className="text-xs font-medium text-rose-400 hover:text-rose-300 hover:underline">
+        <button onClick={onClearHistory} className="text-xs font-semibold text-rose-400 hover:text-rose-300 transition hover:underline">
           Clear Scan History
         </button>
       </div>
     </section>
 
     <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6" aria-label="Audit metrics">
-      {cards.map(({ id, label, value, Icon, tone, detail, modalFindings, title }) => <button key={id} onClick={() => onShowFindings(title, modalFindings)} className="surface-card group rounded-2xl p-4 transition duration-200 hover:-translate-y-0.5 hover:border-slate-600/50 sm:p-5 text-left flex flex-col focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 w-full">
-        <div className="flex w-full items-start justify-between"><span className={`flex h-9 w-9 items-center justify-center rounded-xl border border-slate-700/40 bg-slate-950/30 ${tone}`}><Icon size={18} /></span><ArrowRight size={15} className="text-slate-700 transition group-hover:translate-x-0.5 group-hover:text-slate-500" /></div>
-        <div className="mt-5 text-3xl font-semibold tracking-[-0.04em] text-white">{value.toLocaleString()}</div>
-        <div className="mt-1 text-xs font-semibold text-slate-300">{label}</div>
-        <p className="mt-2 text-[10px] leading-4 text-slate-600">{detail}</p>
+      {cards.map(({ id, label, value, Icon, tone, detail, modalFindings, title }) => <button key={id} onClick={() => onShowFindings(title, modalFindings)} className="surface-card group rounded-2xl p-4 transition duration-200 hover:-translate-y-0.5 hover:border-slate-500/50 sm:p-5 text-left flex flex-col focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 w-full">
+        <div className="flex w-full items-start justify-between"><span className={`flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-inset)]/50 ${tone}`}><Icon size={18} /></span><ArrowRight size={15} className="text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-slate-400" /></div>
+        <div className="mt-5 font-mono text-3xl font-bold tracking-tight tabular-nums text-white">{value.toLocaleString()}</div>
+        <div className="mt-1 text-xs font-semibold text-slate-300 font-sans">{label}</div>
+        <p className="mt-2 text-[10px] leading-4 text-slate-500">{detail}</p>
       </button>)}
     </section>
 
@@ -68,46 +69,46 @@ export function DashboardView({ metadata, findings, counts, scanHistory = [], re
           </div>
           <div className="flex items-center gap-5">
             <div className="relative h-24 w-24 shrink-0 rounded-full" style={{ background: distribution }} role="img" aria-label={`${counts.high} high, ${counts.medium} medium, and ${lowAndInfo} lower-severity findings`}>
-              <div className="absolute inset-2.5 flex flex-col items-center justify-center rounded-full bg-[#0b192a]"><b className="text-xl text-white">{findings.length}</b><span className="text-[9px] uppercase tracking-wider text-slate-500">Findings</span></div>
+              <div className="absolute inset-2.5 flex flex-col items-center justify-center rounded-full bg-[var(--surface-card)] shadow-inner"><b className="font-mono text-xl font-bold tabular-nums text-white">{findings.length}</b><span className="text-[9px] uppercase tracking-wider text-slate-400 font-semibold">Findings</span></div>
             </div>
             <div className="space-y-2 text-[11px]">
-              <p className="flex items-center justify-between gap-7 text-slate-400"><span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-rose-400" /> High</span><b className="text-slate-200">{counts.high}</b></p>
-              <p className="flex items-center justify-between gap-7 text-slate-400"><span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-amber-300" /> Medium</span><b className="text-slate-200">{counts.medium}</b></p>
-              <p className="flex items-center justify-between gap-7 text-slate-400"><span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-sky-400" /> Low / info</span><b className="text-slate-200">{lowAndInfo}</b></p>
+              <p className="flex items-center justify-between gap-7 text-slate-400"><span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-rose-400" /> High</span><b className="font-mono tabular-nums text-slate-200">{counts.high}</b></p>
+              <p className="flex items-center justify-between gap-7 text-slate-400"><span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-amber-300" /> Medium</span><b className="font-mono tabular-nums text-slate-200">{counts.medium}</b></p>
+              <p className="flex items-center justify-between gap-7 text-slate-400"><span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-sky-400" /> Low / info</span><b className="font-mono tabular-nums text-slate-200">{lowAndInfo}</b></p>
             </div>
           </div>
         </div>
         <div className="mt-6 flex items-center justify-between rounded-xl border border-slate-700/30 bg-slate-950/25 p-3.5">
           <div className="flex items-center gap-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-800/70"><Sparkles size={15} className="text-cyan-300" /></span><div><p className="text-[10px] text-slate-500">Recommended posture</p><p className={`text-xs font-semibold ${postureTone}`}>{posture}</p></div></div>
-          <span className="hidden text-[10px] text-slate-600 sm:inline">Open Findings to review evidence</span>
+          <span className="hidden text-[10px] text-slate-500 sm:inline">Open Findings to review evidence</span>
         </div>
       </article>
 
       <article className="surface-card rounded-2xl p-5 sm:p-6">
         <p className="eyebrow">Audit execution</p>
-        <h3 className="mt-2 flex items-center gap-2 text-lg font-semibold text-white"><CheckCircle2 size={18} className="text-emerald-400" /> Completed successfully</h3>
+        <h3 className="mt-2 flex items-center gap-2 text-lg font-semibold text-white font-sans"><CheckCircle2 size={18} className="text-emerald-400" /> Completed successfully</h3>
         <dl className="mt-6 divide-y divide-slate-700/25">
           <div className="flex items-center justify-between py-3 first:pt-0"><dt className="flex items-center gap-2 text-xs text-slate-500"><ShieldCheck size={14} /> Scanner</dt><dd className="text-xs font-semibold text-slate-200">{metadata.scannerName || 'Semgrep'}</dd></div>
-          <div className="flex items-center justify-between py-3"><dt className="flex items-center gap-2 text-xs text-slate-500"><Clock3 size={14} /> Duration</dt><dd className="font-mono text-xs text-slate-200">{metadata.scanDuration || '—'}</dd></div>
-          <div className="flex items-center justify-between py-3"><dt className="flex items-center gap-2 text-xs text-slate-500"><Code2 size={14} /> Lines analyzed</dt><dd className="text-xs font-semibold text-slate-200">{(metadata.totalLocScanned ?? 0).toLocaleString()}</dd></div>
-          <div className="flex items-center justify-between py-3 last:pb-0"><dt className="flex items-center gap-2 text-xs text-slate-500"><FileSearch size={14} /> Files covered</dt><dd className="text-xs font-semibold text-slate-200">{(metadata.totalFilesScanned ?? 0).toLocaleString()}</dd></div>
+          <div className="flex items-center justify-between py-3"><dt className="flex items-center gap-2 text-xs text-slate-500"><Clock3 size={14} /> Duration</dt><dd className="font-mono text-xs tabular-nums text-slate-200">{metadata.scanDuration || '—'}</dd></div>
+          <div className="flex items-center justify-between py-3"><dt className="flex items-center gap-2 text-xs text-slate-500"><Code2 size={14} /> Lines analyzed</dt><dd className="font-mono text-xs tabular-nums font-semibold text-slate-200">{(metadata.totalLocScanned ?? 0).toLocaleString()}</dd></div>
+          <div className="flex items-center justify-between py-3 last:pb-0"><dt className="flex items-center gap-2 text-xs text-slate-500"><FileSearch size={14} /> Files covered</dt><dd className="font-mono text-xs tabular-nums font-semibold text-slate-200">{(metadata.totalFilesScanned ?? 0).toLocaleString()}</dd></div>
         </dl>
       </article>
 
       {fileVulnerabilityCounts.length > 0 && (
         <article className="surface-card rounded-2xl p-5 sm:p-6 xl:col-span-2">
           <p className="eyebrow">Hotspots</p>
-          <h3 className="mt-2 flex items-center gap-2 text-lg font-semibold text-white"><Flame size={18} className="text-orange-400" /> Top vulnerable files</h3>
+          <h3 className="mt-2 flex items-center gap-2 text-lg font-semibold text-white font-sans"><Flame size={18} className="text-orange-400" /> Top vulnerable files</h3>
           <p className="mt-1 text-xs leading-5 text-slate-500">Files with the highest concentration of security findings.</p>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {fileVulnerabilityCounts.map(file => (
-              <button key={file.filePath} onClick={() => onShowFindings(`Findings in ${getFileName(file.filePath)}`, file.fileFindings)} className="group flex items-start justify-between rounded-xl border border-slate-700/40 bg-slate-900/40 p-4 text-left transition hover:bg-slate-800/60 hover:border-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60">
+              <button key={file.filePath} onClick={() => onShowFindings(`Findings in ${getFileName(file.filePath)}`, file.fileFindings)} className="group flex items-start justify-between rounded-xl border border-slate-700/40 bg-slate-900/40 p-4 text-left transition hover:bg-slate-800/60 hover:border-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60">
                 <div className="min-w-0 pr-4">
                   <p className="truncate text-sm font-semibold text-slate-200 transition group-hover:text-white">{getFileName(file.filePath)}</p>
-                  <p className="mt-1 truncate text-[10px] text-slate-500" title={file.filePath}>{file.filePath}</p>
+                  <p className="mt-1 truncate font-mono text-[10px] text-slate-500" title={file.filePath}>{file.filePath}</p>
                 </div>
-                <span className="flex h-7 shrink-0 items-center justify-center rounded-lg bg-rose-500/10 px-2.5 text-[11px] font-bold text-rose-400">{file.count}</span>
+                <span className="flex h-7 shrink-0 items-center justify-center rounded-lg border border-rose-500/25 bg-rose-500/10 px-2.5 font-mono text-[11px] font-bold tabular-nums text-rose-400">{file.count}</span>
               </button>
             ))}
           </div>

@@ -25,9 +25,9 @@ export function ChatInput({ input, setInput, onSubmit, isStreaming, onCancel }) 
   return (
     <form 
       onSubmit={onSubmit}
-      className="shrink-0 border-t border-slate-700/30 bg-[#081421] p-3"
+      className="shrink-0 border-t border-[var(--border-subtle)] bg-[var(--surface-card)] p-3"
     >
-      <div className="flex items-end gap-2 rounded-xl border border-slate-600/45 bg-slate-950/35 p-1.5 transition focus-within:border-cyan-400/55 focus-within:ring-2 focus-within:ring-cyan-400/8">
+      <div className="flex items-end gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-inset)] p-1.5 transition focus-within:border-cyan-400/55 focus-within:ring-2 focus-within:ring-cyan-400/8">
         <textarea
           ref={textareaRef}
           rows={1}
@@ -36,7 +36,7 @@ export function ChatInput({ input, setInput, onSubmit, isStreaming, onCancel }) 
           onKeyDown={handleKeyDown}
           aria-label="Chat message"
           placeholder="Ask about findings or type scan…"
-          className="min-h-9 max-h-32 min-w-0 flex-1 resize-none bg-transparent px-2.5 py-2 text-xs text-white outline-none placeholder:text-slate-600"
+          className="min-h-9 max-h-32 min-w-0 flex-1 resize-none bg-transparent px-2.5 py-2 text-xs text-white outline-none placeholder:text-slate-500 font-sans"
         />
         {isStreaming ? (
           <button
@@ -49,7 +49,7 @@ export function ChatInput({ input, setInput, onSubmit, isStreaming, onCancel }) 
         ) : (
           <button
             type="submit"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-cyan-300 text-[#04212a] transition hover:bg-cyan-200"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-cyan-400 text-[#04202b] transition hover:bg-cyan-300 font-bold"
           >
             <Send size={15} />
           </button>

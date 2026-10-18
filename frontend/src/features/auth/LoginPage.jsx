@@ -14,19 +14,19 @@ export function LoginPage({ configured, error, onLogin }) {
         <div className="absolute bottom-[4%] right-[5%] h-80 w-80 rounded-full bg-blue-600/10 blur-3xl" />
       </div>
 
-      <section className="relative grid w-full max-w-6xl overflow-hidden rounded-3xl border border-slate-700/35 bg-[#091624]/92 shadow-[0_35px_100px_rgba(0,0,0,0.4)] backdrop-blur-xl lg:grid-cols-[1.15fr_0.85fr]">
-        <div className="border-b border-slate-700/30 p-7 sm:p-10 lg:border-b-0 lg:border-r lg:p-14">
+      <section className="relative grid w-full max-w-6xl overflow-hidden rounded-3xl border border-[var(--border-subtle)] bg-[var(--surface-card)] shadow-[0_35px_100px_rgba(0,0,0,0.4)] backdrop-blur-xl lg:grid-cols-[1.15fr_0.85fr]">
+        <div className="border-b border-[var(--border-subtle)] p-7 sm:p-10 lg:border-b-0 lg:border-r lg:p-14">
           <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-cyan-300/20 bg-cyan-300/10 text-cyan-300"><ShieldCheck size={24} /></span>
-            <div><p className="text-base font-bold text-white">AuditAgent</p><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Enterprise security workspace</p></div>
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-cyan-400/25 bg-cyan-400/10 text-cyan-300"><ShieldCheck size={24} /></span>
+            <div><p className="text-base font-bold text-white font-sans">AuditAgent</p><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Enterprise security workspace</p></div>
           </div>
           <p className="eyebrow mt-12">Secure software delivery</p>
-          <h1 className="mt-3 max-w-xl text-3xl font-semibold leading-tight tracking-[-0.03em] text-white sm:text-4xl lg:text-[42px]">Find risk. Verify the fix. Ship with confidence.</h1>
+          <h1 className="mt-3 max-w-xl text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl lg:text-[42px] font-sans">Find risk. Verify the fix. Ship with confidence.</h1>
           <p className="mt-5 max-w-xl text-sm leading-7 text-slate-400 sm:text-[15px]">One governed workspace for repository scanning, evidence-led remediation, and review-ready security pull requests.</p>
 
           <div className="mt-9 grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
             {capabilities.map(([Icon, title, description]) => <div key={title} className="flex gap-3">
-              <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-700/50 bg-slate-800/55 text-cyan-300"><Icon size={15} /></span>
+              <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-inset)]/60 text-cyan-300"><Icon size={15} /></span>
               <div><p className="text-xs font-semibold text-slate-200">{title}</p><p className="mt-1 text-[11px] leading-5 text-slate-500">{description}</p></div>
             </div>)}
           </div>
@@ -35,7 +35,7 @@ export function LoginPage({ configured, error, onLogin }) {
         <div className="flex flex-col justify-center p-7 sm:p-10 lg:p-12">
           <div className="mb-8">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/8 px-2.5 py-1 text-[10px] font-semibold text-emerald-300"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Protected access</span>
-            <h2 className="mt-5 text-2xl font-semibold tracking-tight text-white">Sign in to your workspace</h2>
+            <h2 className="mt-5 text-2xl font-bold tracking-tight text-white font-sans">Sign in to your workspace</h2>
             <p className="mt-2 text-sm leading-6 text-slate-400">Use your authorized GitHub account to access installed repositories and managed audit history.</p>
           </div>
 
