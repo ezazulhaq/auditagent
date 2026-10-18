@@ -51,27 +51,73 @@ public class ApprovalReadyNode implements NodeAction<WorkflowState> {
         List<String> files = sourceControl.changedFiles(workspace);
 
         if (files.isEmpty()) {
-            database.updateAgentRun(
-                    run.runId(),
-                    AgentPhase.REJECTED,
-                    AgentRunStatus.FAILED,
-                    run.iteration(),
-                    run.retryCount(),
-                    run.patchApplied(),
-                    run.compilePassed(),
-                    run.rescanPassed(),
-                    run.testsPassed(),
-                    run.checkpointJson(),
-                    "No changes generated (potential false positive)", null, null);
-            database.getVulnerabilityById(run.vulnerabilityId()).ifPresent(vulnerability -> {
-                vulnerability.setStatus(VulnerabilityStatus.IGNORED);
-                database.updateVulnerabilityStatus(
-                        vulnerability.getId(),
-                        vulnerability.getStatus(),
-                        vulnerability.getProposedFix());
-            });
-            throw new IllegalStateException(
-                    "Agent identified this as a false positive or could not remediate (no files changed). Vulnerability has been marked as IGNORED.");
+            boolean explicitFalsePositive = isExplicitFalsePositive(run, state);
+            if (explicitFalsePositive) {
+                String summary = run.finalSummary() != null && !run.finalSummary().isBlank()
+                        ? run.finalSummary()
+                        : "Agent identified finding as a false positive (no changes generated)";
+                database.updateAgentRun(
+                        run.runId(),
+                        AgentPhase.REJECTED,
+                        AgentRunStatus.FAILED,
+                        run.iteration(),
+                        run.retryCount(),
+                        run.patchApplied(),
+                        run.compilePassed(),
+                        run.rescanPassed(),
+                        run.testsPassed(),
+                        run.checkpointJson(),
+                        summary,
+                        "FALSE_POSITIVE",
+                        null);
+                database.getVulnerabilityById(run.vulnerabilityId(), publication.reportKey())
+                        .or(() -> database.getVulnerabilityById(run.vulnerabilityId()))
+                        .ifPresent(vulnerability -> {
+                            vulnerability.setStatus(VulnerabilityStatus.IGNORED);
+                            database.updateVulnerabilityStatus(
+                                    vulnerability.getId(),
+                                    vulnerability.getStatus(),
+                                    vulnerability.getProposedFix());
+                        });
+                throw new IllegalStateException(
+                        "Agent identified finding as a false positive (no files changed). Vulnerability has been marked as IGNORED.");
+            } else {
+                String errorCode = (run.errorCode() != null && !run.errorCode().isBlank())
+                        ? run.errorCode()
+                        : "NO_CHANGES_GENERATED";
+                String errorDetail = (run.errorDetail() != null && !run.errorDetail().isBlank())
+                        ? run.errorDetail()
+                        : "No files were changed during the remediation run.";
+                String failureReason = run.finalSummary() != null && !run.finalSummary().isBlank()
+                        ? run.finalSummary()
+                        : errorCode;
+                database.updateAgentRun(
+                        run.runId(),
+                        AgentPhase.FAILED,
+                        AgentRunStatus.FAILED,
+                        run.iteration(),
+                        run.retryCount(),
+                        run.patchApplied(),
+                        run.compilePassed(),
+                        run.rescanPassed(),
+                        run.testsPassed(),
+                        run.checkpointJson(),
+                        run.finalSummary(),
+                        errorCode,
+                        errorDetail);
+                database.getVulnerabilityById(run.vulnerabilityId(), publication.reportKey())
+                        .or(() -> database.getVulnerabilityById(run.vulnerabilityId()))
+                        .ifPresent(vulnerability -> {
+                            vulnerability.setStatus(VulnerabilityStatus.PATCH_FAILED);
+                            database.updateVulnerabilityStatus(
+                                    vulnerability.getId(),
+                                    vulnerability.getStatus(),
+                                    run.finalSummary() != null ? run.finalSummary()
+                                            : vulnerability.getProposedFix());
+                        });
+                throw new IllegalStateException(
+                        "Remediation failed: agent did not produce any code changes (" + failureReason + "). Vulnerability marked as PATCH_FAILED.");
+            }
         }
 
         String diff = sourceControl.workspaceDiff(workspace);
@@ -142,5 +188,99 @@ public class ApprovalReadyNode implements NodeAction<WorkflowState> {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private boolean isExplicitFalsePositive(AgentRunRecord run, WorkflowState state) {
+        // 1. If run failed, was aborted, timed out, or encountered errors, it is NOT a false positive
+        if (run.phase() == AgentPhase.FAILED
+                || run.phase() == AgentPhase.INTERRUPTED
+                || run.phase() == AgentPhase.CONFLICTED
+                || run.phase() == AgentPhase.DISCARDED) {
+            return false;
+        }
+
+        if (run.status() == AgentRunStatus.FAILED
+                || run.status() == AgentRunStatus.INTERRUPTED
+                || run.status() == AgentRunStatus.CONFLICTED
+                || run.status() == AgentRunStatus.DISCARDED) {
+            return false;
+        }
+
+        if (run.errorCode() != null && !run.errorCode().isBlank()
+                && !"VERIFICATION_INCOMPLETE".equalsIgnoreCase(run.errorCode())) {
+            return false;
+        }
+
+        if (state.isHitMaxIterations()) {
+            return false;
+        }
+
+        Object nextAgent = state.data().get("nextAgent");
+        if (nextAgent != null && "FAIL".equalsIgnoreCase(String.valueOf(nextAgent))) {
+            return false;
+        }
+
+        // 2. Check if summary or state responses contain abort/timeout/exhaustion indicators
+        String summary = run.finalSummary();
+        if (containsFailureIndicators(summary)) {
+            return false;
+        }
+
+        String finalResponse = state.getFinalResponse();
+        if (containsFailureIndicators(finalResponse)) {
+            return false;
+        }
+
+        // 3. Check for explicit assertion of false positive in summary, response, or agent outputs
+        return containsExplicitFalsePositiveAssertion(summary)
+                || containsExplicitFalsePositiveAssertion(finalResponse)
+                || containsExplicitFalsePositiveAssertionInOutputs(state);
+    }
+
+    private boolean containsFailureIndicators(String text) {
+        if (text == null || text.isBlank()) {
+            return false;
+        }
+        String lower = text.toLowerCase();
+        return lower.contains("aborted")
+                || lower.contains("max iterations")
+                || lower.contains("maximum iterations")
+                || lower.contains("consecutive empty responses")
+                || lower.contains("consecutive same tool")
+                || lower.contains("timed out")
+                || lower.contains("timeout")
+                || lower.contains("remediation failed");
+    }
+
+    private boolean containsExplicitFalsePositiveAssertion(String text) {
+        if (text == null || text.isBlank()) {
+            return false;
+        }
+        String lower = text.toLowerCase();
+        if (lower.contains("not a false positive")
+                || lower.contains("not a false-positive")
+                || lower.contains("is not a false positive")
+                || lower.contains("isn't a false positive")) {
+            return false;
+        }
+
+        return lower.contains("false positive")
+                || lower.contains("false-positive")
+                || lower.contains("not a vulnerability")
+                || lower.contains("not a security vulnerability")
+                || lower.contains("no vulnerability")
+                || lower.contains("invalid finding");
+    }
+
+    private boolean containsExplicitFalsePositiveAssertionInOutputs(WorkflowState state) {
+        Object outputs = state.data().get("agentOutputs");
+        if (outputs instanceof Map<?, ?> map) {
+            for (Object value : map.values()) {
+                if (value != null && containsExplicitFalsePositiveAssertion(String.valueOf(value))) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }
