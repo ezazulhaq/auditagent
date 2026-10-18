@@ -32,9 +32,9 @@ export function CustomSelect({ value, onChange, options, disabled, placeholder }
       </button>
 
       {isOpen && !disabled && (
-        <div className="absolute z-50 w-full mt-1.5 bg-[#0b1a2b] border border-slate-700/50 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] backdrop-blur-xl overflow-hidden py-1 max-h-64 overflow-y-auto">
+        <div className="absolute z-50 w-full mt-1.5 bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-xl shadow-2xl shadow-slate-900/10 dark:shadow-black/50 backdrop-blur-xl overflow-hidden py-1 max-h-64 overflow-y-auto">
           {options.length === 0 ? (
-            <div className="px-4 py-3 text-xs text-slate-500 text-center italic">No options available</div>
+            <div className="px-4 py-3 text-xs text-[var(--text-muted)] text-center italic">No options available</div>
           ) : (
             options.map((opt) => (
               <div
@@ -45,13 +45,13 @@ export function CustomSelect({ value, onChange, options, disabled, placeholder }
                   onChange(opt.value);
                   setIsOpen(false);
                 }}
-                className={`flex items-center justify-between px-3 py-2.5 mx-1 text-xs cursor-pointer rounded-lg transition-colors ${String(value) === String(opt.value)
-                  ? 'bg-cyan-500/10 text-cyan-300 font-semibold'
-                  : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                className={`flex items-center justify-between px-3 py-2 mx-1 text-xs cursor-pointer rounded-lg transition-colors ${String(value) === String(opt.value)
+                  ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-300 font-semibold'
+                  : 'text-[var(--text-secondary)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]'
                   }`}
               >
                 <span className="truncate pr-3">{opt.label}</span>
-                {String(value) === String(opt.value) && <Check size={14} className="text-cyan-400 shrink-0" />}
+                {String(value) === String(opt.value) && <Check size={14} className="text-cyan-500 shrink-0" />}
               </div>
             ))
           )}

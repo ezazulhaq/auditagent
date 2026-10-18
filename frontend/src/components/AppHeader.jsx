@@ -80,57 +80,70 @@ export function AppHeader({ metadata, counts, user, onLogout, findings = [], onS
               <button
                 type="button"
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="flex items-center gap-2 rounded-xl p-1 pr-2 transition hover:bg-slate-800/70"
+                className={`flex items-center gap-2 rounded-xl p-1 pr-2 transition border ${
+                  isUserMenuOpen
+                    ? 'border-[var(--border-subtle)] bg-[var(--surface-inset)] ring-1 ring-[var(--border-subtle)]'
+                    : 'border-transparent hover:border-[var(--border-subtle)] hover:bg-[var(--surface-inset)]/70'
+                }`}
+                aria-expanded={isUserMenuOpen}
+                aria-label="User profile menu"
               >
                 {user?.avatarUrl
-                  ? <img src={user.avatarUrl} alt="" className="h-8 w-8 rounded-lg border border-slate-600/60 bg-slate-800 object-cover" />
-                  : <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 bg-slate-800 text-xs font-bold text-cyan-200">{(user?.login || 'U').slice(0, 1).toUpperCase()}</span>}
-                <ChevronDown size={14} className="text-slate-400 ml-1" />
+                  ? <img src={user.avatarUrl} alt="" className="h-8 w-8 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-inset)] object-cover" />
+                  : <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-cyan-500/25 bg-cyan-500/10 text-xs font-bold text-cyan-600 dark:text-cyan-300">{(user?.login || 'U').slice(0, 1).toUpperCase()}</span>}
+                <ChevronDown size={14} className={`text-[var(--text-muted)] transition-transform duration-150 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {isUserMenuOpen && (
-                <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-700/70 bg-[#0f1728] py-2 shadow-2xl z-50">
-                  <div className="px-4 py-2 border-b border-slate-700/50 mb-1">
-                    <p className="truncate text-sm font-semibold text-white">{user?.name || user?.login || 'Signed in'}</p>
-                    <p className="truncate text-xs text-slate-400">{user?.login || 'User'}</p>
+                <div className="absolute right-0 mt-2 w-60 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-1.5 shadow-2xl shadow-slate-900/10 dark:shadow-black/50 backdrop-blur-xl z-50">
+                  <div className="px-3.5 py-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-inset)]/70 mb-1.5">
+                    <p className="truncate text-xs font-bold tracking-tight text-[var(--text-primary)]">{user?.name || user?.login || 'Signed in'}</p>
+                    <p className="truncate text-[10px] font-mono text-[var(--text-muted)] mt-0.5">{user?.login ? `@${user.login}` : 'Auditor'}</p>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => { setIsUserMenuOpen(false); onShowDocs(); }}
-                    className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-slate-300 transition hover:bg-slate-400/10"
-                  >
-                    <BookOpen size={16} className="text-cyan-400" />
-                    Documentation
-                  </button>
+                  <div className="space-y-0.5">
+                    <button
+                      type="button"
+                      onClick={() => { setIsUserMenuOpen(false); onShowDocs(); }}
+                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-medium text-[var(--text-secondary)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
+                    >
+                      <BookOpen size={15} className="text-cyan-600 dark:text-cyan-400 shrink-0" />
+                      <span>Documentation</span>
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={() => { setIsUserMenuOpen(false); onShowObservability(); }}
-                    className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-slate-300 transition hover:bg-slate-400/10"
-                  >
-                    <Activity size={16} className="text-emerald-400" />
-                    Token Usage
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => { setIsUserMenuOpen(false); onShowObservability(); }}
+                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-medium text-[var(--text-secondary)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
+                    >
+                      <Activity size={15} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      <span>Token Usage</span>
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={() => { setIsUserMenuOpen(false); onToggleTheme(); }}
-                    className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-slate-300 transition hover:bg-slate-400/10"
-                  >
-                    {theme === 'light' ? <Moon size={16} className="text-amber-500" /> : <Sun size={16} className="text-amber-300" />}
-                    {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => { setIsUserMenuOpen(false); onToggleTheme(); }}
+                      className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-medium text-[var(--text-secondary)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        {theme === 'light' ? <Moon size={15} className="text-amber-500 shrink-0" /> : <Sun size={15} className="text-amber-300 shrink-0" />}
+                        <span>{theme === 'light' ? 'Dark Mode' : 'Light Mode'}</span>
+                      </div>
+                      <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded border border-[var(--border-subtle)] bg-[var(--surface-inset)] text-[var(--text-muted)]">
+                        {theme === 'light' ? 'Light' : 'Dark'}
+                      </span>
+                    </button>
+                  </div>
 
-                  <div className="my-1 border-t border-slate-700/50" />
+                  <div className="my-1 border-t border-[var(--border-subtle)]" />
 
                   <button
                     type="button"
                     onClick={() => { setIsUserMenuOpen(false); onLogout(); }}
-                    className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-rose-400 transition hover:bg-rose-500/10"
+                    className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-medium text-rose-500 transition hover:bg-rose-500/10 hover:text-rose-600 dark:text-rose-400 dark:hover:text-rose-300"
                   >
-                    <LogOut size={16} />
-                    Sign out
+                    <LogOut size={15} className="shrink-0" />
+                    <span>Sign out</span>
                   </button>
                 </div>
               )}
