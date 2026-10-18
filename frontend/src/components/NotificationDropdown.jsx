@@ -2,32 +2,40 @@ import { Bell, CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { auditApi } from '../api/auditApi';
 
-export function NotificationDropdown() {
+export function NotificationDropdown({ api = auditApi }) {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const dropdownRef = useRef(null);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const fetchNotifications = async () => {
-    try {
-      const data = await auditApi.getNotifications();
-      setNotifications(data);
-    } catch (e) {
-      console.error('Failed to fetch notifications', e);
-    }
-  };
-
   useEffect(() => {
-    fetchNotifications();
+    let ignore = false;
+
+    const load = () => {
+      api?.getNotifications?.()
+        ?.then?.(data => {
+          if (!ignore && Array.isArray(data)) {
+            setNotifications(data);
+          }
+        })
+        ?.catch?.(e => {
+          console.error('Failed to fetch notifications', e);
+        });
+    };
+
+    load();
 
     const handleNew = () => {
-      fetchNotifications();
+      load();
     };
 
     window.addEventListener('notification-added', handleNew);
-    return () => window.removeEventListener('notification-added', handleNew);
-  }, []);
+    return () => {
+      ignore = true;
+      window.removeEventListener('notification-added', handleNew);
+    };
+  }, [api]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -42,9 +50,11 @@ export function NotificationDropdown() {
   const handleOpen = () => {
     setIsOpen(!isOpen);
     if (!isOpen && unreadCount > 0) {
-      auditApi.markNotificationsRead().then(() => {
-        setNotifications(current => current.map(n => ({ ...n, read: true })));
-      }).catch(console.error);
+      api?.markNotificationsRead?.()
+        ?.then?.(() => {
+          setNotifications(current => current.map(n => ({ ...n, read: true })));
+        })
+        ?.catch?.(console.error);
     }
   };
 
