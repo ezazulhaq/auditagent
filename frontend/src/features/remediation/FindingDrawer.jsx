@@ -116,14 +116,10 @@ export function FindingDrawer({ finding, isAnalyzing, isPublishing, awaitingAppr
   const prNumber = publication?.pullRequestNumber;
   const publishFailed = activeRun?.status === 'PUBLISH_FAILED';
   const openPr = finding.status === 'PR_OPEN' || finding.status === 'PUBLISHED' || activeRun?.status === 'PR_OPEN' || activeRun?.status === 'PUBLISHED' || Boolean(prUrl);
-  const severityTone = finding.severity === 'HIGH' || finding.severity === 'CRITICAL'
-    ? 'border-rose-400/25 bg-rose-400/10 text-rose-200'
-    : finding.severity === 'MEDIUM'
-      ? 'border-amber-300/25 bg-amber-300/10 text-amber-200'
-      : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-200';
+  const severityTone = `badge-${(finding.severity || 'info').toLowerCase()}`;
 
-  return <div className={`fixed inset-0 z-40 flex justify-end backdrop-blur-sm ${theme === 'light' ? 'bg-slate-800/30' : 'bg-[#020812]/72'}`} onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
-    <section role="dialog" aria-modal="true" aria-label="Finding details" style={{ width: window.innerWidth < 1024 ? '100%' : `${drawerWidth}px`, maxWidth: '100%' }} className={`animate-slide-in-right relative flex h-full w-full flex-col lg:border-l border-slate-700/35 shadow-[-30px_0_80px_rgba(0,0,0,0.36)] ${theme === 'light' ? 'bg-[#091624]/85 backdrop-blur-2xl' : 'bg-[#091624]'}`}>
+  return <div className={`fixed inset-0 z-40 flex justify-end backdrop-blur-sm ${theme === 'light' ? 'bg-slate-900/40' : 'bg-black/60'}`} onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
+    <section role="dialog" aria-modal="true" aria-label="Finding details" style={{ width: window.innerWidth < 1024 ? '100%' : `${drawerWidth}px`, maxWidth: '100%' }} className={`animate-slide-in-right relative flex h-full w-full flex-col lg:border-l border-[var(--surface-panel-border)] shadow-[-30px_0_80px_rgba(0,0,0,0.36)] ${theme === 'light' ? 'bg-white text-slate-900' : 'bg-[#0e1628] text-slate-200'}`}>
       <div
         className="hidden lg:block absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-cyan-500/50 active:bg-cyan-500/50 z-50 transition-colors"
         onMouseDown={(e) => {
@@ -131,18 +127,18 @@ export function FindingDrawer({ finding, isAnalyzing, isPublishing, awaitingAppr
           setIsResizing(true);
         }}
       />
-      <header className={`shrink-0 border-b border-slate-700/30 px-4 py-4 sm:px-6 sm:py-5 ${theme === 'light' ? 'bg-[#0a1828]/60' : 'bg-[#0a1828]/95'}`}>
+      <header className={`shrink-0 border-b border-[var(--border-subtle)] px-4 py-4 sm:px-6 sm:py-5 ${theme === 'light' ? 'bg-white' : 'bg-[#10192e]'}`}>
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className={`rounded-md border px-2 py-1 text-[9px] font-bold tracking-widest ${severityTone}`}>{finding.severity}</span>
+              <span className={`rounded-md px-2 py-0.5 font-mono text-[9px] font-bold tracking-widest ${severityTone}`}>{finding.severity}</span>
               <span className="font-mono text-[10px] text-slate-500">{finding.id}</span>
-              <span className={`rounded-md px-2 py-1 text-[9px] font-bold tracking-wide ${statusTone(finding.status)}`}>{(finding.status || 'DETECTED').replaceAll('_', ' ')}</span>
+              <span className={`rounded-md px-2 py-0.5 text-[9px] font-bold tracking-wide ${statusTone(finding.status)}`}>{(finding.status || 'DETECTED').replaceAll('_', ' ')}</span>
             </div>
-            <h2 className="mt-3 truncate text-xl font-semibold tracking-tight text-white sm:text-2xl">{finding.vulnType}</h2>
-            <p className="mt-1.5 flex items-center gap-1.5 truncate text-[11px] text-slate-500"><MapPin size={12} /> {finding.filePath}:{finding.lineNumber}</p>
+            <h2 className="mt-3 truncate text-xl font-bold tracking-tight text-white sm:text-2xl font-sans">{finding.vulnType}</h2>
+            <p className="mt-1.5 flex items-center gap-1.5 truncate font-mono text-[11px] text-slate-400"><MapPin size={12} className="text-cyan-400" /> {finding.filePath}:{finding.lineNumber}</p>
           </div>
-          <button ref={closeButtonRef} aria-label="Close finding" onClick={onClose} className="rounded-xl border border-slate-700/35 bg-slate-900/40 p-2.5 text-slate-500 transition hover:border-slate-600 hover:bg-slate-800 hover:text-white"><X size={18} /></button>
+          <button ref={closeButtonRef} aria-label="Close finding" onClick={onClose} className="rounded-xl border border-slate-700/35 bg-slate-900/40 p-2.5 text-slate-400 transition hover:border-slate-600 hover:bg-slate-800 hover:text-white"><X size={18} /></button>
         </div>
       </header>
 

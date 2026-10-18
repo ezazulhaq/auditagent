@@ -18,10 +18,10 @@ export function MessageBubble({ message }) {
   const isSystem = role === 'system';
 
   const bubbleClasses = isUser
-    ? 'rounded-br-md bg-gradient-to-br from-cyan-300 to-cyan-400 font-medium text-[#05212a]'
+    ? 'rounded-br-md bg-gradient-to-br from-cyan-400 to-cyan-500 font-medium text-[#04202b] shadow-sm'
     : isSystem
-      ? 'rounded-bl-md border-l-2 border-l-amber-400/40 border border-slate-700/30 bg-slate-900/40 text-slate-400 text-[11px]'
-      : 'rounded-bl-md border border-slate-700/25 bg-slate-800/75 text-slate-200';
+      ? 'rounded-bl-md border-l-2 border-l-amber-400/40 border border-[var(--border-subtle)] bg-[var(--surface-inset)]/60 text-slate-400 text-[11px]'
+      : 'rounded-bl-md border border-[var(--border-subtle)] bg-[var(--surface-card)] text-slate-200 shadow-sm';
 
   const markdownComponents = {
     code({ inline, className, children, ...props }) {

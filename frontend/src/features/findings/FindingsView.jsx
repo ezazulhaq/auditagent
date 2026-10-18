@@ -3,23 +3,23 @@ import { useMemo, useState } from 'react';
 import { FINDING_SEVERITY_ORDER, filterFindings, getDirectoryPath, getFileName } from '../../utils/auditSelectors';
 
 const severityClass = {
-  CRITICAL: 'border-fuchsia-400/25 bg-fuchsia-400/10 text-fuchsia-200',
-  HIGH: 'border-rose-400/25 bg-rose-400/10 text-rose-200',
-  MEDIUM: 'border-amber-300/25 bg-amber-300/10 text-amber-200',
-  LOW: 'border-sky-400/25 bg-sky-400/10 text-sky-200',
-  INFO: 'border-slate-500/30 bg-slate-500/10 text-slate-300',
+  CRITICAL: 'badge-critical',
+  HIGH: 'badge-high',
+  MEDIUM: 'badge-medium',
+  LOW: 'badge-low',
+  INFO: 'badge-info',
 };
 const statusClass = {
-  FIXED: 'bg-emerald-400/10 text-emerald-300',
-  PR_OPEN: 'bg-cyan-400/10 text-cyan-200',
-  AWAITING_APPROVAL: 'bg-amber-300/10 text-amber-200',
-  ANALYZING: 'bg-blue-400/10 text-blue-200',
-  GENERATING_FIX: 'bg-blue-400/10 text-blue-200',
-  VERIFYING: 'bg-violet-400/10 text-violet-200',
-  PATCH_FAILED: 'bg-rose-400/10 text-rose-200',
-  PUBLISH_FAILED: 'bg-rose-400/10 text-rose-200',
-  DETECTED: 'bg-slate-500/10 text-slate-300',
-  IGNORED: 'bg-slate-700/50 text-slate-400',
+  FIXED: 'badge-fixed',
+  PR_OPEN: 'border border-cyan-500/30 bg-cyan-500/10 text-cyan-300',
+  AWAITING_APPROVAL: 'border border-amber-500/30 bg-amber-500/10 text-amber-300',
+  ANALYZING: 'border border-blue-500/30 bg-blue-500/10 text-blue-300',
+  GENERATING_FIX: 'border border-blue-500/30 bg-blue-500/10 text-blue-300',
+  VERIFYING: 'border border-violet-500/30 bg-violet-500/10 text-violet-300',
+  PATCH_FAILED: 'border border-rose-500/30 bg-rose-500/10 text-rose-300',
+  PUBLISH_FAILED: 'border border-rose-500/30 bg-rose-500/10 text-rose-300',
+  DETECTED: 'border border-slate-600/30 bg-slate-600/10 text-slate-300',
+  IGNORED: 'border border-slate-700/50 bg-slate-800/50 text-slate-400',
 };
 const statusOrder = ['DETECTED', 'ANALYZING', 'GENERATING_FIX', 'VERIFYING', 'PATCH_FAILED', 'AWAITING_APPROVAL', 'PR_OPEN', 'FIXED', 'IGNORED'];
 const formatStatus = (value) => value.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, character => character.toUpperCase());
@@ -40,7 +40,7 @@ function FindingRow({ finding, runs, onSelect, hideLocation = false, isSelected,
         className={`flex flex-col md:grid flex-1 cursor-pointer gap-2 md:gap-4 py-4 pr-4 text-left items-start md:items-center md:pr-5 ${hideLocation ? 'md:grid-cols-[112px_minmax(260px,2fr)_120px_142px_28px]' : 'md:grid-cols-[112px_minmax(260px,1.5fr)_minmax(190px,0.8fr)_142px_28px]'}`}>
 
         <div className="flex w-full items-center justify-between md:contents">
-          <span><span className={`inline-flex min-w-18 items-center justify-center rounded-md border px-2 py-1 text-[9px] font-bold tracking-[0.08em] ${severityClass[finding.severity] || severityClass.INFO}`}>{finding.severity}</span></span>
+          <span><span className={`inline-flex min-w-18 items-center justify-center rounded-md px-2 py-1 font-mono text-[9px] font-bold tracking-[0.08em] ${severityClass[finding.severity] || severityClass.INFO}`}>{finding.severity}</span></span>
           <span className="md:hidden">
             <span className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[9px] font-bold tracking-wide ${statusClass[findingStatus] || statusClass.DETECTED}`}>
               {isAnalyzing && <LoaderCircle size={10} className="animate-spin text-cyan-400" />}
@@ -50,18 +50,18 @@ function FindingRow({ finding, runs, onSelect, hideLocation = false, isSelected,
         </div>
 
         <span className="min-w-0 w-full mt-1 md:mt-0">
-          <span className="block truncate text-[13px] font-semibold text-slate-200 transition group-hover:text-white">{finding.vulnType}</span>
-          <span className="mt-1 block truncate font-mono text-[10px] text-slate-600">{finding.id}</span>
+          <span className="block truncate text-[13px] font-semibold text-slate-200 transition group-hover:text-white font-sans">{finding.vulnType}</span>
+          <span className="mt-1 block truncate font-mono text-[10px] text-slate-400">{finding.id}</span>
         </span>
 
         {!hideLocation ? (
           <span className="min-w-0 rounded-lg border border-slate-700/20 bg-slate-950/20 px-2.5 py-2 md:border-0 md:bg-transparent md:p-0 w-full md:w-auto mt-2 md:mt-0">
-            <span className="flex items-center gap-1.5 truncate text-[11px] font-medium text-slate-400"><FileCode2 size={12} className="shrink-0 text-slate-600" /> {getFileName(finding.filePath)}:{finding.lineNumber}</span>
-            <span className="mt-1 block truncate text-[9px] text-slate-600">{getDirectoryPath(finding.filePath) || 'Repository root'}</span>
+            <span className="flex items-center gap-1.5 truncate font-mono text-[11px] font-medium text-slate-300"><FileCode2 size={12} className="shrink-0 text-slate-400" /> {getFileName(finding.filePath)}:{finding.lineNumber}</span>
+            <span className="mt-1 block truncate font-mono text-[9px] text-slate-400">{getDirectoryPath(finding.filePath) || 'Repository root'}</span>
           </span>
         ) : (
           <span className="min-w-0 rounded-lg border border-slate-700/20 bg-slate-950/20 px-2.5 py-2 md:border-0 md:bg-transparent md:p-0 w-full md:w-auto mt-2 md:mt-0">
-            <span className="flex items-center gap-1.5 truncate text-[11px] font-medium text-slate-400"><FileCode2 size={12} className="shrink-0 text-slate-600" /> Line {finding.lineNumber}</span>
+            <span className="flex items-center gap-1.5 truncate font-mono text-[11px] font-medium text-slate-300"><FileCode2 size={12} className="shrink-0 text-slate-400" /> Line {finding.lineNumber}</span>
           </span>
         )}
 
@@ -72,7 +72,7 @@ function FindingRow({ finding, runs, onSelect, hideLocation = false, isSelected,
           </span>
         </span>
 
-        <ChevronRight size={17} className="text-slate-700 transition group-hover:translate-x-0.5 group-hover:text-cyan-300 hidden md:block" />
+        <ChevronRight size={17} className="text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-cyan-300 hidden md:block" />
       </div>
     </div>
   );
@@ -85,8 +85,8 @@ function FileGroup({ filePath, findings, runs, onSelect, selectedIds, onToggleSe
   const isIndeterminate = groupSelectedCount > 0 && groupSelectedCount < findings.length;
 
   return (
-    <div className="border border-slate-700/30 rounded-xl bg-[#0a1421] overflow-hidden mb-4 last:mb-0">
-      <div className="flex items-center w-full bg-slate-800/30 hover:bg-slate-800/50 transition border-b border-slate-700/30">
+    <div className="border border-[var(--border-subtle)] rounded-xl bg-[var(--surface-card)] overflow-hidden mb-4 last:mb-0 shadow-sm">
+      <div className="flex items-center w-full bg-[var(--surface-inset)]/40 hover:bg-[var(--surface-inset)]/70 transition border-b border-[var(--border-subtle)]">
         <div className="flex shrink-0 items-center justify-center pl-4 pr-3 py-3 md:pl-5">
           <input
             type="checkbox"
@@ -99,12 +99,12 @@ function FileGroup({ filePath, findings, runs, onSelect, selectedIds, onToggleSe
         <button onClick={() => setExpanded(!expanded)} className="flex-1 flex items-center justify-between py-3 pr-4 md:pr-5 min-w-0">
           <div className="flex items-center gap-3 min-w-0 pr-4">
             <Folder size={16} className="text-cyan-400 shrink-0" />
-            <span className="text-[13px] font-semibold text-slate-200 truncate">{getFileName(filePath)}</span>
-            <span className="text-[11px] text-slate-500 truncate block">{getDirectoryPath(filePath) || 'Repository root'}</span>
+            <span className="text-[13px] font-semibold text-slate-200 truncate font-sans">{getFileName(filePath)}</span>
+            <span className="font-mono text-[11px] text-slate-400 truncate block">{getDirectoryPath(filePath) || 'Repository root'}</span>
           </div>
           <div className="flex items-center gap-3 shrink-0">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-900/50 px-2 py-1 rounded-md">{findings.length} findings</span>
-            {expanded ? <ChevronUp size={16} className="text-slate-500" /> : <ChevronDown size={16} className="text-slate-500" />}
+            <span className="font-mono text-[10px] font-semibold text-slate-400 bg-[var(--surface-inset)] px-2 py-0.5 rounded-md tabular-nums border border-[var(--border-subtle)]">{findings.length} findings</span>
+            {expanded ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
           </div>
         </button>
       </div>
