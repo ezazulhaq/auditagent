@@ -109,7 +109,6 @@ COPY --from=backend-builder --chown=auditagent:auditagent target/auditagent-*.ja
 # Copy security scanning rules and dynamic stage skills
 COPY --chown=auditagent:auditagent rules/ ${AUDITAGENT_HOME}/rules/
 COPY --chown=auditagent:auditagent .auditagent/ ${AUDITAGENT_HOME}/.auditagent/
-COPY --chown=auditagent:auditagent ../audit-agent-instance-development.2026-10-13.private-key.pem ${AUDITAGENT_HOME}/.auditagent/private-key.pem
 
 # Set standard environment defaults
 ENV AUDITAGENT_DB_PATH=${AUDITAGENT_DATA_DIR}/audit_reports.duckdb \
