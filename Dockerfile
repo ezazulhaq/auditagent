@@ -104,11 +104,12 @@ RUN mkdir -p ${AUDITAGENT_HOME}/rules \
 WORKDIR ${AUDITAGENT_HOME}
 
 # Copy the packaged Spring Boot executable JAR
-COPY --from=backend-builder --chown=auditagent:auditagent /app/target/auditagent-*.jar /app/auditagent.jar
+COPY --from=backend-builder --chown=auditagent:auditagent target/auditagent-*.jar ${AUDITAGENT_HOME}/auditagent.jar
 
 # Copy security scanning rules and dynamic stage skills
-COPY --chown=auditagent:auditagent rules/ /app/rules/
-COPY --chown=auditagent:auditagent .auditagent/ /app/.auditagent/
+COPY --chown=auditagent:auditagent rules/ ${AUDITAGENT_HOME}/rules/
+COPY --chown=auditagent:auditagent .auditagent/ ${AUDITAGENT_HOME}/.auditagent/
+COPY --chown=auditagent:auditagent ../audit-agent-instance-development.2026-10-13.private-key.pem ${AUDITAGENT_HOME}/.auditagent/private-key.pem
 
 # Set standard environment defaults
 ENV AUDITAGENT_DB_PATH=${AUDITAGENT_DATA_DIR}/audit_reports.duckdb \
@@ -124,4 +125,4 @@ USER auditagent
 HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=5 \
     CMD curl -f http://localhost:8173/api/auth/session || exit 1
 
-ENTRYPOINT ["java", "-jar", "/app/auditagent.jar"]
+ENTRYPOINT ["java", "-jar", "${AUDITAGENT_HOME}/auditagent.jar"]
