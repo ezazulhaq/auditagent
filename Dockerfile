@@ -26,6 +26,9 @@ RUN npm run build
 # Stage 2: Backend Builder
 # ------------------------------------------------------------------------------
 FROM eclipse-temurin:21-jdk AS backend-builder
+
+ENV PROFILE=prod
+
 WORKDIR /app
 
 COPY pom.xml mvnw ./
@@ -38,7 +41,7 @@ COPY --from=frontend-builder /app/src/main/resources/static/ ./src/main/resource
 
 # Populate application-local.yaml from application-example.yaml if not present
 RUN if [ ! -f src/main/resources/application-local.yaml ]; then \
-        cp src/main/resources/application-example.yaml src/main/resources/application-local.yaml; \
+        cp src/main/resources/application-example.yaml src/main/resources/application-${PROFILE}.yaml; \
     fi
 
 RUN ./mvnw clean package -DskipTests -B
