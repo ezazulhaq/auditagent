@@ -11,6 +11,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
+      workbox: {
+        navigateFallbackDenylist: [/^\/api/]
+      },
       manifest: {
         name: 'AuditAgent | Security Operations Workspace',
         short_name: 'AuditAgent',

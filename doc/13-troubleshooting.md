@@ -8,6 +8,14 @@
 
 **Remedy:** configure server secrets and restart. Do not put them in frontend variables.
 
+## Sign-in button reloads the login page without contacting the server
+
+**Cause:** PWA service worker intercepted the navigation to `/api/auth/github/login` or the redirect to `/api/auth/github/callback` using its default SPA navigation route fallback (`index.html`).
+
+**Check:** Browser developer tools > Application > Service Workers. Inspect network requests for `/api/auth/github/login` to see if they are fulfilled by `(ServiceWorker)`.
+
+**Remedy:** Ensure `workbox.navigateFallbackDenylist: [/^\/api/]` is configured in `vite.config.js`. In the user's browser, perform a hard reload (`Ctrl+F5` or `Shift+Reload`) or unregister the outdated service worker and clear site storage in DevTools.
+
 ## GitHub callback says state is invalid, expired, or from another browser
 
 **Cause:** OAuth took over ten minutes, cookie was blocked, callback opened in a different browser, state was reused, or public callback/cookie settings are wrong.

@@ -67,20 +67,20 @@ public class AuthController {
         List<HttpCookie> stateCookies = exchange.getRequest().getCookies()
                 .get(GitHubAuthService.OAUTH_STATE_COOKIE);
 
-        GitHubAuthService.LoginResult result = null;
+        String matchingState = null;
         if (stateCookies != null) {
             for (HttpCookie stateCookie : stateCookies) {
-                try {
-                    result = auth.completeLogin(code, state, stateCookie.getValue());
+                if (state != null && state.equals(stateCookie.getValue())) {
+                    matchingState = stateCookie.getValue();
                     break;
-                } catch (Exception ignored) {
                 }
             }
+            if (matchingState == null && !stateCookies.isEmpty()) {
+                matchingState = stateCookies.get(0).getValue();
+            }
         }
-        if (result == null) {
-            // Fallback to let it throw the original error if none matched
-            result = auth.completeLogin(code, state, null);
-        }
+
+        GitHubAuthService.LoginResult result = auth.completeLogin(code, state, matchingState);
 
         ResponseCookie cookie = ResponseCookie.from(GitHubAuthService.SESSION_COOKIE, result.sessionToken())
                 .httpOnly(true).secure(config.useSecureCookies()).sameSite("Lax").path("/")
@@ -92,6 +92,8 @@ public class AuthController {
         exchange.getResponse().addCookie(cookie);
         exchange.getResponse().addCookie(expiredState);
         return ResponseEntity.status(302)
+                .header(HttpHeaders.SET_COOKIE, cookie.toString())
+                .header(HttpHeaders.SET_COOKIE, expiredState.toString())
                 .location(URI.create(config.getFrontendUrl())).build();
     }
 
