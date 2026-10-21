@@ -43,7 +43,7 @@ public class LangChainModelConfig {
     @Value("${auditagent.agent.llm-call-timeout-seconds:300}")
     private long timeoutSeconds;
 
-    @Value("${auditagent.agent.llm-max-retries:${auditagent.agent.max-retries:3}}")
+    @Value("${auditagent.agent.max-retries:3}")
     private int maxRetries;
 
     @Bean
