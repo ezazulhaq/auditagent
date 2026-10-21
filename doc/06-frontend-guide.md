@@ -49,6 +49,12 @@ The frontend uses React 19, Vite 5, Tailwind CSS 4, Lucide React, Vitest, Testin
 - Requires a terminal `complete` or `cached` event for scan success.
 - Converts a terminal scan `error` event into an exception carrying the backend `code` and exact safe message.
 
+## Progressive Web App (PWA) & Service Worker
+
+The frontend is packaged as a PWA via `vite-plugin-pwa` with automatic worker updates.
+- Workbox is configured with `navigateFallbackDenylist: [/^\/api/]` to ensure browser navigations to `/api/auth/github/login` and server redirects to `/api/auth/github/callback` bypass the service worker's SPA HTML cache and hit the backend directly.
+- All non-API SPA navigation requests continue to resolve to the cached `index.html` shell.
+
 ### SSE parser
 
 The fetch-based parser supports:

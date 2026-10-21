@@ -126,7 +126,7 @@ Creates timestamped backups under `.auditagent/backups/<timestamp>/<relative-fil
 
 ### `ScannerService`
 
-Detects languages, chooses rule folders, builds the Semgrep command, validates exit/output, parses JSON, calculates basic metrics, and maps findings. Exit codes 0 and 1 are accepted; empty output, malformed JSON, and other exit codes throw a scan failure before report persistence.
+Detects languages, chooses rule folders, builds the Semgrep command, validates exit/output, parses JSON, calculates basic metrics, and maps findings. If a language directory or the base rule folder contains no YAML rules, it safely logs a warning and falls back to `--config auto`. Exit codes 0 and 1 are accepted; empty output, malformed JSON, and other exit codes extract detailed diagnostics from `stderr` or Semgrep's JSON `stdout` before throwing a `ScanExecutionException` to fail the scan without persisting invalid state.
 
 ### `ManagedProcessRunner`
 

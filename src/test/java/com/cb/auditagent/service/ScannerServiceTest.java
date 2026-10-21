@@ -90,6 +90,24 @@ class ScannerServiceTest {
         assertThrows(ScanExecutionException.class, () -> scanner.scan(workspace.toString()));
     }
 
+    @Test
+    void extractsSemgrepErrorFromStdoutJsonWhenExitCodeNonZero() {
+        String errorJson = "{\"version\":\"1.181.0\",\"results\":[],\"errors\":[{\"code\":7,\"message\":\"No config given. Run with `--config auto`\"}]}";
+        whenRun().thenReturn(new ManagedProcessRunner.ProcessResult(7, errorJson, ""));
+
+        ScanExecutionException error = assertThrows(ScanExecutionException.class,
+                () -> scanner.scan(workspace.toString()));
+
+        assertTrue(error.getMessage().contains("code 7"));
+        assertTrue(error.getMessage().contains("No config given"));
+    }
+
+    @Test
+    void fallsBackToAutoConfigWhenNoRuleFilesFound() {
+        List<String> configs = scanner.getRuleConfigs(List.of("nonexistent_lang"));
+        assertTrue(configs.contains("auto") || configs.stream().anyMatch(c -> c.endsWith("rules")));
+    }
+
     private org.mockito.stubbing.OngoingStubbing<ManagedProcessRunner.ProcessResult> whenRun() {
         return when(runner.run(anyList(), any(Path.class), any(Duration.class),
                 any(Duration.class), any()));

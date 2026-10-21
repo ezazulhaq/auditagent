@@ -1,0 +1,56 @@
+# ==============================================================================
+# AuditAgent Sandbox Image (auditagent-sandbox:latest)
+# Used for isolated, sandboxed execution of agent commands (compile, test, lint)
+# Runs with --network=none, --read-only, and temporary writeable tmpfs mounts.
+# ==============================================================================
+
+FROM eclipse-temurin:21-jdk
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    GRADLE_VERSION=8.10.2 \
+    NODE_VERSION=22
+
+# Install base dependencies, build tools, python, git
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
+    python3-venv \
+    maven \
+    git \
+    curl \
+    unzip \
+    ca-certificates \
+    procps \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js & npm for projects requiring JS/TS tooling
+RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Gradle
+RUN curl -sSL "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip" -o /tmp/gradle.zip \
+    && unzip -q /tmp/gradle.zip -d /opt \
+    && ln -s /opt/gradle-${GRADLE_VERSION}/bin/gradle /usr/local/bin/gradle \
+    && rm /tmp/gradle.zip
+
+# Install Semgrep CLI
+RUN python3 -m pip install --no-cache-dir --break-system-packages semgrep
+
+# Create non-root user matching AuditAgent container UID
+RUN groupadd -g 10001 sandboxuser \
+    && useradd -u 10001 -g sandboxuser -m -s /bin/bash sandboxuser
+
+# Validate installed tools
+RUN java -version \
+    && semgrep --version \
+    && mvn -version \
+    && gradle -version \
+    && node --version \
+    && npm --version \
+    && git --version
+
+USER sandboxuser
+WORKDIR /tmp
+
+CMD ["bash"]

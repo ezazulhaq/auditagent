@@ -199,6 +199,12 @@
 | `frontend/vite.config.js` | plugins, backend proxy, production output. |
 | `frontend/vitest.config.js` | frontend test environment. |
 | `.gitignore` | Excludes build/runtime artifacts and populated profile-specific configuration files. |
+| `docker-compose.yml` | Container Compose specification for AuditAgent application, frontend dev server, and sandbox builder connecting to external PostgreSQL. |
+| `Dockerfile` | Multi-stage production container packaging Java 21, Semgrep CLI, Maven, Gradle, Python 3, and Git. |
+| `Dockerfile.sandbox` | Sandbox container image definition (`auditagent-sandbox:latest`) for isolated tool execution. |
+| `frontend/Dockerfile.dev` | Frontend Vite dev server container with HMR for containerized frontend development. |
+| `.dockerignore` | Excludes build artifacts, databases, dependencies, and version control files from container builds. |
+| `.env.example` | Template with full environment variable definitions for Docker Compose deployments. |
 | `run-dev.sh` | parallel development startup/logs. |
 | `run.sh` | frontend build then backend startup. |
 

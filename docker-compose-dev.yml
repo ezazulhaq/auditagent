@@ -1,0 +1,136 @@
+name: auditagent
+
+services:
+  # ----------------------------------------------------------------------------
+  # AuditAgent Main Full-Stack Application Service
+  # Houses Spring Boot, Embedded Static Frontend, and All Built-in Tools:
+  #   - Java 21 JDK (runtime & compilation)
+  #   - Semgrep CLI (security scanner)
+  #   - Maven & Gradle (build & test runners)
+  #   - Git (managed clone & PR operations)
+  #   - DuckDB (FTS lexical memory store)
+  # ----------------------------------------------------------------------------
+  auditagent:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: auditagent-app
+    restart: unless-stopped
+    ports:
+      - "${AUDITAGENT_PORT:-8173}:8173"
+    environment:
+      # Database Configuration (External / Public PostgreSQL)
+      SPRING_DATASOURCE_URL: ${POSTGRES_URL:-jdbc:postgresql://${POSTGRES_HOSTNAME:-localhost}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-postgres}}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_URL: ${POSTGRES_URL:-jdbc:postgresql://${POSTGRES_HOSTNAME:-localhost}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-postgres}}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+
+      # DuckDB FTS Knowledge Base & Isolated Workspaces
+      AUDITAGENT_DB_PATH: /var/lib/auditagent/data/audit_reports.duckdb
+      AUDITAGENT_WORKSPACE_ROOT: /var/lib/auditagent/workspaces
+
+      # LLM / Model Credentials & Endpoints
+      SPRING_AI_OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      SPRING_AI_OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://openrouter.ai/api/v1}
+      SPRING_AI_OPENAI_CHAT_MODEL: ${PROVIDER_MODEL:-anthropic/claude-3.5-sonnet}
+
+      # Supervisor Model for LLM Agentic Remediation Loop
+      AUDITAGENT_LLM_PROVIDER: ${AUDITAGENT_LLM_PROVIDER:-openai-compatible}
+      AUDITAGENT_LLM_OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      AUDITAGENT_LLM_OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://openrouter.ai/api/v1}
+      AUDITAGENT_LLM_OPENAI_MODEL_NAME: ${OPENAI_MODEL_NAME:-anthropic/claude-3.5-sonnet}
+      AUDITAGENT_LLM_SUPERVISOR_MODEL_NAME: ${SUPERVISOR_MODEL_NAME:-}
+
+      # GitHub App Integration
+      AUDITAGENT_GITHUB_APP_ID: ${GITHUB_APP_ID:-}
+      AUDITAGENT_GITHUB_CLIENT_ID: ${GITHUB_APP_CLIENT_ID:-}
+      AUDITAGENT_GITHUB_CLIENT_SECRET: ${GITHUB_APP_CLIENT_SECRET:-}
+      AUDITAGENT_GITHUB_PRIVATE_KEY: ${GITHUB_APP_PRIVATE_KEY:-}
+      AUDITAGENT_GITHUB_PRIVATE_KEY_PATH: ${GITHUB_APP_PRIVATE_KEY_PATH:-}
+      AUDITAGENT_GITHUB_WEBHOOK_SECRET: ${GITHUB_APP_WEBHOOK_SECRET:-}
+      AUDITAGENT_GITHUB_TOKEN_ENCRYPTION_KEY: ${AUDITAGENT_TOKEN_ENCRYPTION_KEY:-}
+      AUDITAGENT_GITHUB_CALLBACK_URL: ${GITHUB_APP_CALLBACK_URL:-http://localhost:8173/api/auth/github/callback}
+      AUDITAGENT_GITHUB_FRONTEND_URL: ${AUDITAGENT_FRONTEND_URL:-http://localhost:8173}
+      AUDITAGENT_GITHUB_INSTALLATION_URL: ${GITHUB_APP_INSTALLATION_URL:-}
+      AUDITAGENT_GITHUB_SECURE_COOKIES: ${AUDITAGENT_SECURE_COOKIES:-false}
+      AUDITAGENT_GITHUB_SESSION_HOURS: ${AUDITAGENT_SESSION_HOURS:-24}
+
+      # Scanner & Agent Settings
+      AUDITAGENT_SCANNER_TIMEOUT_SECONDS: ${AUDITAGENT_SCANNER_TIMEOUT_SECONDS:-900}
+      AUDITAGENT_SCANNER_HEARTBEAT_SECONDS: ${AUDITAGENT_SCANNER_HEARTBEAT_SECONDS:-15}
+      AUDITAGENT_SANDBOX_ENABLED: ${AUDITAGENT_SANDBOX_ENABLED:-false}
+      AUDITAGENT_SANDBOX_IMAGE: ${AUDITAGENT_SANDBOX_IMAGE:-auditagent-sandbox:latest}
+      AUDITAGENT_SANDBOX_MEMORY: ${AUDITAGENT_SANDBOX_MEMORY:-2g}
+      AUDITAGENT_SANDBOX_CPU: ${AUDITAGENT_SANDBOX_CPU:-2.0}
+    volumes:
+      # Persistent DuckDB knowledge base
+      - auditagent_data:/var/lib/auditagent/data
+      # Persistent workspace storage for git clones
+      - auditagent_workspaces:/var/lib/auditagent/workspaces
+      # Hot-reloadable security rules and stage skill playbooks (optional for local live editing)
+      # Note: Dockerfile already bakes in /app/rules and /app/.auditagent. Keeping host mounts commented
+      # out by default prevents ext4/docker inode desync when git checkouts occur on the host in Dokploy/CI.
+      # - ./rules:/app/rules:ro
+      # - ./.auditagent/skills:/app/.auditagent/skills:ro
+      # Optional: Docker daemon socket mount when AUDITAGENT_SANDBOX_ENABLED=true
+      # - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8173/api/auth/session || exit 1"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+    networks:
+      - auditagent-net
+
+  # ----------------------------------------------------------------------------
+  # Frontend Development Server (Optional Profile: dev / frontend-dev)
+  # Provides instant Vite Hot Module Replacement (HMR) for frontend development
+  # ----------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: auditagent-frontend-dev
+    profiles:
+      - dev
+      - frontend-dev
+    ports:
+      - "${FRONTEND_DEV_PORT:-5173}:5173"
+    environment:
+      VITE_BACKEND_URL: http://auditagent:8173
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - auditagent
+    networks:
+      - auditagent-net
+
+  # ----------------------------------------------------------------------------
+  # Agent Sandbox Image Builder (Optional Profile: sandbox)
+  # Builds auditagent-sandbox:latest with tools for isolated command execution
+  # ----------------------------------------------------------------------------
+  sandbox:
+    build:
+      context: .
+      dockerfile: Dockerfile.sandbox
+    image: auditagent-sandbox:latest
+    container_name: auditagent-sandbox-builder
+    profiles:
+      - sandbox
+      - all
+
+volumes:
+  auditagent_data:
+    name: auditagent_duckdb_data
+  auditagent_workspaces:
+    name: auditagent_workspaces_data
+
+networks:
+  auditagent-net:
+    name: auditagent_network
+    driver: bridge

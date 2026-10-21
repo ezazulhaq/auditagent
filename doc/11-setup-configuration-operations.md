@@ -27,6 +27,9 @@ cd ..
 
 Use `npm ci` for reproducible installation from `package-lock.json`.
 
+> [!TIP]
+> When updating or modifying dependencies in `frontend/package.json`, always run `npm install` within `frontend/` to keep `package-lock.json` synchronized. Multi-stage Docker builds and automated pipelines use `npm ci`, which strictly requires that `package.json` and `package-lock.json` remain in parity.
+
 ## Spring configuration profiles
 
 The tracked `src/main/resources/application.yaml` contains only common settings and selects the `local` profile by
@@ -421,10 +424,72 @@ npm ci
 npm run build
 cd ..
 ./mvnw clean package
-java -jar target/auditagent-1.0.0.jar
+java -jar target/auditagent-2.0.0.jar
 ```
 
+### Docker and Docker Compose deployment
+
+AuditAgent provides a containerized deployment via `docker-compose.yml` that packages the application, embedded frontend, DuckDB memory persistence, and built-in scanning/remediation tools, connecting to an external or public PostgreSQL database.
+
+#### Services defined in Compose
+
+| Service | Image / Build | Default Port | Profile | Description |
+|---|---|---|---|---|
+| `auditagent` | `Dockerfile` (multi-stage) | `8173` | default | Full-stack application containing Spring Boot, static UI, and all built-in CLI tools. |
+| `frontend` | `frontend/Dockerfile.dev` | `5173` | `dev`, `frontend-dev` | Vite development server with Hot Module Replacement (HMR) proxying `/api` to the backend. |
+| `sandbox` | `Dockerfile.sandbox` | - | `sandbox`, `all` | Isolated execution container (`auditagent-sandbox:latest`) used when `AUDITAGENT_SANDBOX_ENABLED=true`. |
+
+#### Built-in tools in the container
+
+The production `Dockerfile` builds a Debian-based container equipped with the full suite of security auditing and remediation tools:
+- **Java 21 JDK**: Eclipse Temurin OpenJDK 21 for running the server and compiling/testing Java repositories.
+- **Semgrep CLI**: Installed statically via Python pip for vulnerability detection, file rescanning, and linting.
+- **Maven (`mvn`)**: Installed for compiling and running tests on Maven-based repositories.
+- **Gradle (`gradle`)**: Version 8.10.2 installed for compiling and testing Gradle-based projects.
+- **Python 3 & pip**: Python 3 runtime supporting Semgrep execution and auxiliary scripts.
+- **Git (`git`)**: For JGit support and CLI-based workspace operations.
+- **Docker CLI**: For delegating tool execution to sandboxed worker containers when enabled.
+- **Curl & Jq**: Used for container healthchecks and JSON diagnostics.
+
+#### Quick start with Docker Compose
+
+1. **Prepare configuration**:
+   ```bash
+   cp .env.example .env
+   ```
+   Edit `.env` to configure your PostgreSQL connection parameters (`POSTGRES_HOSTNAME`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` or `POSTGRES_URL`), OpenAI/OpenRouter credentials, and GitHub App keys.
+
+2. **Start the application**:
+   ```bash
+   docker compose up --build -d
+   ```
+   The backend API and web interface will be accessible at `http://localhost:8173`.
+
+3. **Start with interactive frontend development server (Vite on port 5173)**:
+   ```bash
+   docker compose --profile dev up --build
+   ```
+
+4. **Build the agent execution sandbox image**:
+   ```bash
+   docker compose --profile sandbox build
+   ```
+
+5. **View logs and check health**:
+   ```bash
+   docker compose logs -f auditagent
+   docker compose ps
+   ```
+
+6. **Stop and cleanup**:
+   ```bash
+   docker compose down
+   # To also wipe workspace/DuckDB volumes:
+   docker compose down -v
+   ```
+
 ## Validate the GitHub integration
+
 
 ### Configuration readiness
 

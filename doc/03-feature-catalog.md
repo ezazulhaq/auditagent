@@ -40,7 +40,7 @@ This catalog connects each feature to its user/business outcome and main impleme
 | Deadlock-safe scanner I/O | Semgrep stdout and stderr are drained concurrently; diagnostic stderr retains only its final 64 KiB. | `ManagedProcessRunner` |
 | Windows RPC-compatible isolation | Each Semgrep run receives one random, short, private directory directly under the JVM OS-temp root; it is removed after the process tree stops. This avoids native Windows RPC `socketpair` failures caused by deeply nested temp paths. | `ManagedProcessRunner`, `ManagedProcessEnvironment` |
 | Scan deadline and cleanup | A scan defaults to a 15-minute deadline; timeout/interruption and non-zero root exits terminate observed Semgrep descendants before workspace cleanup. | `ScannerConfig`, `ManagedProcessRunner` |
-| Semgrep exit handling | Exit 0 and 1 are accepted; other exits, empty output, and invalid JSON are terminal scan failures and are not persisted as empty reports. | `ScannerService.runSemgrep()` |
+| Semgrep exit handling & auto-fallback | Exit 0 and 1 are accepted; rule directories without YAML rules fall back to auto; other exits, empty output, and invalid JSON extract stdout/stderr error diagnostics and fail terminally without persisting empty reports. | `ScannerService.runSemgrep()`, `ScannerService.getRuleConfigs()` |
 | Finding parsing | Rule, path, line, snippet, description, severity, language, and fingerprint are mapped. | Semgrep JSON `results` |
 | Severity mapping | Semgrep ERROR→HIGH, WARNING→MEDIUM, INFO→LOW; otherwise MEDIUM. | `ScannerService` |
 | Context fallback | When Semgrep omits usable lines, four source lines from the finding are read. | `readContextFromFile()` |
@@ -203,3 +203,5 @@ This catalog connects each feature to its user/business outcome and main impleme
 | Frontend SSE protocol | CRLF/LF, comments, chunking, multiline data, and EOF frames are supported. | `readJsonSse()` |
 | Environment-specific Spring profiles | Local, development, and production settings can be separated without committing credentials. | base `application.yaml`, tracked `application-example.yaml`, ignored `application-{local,dev,prod}.yaml` files |
 | Dev Container configuration | Standardized development container configured with Java 21, Node.js 24, and Python 3.12. | `.devcontainer/devcontainer.json` |
+| Docker Compose orchestration | Containerized application deployment connecting to external PostgreSQL databases, with optional frontend dev server and sandbox image builder. | `docker-compose.yml`, `.env.example`, `.dockerignore` |
+| Containerized built-in toolchain | Production container equipped with all auditing and remediation tools: Java 21 JDK, Semgrep CLI, Maven, Gradle, Python 3, and Git. | `Dockerfile`, `Dockerfile.sandbox`, `frontend/Dockerfile.dev` |

@@ -8,6 +8,14 @@
 
 **Remedy:** configure server secrets and restart. Do not put them in frontend variables.
 
+## Sign-in button reloads the login page without contacting the server
+
+**Cause:** PWA service worker intercepted the navigation to `/api/auth/github/login` or the redirect to `/api/auth/github/callback` using its default SPA navigation route fallback (`index.html`).
+
+**Check:** Browser developer tools > Application > Service Workers. Inspect network requests for `/api/auth/github/login` to see if they are fulfilled by `(ServiceWorker)`.
+
+**Remedy:** Ensure `workbox.navigateFallbackDenylist: [/^\/api/]` is configured in `vite.config.js`. In the user's browser, perform a hard reload (`Ctrl+F5` or `Shift+Reload`) or unregister the outdated service worker and clear site storage in DevTools.
+
 ## GitHub callback says state is invalid, expired, or from another browser
 
 **Cause:** OAuth took over ten minutes, cookie was blocked, callback opened in a different browser, state was reused, or public callback/cookie settings are wrong.
@@ -47,6 +55,18 @@
 **Check:** reload repositories, then retry; inspect safe GitHub API status.
 
 **Remedy:** reselect repository or restore GitHub permission. Do not bypass revalidation.
+
+## Semgrep exits with code 7 "No config given"
+
+**Cause:** Semgrep exit code 7 indicates that no valid rules or rule configurations were supplied. This occurs when:
+1. The configured `rules/` directory or language-specific rules subfolder is empty or missing `.yaml`/`.yml` rule definitions.
+2. In containerized environments (such as Docker Compose on Dokploy), host bind mounts (`./rules:/app/rules`) suffer ext4 inode desynchronization when Git fetches, pulls, or switches branches on the host. The container retains an unlinked inode (`Links: 0`, size: 0), rendering the rules directory empty to the scanner.
+
+**Check:** inspect backend logs for `Rules directory ... contains no rule files or is not accessible. Falling back to '--config auto'.` or `Semgrep exited with code 7. Diagnostic: No config given.` Inside the container, run `stat /app/rules` and check link count and directory listings.
+
+**Remedy:**
+1. AuditAgent's `ScannerService` automatically detects empty rule directories and falls back to Semgrep's built-in `--config auto` instead of failing, while capturing detailed diagnostics from Semgrep's JSON stdout.
+2. In `docker-compose.yml` and `docker-compose-dev.yml`, host bind mounts for `rules/` and `.auditagent/skills/` are kept commented out by default because `Dockerfile` already copies rules and skills into the image at build time. Leaving them commented out prevents host inode desyncs in CI/CD and Dokploy environments. If hot-reloading rules during local development, uncomment the mount and restart the container after host Git updates.
 
 ## Scan returns no findings and zero files unexpectedly
 
