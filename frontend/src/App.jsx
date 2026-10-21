@@ -62,8 +62,9 @@ export default function App({ api = auditApi }) {
   const { ensureThread, forgetThread, restoreThread, threadId } = session;
   const handleScanSuccess = useCallback(() => setActiveTab('report'), []);
   const scan = useScanController({ api, ensureThread, onMessage: addMessage, onSuccess: handleScanSuccess });
-  const { cancel: cancelScan, replaceResult, result, startScan: runScan } = scan;
+  const { cancel: cancelScan, replaceResult, result, startScan: runScan, startUploadScan: runUploadScan } = scan;
   const scanTime = useScanElapsedSeconds(scan.startedAt, scan.finishedAt);
+  const isUploadScan = result?.source === 'upload';
 
   const handleFindings = useCallback((findings) => {
     if (result) replaceResult({ ...result, findings });
@@ -166,6 +167,10 @@ export default function App({ api = auditApi }) {
     setConfig(previous => ({ ...previous, [name]: value, ...(name === 'repositoryId' ? { branch: '' } : {}) }));
   }, [cancelScan, replaceResult, resetForScan]);
   const startScan = useCallback(async () => { resetForScan(); return runScan(config); }, [config, resetForScan, runScan]);
+  const startUploadScan = useCallback(async (file, projectName) => {
+    resetForScan();
+    return runUploadScan({ file, projectName, scannerName: config.scannerName });
+  }, [config.scannerName, resetForScan, runUploadScan]);
   const analyzeFinding = useCallback(finding => analyze(finding, config.repositoryId, config.branch, threadId), [analyze, config.branch, config.repositoryId, threadId]);
   const submitDecision = useCallback((decision, reason) => decide(decision, config.repositoryId, config.branch, reason), [config.branch, config.repositoryId, decide]);
   const retry = useCallback(() => retryPublish(config.repositoryId, config.branch), [config.branch, config.repositoryId, retryPublish]);
@@ -276,16 +281,16 @@ export default function App({ api = auditApi }) {
           aria-hidden="true"
         />
       )}
-      <ScanPanel config={config} onConfigChange={updateConfig} onScan={startScan} scan={{ ...scan, scanTime }}
+      <ScanPanel config={config} onConfigChange={updateConfig} onScan={startScan} onUploadScan={startUploadScan} scan={{ ...scan, scanTime }}
         repositories={repositories} branches={branches} loadingRepositories={loadingRepositories}
         installationUrl={authSession.installationUrl} isOpen={isSidebarOpen} onToggle={() => setIsSidebarOpen(!isSidebarOpen)} />
       <main className="workspace-surface min-w-0 flex-1 lg:flex lg:min-h-0 lg:flex-col">
         <WorkspaceTabs activeTab={activeTab} onChange={setActiveTab} findingCount={findings.length} />
         <div className="min-h-0 flex-1 overflow-auto scroll-smooth">
-          {activeTab === 'dashboard' && <DashboardView metadata={metadata} findings={findings} counts={counts} scanHistory={scanHistory} repositoryLabel={result?.repository || selectedRepository?.fullName || ''} onSelect={setSelectedFinding} onShowFindings={(title, modalFindings) => setActiveModal({ title, findings: modalFindings })} onClearHistory={clearScanHistory} />}
-          {activeTab === 'findings' && <FindingsView findings={findings} runs={runs} onSelect={setSelectedFinding} onBulkAction={handleBulkAction} onRefresh={refreshReport} batchState={batchState} onCancelBatch={cancelBatch} isAnalyzingMap={isAnalyzingMap} />}
-          {activeTab === 'report' && <ReportView key={`${config.repositoryId}:${config.branch}`} api={api} repositoryId={config.repositoryId} branch={config.branch}
-            reportAvailable={result?.reportAvailable ?? Boolean(result?.htmlReport)} projectName={metadata?.projectName || selectedRepository?.name} />}
+          {activeTab === 'dashboard' && <DashboardView metadata={metadata} findings={findings} counts={counts} scanHistory={scanHistory} repositoryLabel={isUploadScan ? `${result?.projectName || 'Project'} (Manual Upload)` : (result?.repository || selectedRepository?.fullName || '')} onSelect={setSelectedFinding} onShowFindings={(title, modalFindings) => setActiveModal({ title, findings: modalFindings })} onClearHistory={clearScanHistory} />}
+          {activeTab === 'findings' && <FindingsView findings={findings} runs={runs} onSelect={setSelectedFinding} onBulkAction={handleBulkAction} onRefresh={refreshReport} batchState={batchState} onCancelBatch={cancelBatch} isAnalyzingMap={isAnalyzingMap} isUploadScan={isUploadScan} />}
+          {activeTab === 'report' && <ReportView key={isUploadScan ? `upload:${result?.uploadId}` : `${config.repositoryId}:${config.branch}`} api={api} repositoryId={config.repositoryId} branch={config.branch} uploadId={isUploadScan ? result?.uploadId : null}
+            reportAvailable={result?.reportAvailable ?? Boolean(result?.htmlReport)} projectName={metadata?.projectName || result?.projectName || selectedRepository?.name} />}
         </div>
       </main>
     </div>
@@ -293,7 +298,7 @@ export default function App({ api = auditApi }) {
     <FindingDrawer finding={selectedFinding} isAnalyzing={isAnalyzing} isPublishing={isPublishing}
       awaitingApproval={awaitingApproval} approvalPreview={approvalPreview} publication={publication}
       activeRun={activeRun} graphSteps={graphSteps} onClose={() => setSelectedFinding(null)} onAnalyze={() => analyzeFinding(selectedFinding)}
-      onLoadPreview={loadApprovalPreview} onDecision={submitDecision} onRetryPublish={retry} theme={theme} />
+      onLoadPreview={loadApprovalPreview} onDecision={submitDecision} onRetryPublish={retry} theme={theme} isUploadScan={isUploadScan} />
     <ChatWidget chat={chat} onSubmit={submitChat} onCancel={cancelStream} activeRun={activeRun} publication={publication}
       onResume={() => publication?.approvedAt ? retry() : resume(threadId)} onDiscard={discard} onRetryPublish={retry}
       onForgetConversation={forgetConversation} onForgetRepository={forgetRepository} />

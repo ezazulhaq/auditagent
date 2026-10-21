@@ -133,7 +133,7 @@ function FileGroup({ filePath, findings, runs, onSelect, selectedIds, onToggleSe
   );
 }
 
-export function FindingsView({ findings, runs, onSelect, onBulkAction, onRefresh, batchState, onCancelBatch, isAnalyzingMap }) {
+export function FindingsView({ findings, runs, onSelect, onBulkAction, onRefresh, batchState, onCancelBatch, isAnalyzingMap, isUploadScan = false }) {
   const [query, setQuery] = useState('');
   const [severity, setSeverity] = useState('ALL');
   const [status, setStatus] = useState('ALL');
@@ -363,11 +363,13 @@ export function FindingsView({ findings, runs, onSelect, onBulkAction, onRefresh
           </span>
           <div className="h-5 w-px bg-slate-700/50" />
           <button
+            disabled={isUploadScan}
+            title={isUploadScan ? 'Remediation is disabled for uploaded ZIP archives' : undefined}
             onClick={() => {
-              if (onBulkAction) onBulkAction('analyze', Array.from(selectedIds));
+              if (onBulkAction && !isUploadScan) onBulkAction('analyze', Array.from(selectedIds));
               setSelectedIds(new Set());
             }}
-            className="flex items-center gap-1.5 rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-bold text-[#04202b] transition hover:bg-cyan-400">
+            className="flex items-center gap-1.5 rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-bold text-[#04202b] transition hover:bg-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed">
             Analyze
           </button>
           <button

@@ -66,7 +66,7 @@ const statusTone = (status) => status === 'FIXED'
     : 'border-slate-700/60 bg-slate-800/45 text-slate-300';
 
 export function FindingDrawer({ finding, isAnalyzing, isPublishing, awaitingApproval, approvalPreview,
-  publication, activeRun, graphSteps, onClose, onAnalyze, onLoadPreview, onDecision, onRetryPublish, theme }) {
+  publication, activeRun, graphSteps, onClose, onAnalyze, onLoadPreview, onDecision, onRetryPublish, theme, isUploadScan = false }) {
   const closeButtonRef = useRef(null);
   const [rejectMode, setRejectMode] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
@@ -230,7 +230,8 @@ export function FindingDrawer({ finding, isAnalyzing, isPublishing, awaitingAppr
         )}
         {publishFailed && <div className="space-y-3"><div className="rounded-xl border border-rose-400/20 bg-rose-400/8 p-3.5 text-xs leading-5 text-rose-200">Publication failed after approval. Retry reuses the stored branch, commit, and existing PR lookup.</div><button disabled={isPublishing} onClick={onRetryPublish} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-amber-300 px-4 text-sm font-bold text-[#2d2105] transition hover:bg-amber-200 disabled:opacity-50"><RotateCcw size={16} /> Retry publishing</button></div>}
         {openPr && <div className={`rounded-xl border p-3.5 text-center text-xs font-semibold ${statusTone('PR_OPEN')}`}><p>Fix is in pull request {prNumber ? `#${prNumber}` : ''}; it remains open until GitHub reports a merge.</p>{prUrl && <a href={prUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-cyan-200 underline decoration-cyan-300/30 underline-offset-4"><ExternalLink size={14} /> Open pull request</a>}</div>}
-        {!awaitingApproval && !publishFailed && !openPr && finding.status === 'DETECTED' && <button disabled={isAnalyzing} onClick={onAnalyze} className="primary-action flex w-full items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold">{isAnalyzing ? <><LoaderCircle size={16} className="animate-spin" /> Analyzing</> : <><ShieldCheck size={16} /> Analyze in isolated workspace</>}</button>}
+        {isUploadScan && <div className="rounded-xl border border-amber-400/20 bg-amber-400/8 p-3.5 text-center text-xs leading-5 text-amber-200">Autonomous PR creation is disabled for uploaded ZIP archives. Export findings or scan a connected GitHub repository to remediate.</div>}
+        {!isUploadScan && !awaitingApproval && !publishFailed && !openPr && finding.status === 'DETECTED' && <button disabled={isAnalyzing} onClick={onAnalyze} className="primary-action flex w-full items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold">{isAnalyzing ? <><LoaderCircle size={16} className="animate-spin" /> Analyzing</> : <><ShieldCheck size={16} /> Analyze in isolated workspace</>}</button>}
         {!awaitingApproval && !publishFailed && !openPr && finding.status !== 'DETECTED' && <div className={`rounded-xl border p-3.5 text-center text-xs font-semibold ${statusTone(finding.status)}`}>{finding.status === 'FIXED' ? <span className="inline-flex items-center gap-2"><Check size={16} /> Merged on GitHub · finding fixed</span> : `Finding ${finding.status.toLowerCase().replaceAll('_', ' ')}`}</div>}
       </footer>
     </section>

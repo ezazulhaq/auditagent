@@ -143,7 +143,10 @@ Shows brand and enterprise context, secure-session status, responsive repository
 
 ### `ScanPanel`
 
-Shows repository/permission, branch, scanner, force-rescan toggle, run button, installation help, elapsed time, accessible progress state, stage timeline, message, and error. Elapsed time is derived from start/finish timestamps and the current wall clock, so delayed browser interval callbacks cannot undercount a long scan. It is a desktop rail and a full-width mobile section. It supports expanding and collapsing via a state managed by `App.jsx` to maximize workspace area, rendering a narrow icon-only bar when collapsed.
+Supports two scan modes: **GitHub repository scan** and **Manual project upload**. A toggle button beside the collapse chevron switches between modes.
+- In GitHub mode: shows repository/permission, branch, scanner, force-rescan toggle, run button, installation help, elapsed time, accessible progress state, stage timeline, message, and error.
+- In Upload mode: provides a drag-and-drop zone and file picker for `.zip` project archives (max 50MB), filename/size card with remove button, editable project name input, and "Scan ZIP Archive" button.
+- Elapsed time is derived from start/finish timestamps and the current wall clock, so delayed browser interval callbacks cannot undercount a long scan. It is a desktop rail and a full-width mobile section. It supports expanding and collapsing via a state managed by `App.jsx` to maximize workspace area, rendering a narrow icon-only bar when collapsed.
 
 ### `DashboardView`
 
@@ -167,7 +170,8 @@ It features checkbox multi-selection with header select-all and per-file groupin
 
 The most security-sensitive UI:
 
-- `DETECTED`: allows analysis.
+- `UPLOAD_SCAN`: when the active finding originates from a manual ZIP upload (`isUploadScan = true`), autonomous PR creation is disabled and an informational banner is displayed explaining that PR remediation requires a connected GitHub repository.
+- `DETECTED`: allows analysis for connected GitHub repositories.
 - `PUBLISHED` / `PR_OPEN`: The drawer polls the backend API `/api/reports` every 5 seconds to catch GitHub webhook state changes (e.g., `FIXED` upon merge) without needing a page refresh.
 - `AWAITING_APPROVAL`: Automatically overridden by autonomous PR creation, though structurally preserved for legacy compatibility.
 - `PUBLISH_FAILED`: shows retry.
