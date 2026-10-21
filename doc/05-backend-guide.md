@@ -26,6 +26,12 @@
 - `/skills`: lists dynamically discovered local skills.
 - `/chat`: requires thread ownership and repository access, then loads findings from PostgreSQL.
 
+### `ProjectUploadController`
+
+- `POST /api/scan/upload`: accepts `multipart/form-data` with `file` (ZIP archive, max 50MB) and optional `projectName`. Authenticates the caller, validates CSRF, streams SSE progress events from `ProjectUploadService`, and returns the completed scan with assigned `uploadId`.
+- `GET /api/reports/upload`: restores the latest scan report for an uploaded project owned by the authenticated caller.
+- `GET /api/reports/upload/export`: exports the authorized uploaded project report as on-demand PDF or Markdown.
+
 ### `MemoryController`
 
 - Creates/restores the stable user/repository/branch thread.
@@ -98,6 +104,10 @@ Centralizes access control logic. It verifies whether an authenticated user has 
 ### `ScanOrchestratorService`
 
 Coordinates the repository scanning workflow. It handles cache checks, scan execution via `ScannerService`, processing results, generating reports via `ReporterService`, and storing snapshots.
+
+### `ProjectUploadService` and `ZipArchiveExtractor`
+
+Coordinates manual project upload scanning. `ZipArchiveExtractor` checks magic ZIP bytes, enforces ZipSlip directory traversal guards, limits uncompressed payload to 250MB and 10,000 files, and skips build/dependency folders (`node_modules`, `.git`, `vendor`, `target`, `dist`). `ProjectUploadService` executes the Semgrep scan in an isolated temporary directory, persists the report (`upload:<uploadId>`) and findings in DuckDB/PostgreSQL, associates `UploadedProject` with the authenticated user ID, and guarantees immediate cleanup of all temporary files in a `finally` block. It also handles authorized report retrieval and on-demand PDF/Markdown report export.
 
 ### `RemediationWorkflowService`
 

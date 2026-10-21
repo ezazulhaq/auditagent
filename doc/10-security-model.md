@@ -78,6 +78,12 @@ AuditAgent must:
 - Internal `.auditagent` artifacts are excluded from diffs, commits, and changed-file hashes.
 - Backups are kept below the repository's configured backup directory.
 - Cleanup validates the target is a child of the managed root before recursive deletion.
+- **ZIP Upload Sandbox**:
+  - Validates ZIP magic byte header (`0x50, 0x4B`).
+  - Strict ZipSlip prevention: verifies that normalized target paths start with the temporary extraction root directory.
+  - Resource exhaustion caps: 50MB max archive upload size, 250MB max uncompressed extraction size, and 10,000 max entry count.
+  - Automatic exclusion filter: ignores bloat and dependency folders (`node_modules`, `.git`, `vendor`, `target`, `dist`, `build`, `__pycache__`) during extraction.
+  - Immediate disk cleanup: temporary archive files and extracted directories are deleted in a `finally` block immediately after Semgrep scanning completes. No raw source files from uploaded projects remain on the filesystem.
 
 ## Process controls
 
