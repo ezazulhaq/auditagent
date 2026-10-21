@@ -69,9 +69,11 @@ services:
       - auditagent_data:/var/lib/auditagent/data
       # Persistent workspace storage for git clones
       - auditagent_workspaces:/var/lib/auditagent/workspaces
-      # Hot-reloadable security rules and stage skill playbooks
-      - ./rules:/app/rules:ro
-      - ./.auditagent/skills:/app/.auditagent/skills:ro
+      # Hot-reloadable security rules and stage skill playbooks (optional for local live editing)
+      # Note: Dockerfile already bakes in /app/rules and /app/.auditagent. Keeping host mounts commented
+      # out by default prevents ext4/docker inode desync when git checkouts occur on the host in Dokploy/CI.
+      # - ./rules:/app/rules:ro
+      # - ./.auditagent/skills:/app/.auditagent/skills:ro
       # Optional: Docker daemon socket mount when AUDITAGENT_SANDBOX_ENABLED=true
       # - /var/run/docker.sock:/var/run/docker.sock
     healthcheck:

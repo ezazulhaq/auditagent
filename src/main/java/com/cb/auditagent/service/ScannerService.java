@@ -196,14 +196,34 @@ public class ScannerService {
         File baseRules = new File(rulesDir).getAbsoluteFile();
         for (String lang : languages) {
             File langDir = new File(baseRules, lang);
-            if (langDir.exists() && langDir.isDirectory()) {
+            if (hasRuleFiles(langDir)) {
                 configs.add(langDir.getAbsolutePath());
             }
         }
         if (configs.isEmpty()) {
-            configs.add(baseRules.getAbsolutePath());
+            if (hasRuleFiles(baseRules)) {
+                configs.add(baseRules.getAbsolutePath());
+            } else {
+                logger.warn("Rules directory {} contains no rule files or is not accessible. Falling back to '--config auto'.",
+                        baseRules.getAbsolutePath());
+                configs.add("auto");
+            }
         }
         return configs;
+    }
+
+    private boolean hasRuleFiles(File dir) {
+        if (dir == null || !dir.exists() || !dir.isDirectory()) {
+            return false;
+        }
+        try (Stream<Path> stream = Files.walk(dir.toPath(), 5)) {
+            return stream.anyMatch(p -> {
+                String name = p.getFileName().toString().toLowerCase();
+                return Files.isRegularFile(p) && (name.endsWith(".yaml") || name.endsWith(".yml"));
+            });
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     public ScannerConfig getConfig() {
@@ -267,12 +287,33 @@ public class ScannerService {
                     result.exitCode());
         }
 
-        String diagnostic = redactor.redactAndCap(result.stderr().strip(), 1_000);
+        String diagnostic = extractSemgrepError(result);
         String message = "Semgrep exited with code " + result.exitCode() + ".";
         if (!diagnostic.isBlank()) {
-            message += "\nStderr: " + diagnostic;
+            message += "\nDiagnostic: " + diagnostic;
         }
         throw new ScanExecutionException(message);
+    }
+
+    private String extractSemgrepError(ManagedProcessRunner.ProcessResult result) {
+        if (!result.stderr().isBlank()) {
+            return redactor.redactAndCap(result.stderr().strip(), 1_000);
+        }
+        if (!result.stdout().isBlank()) {
+            try {
+                JsonNode root = objectMapper.readTree(result.stdout());
+                if (root != null && root.has("errors") && root.get("errors").isArray() && !root.get("errors").isEmpty()) {
+                    JsonNode firstError = root.get("errors").get(0);
+                    String errorMsg = firstError.path("message").asText();
+                    if (!errorMsg.isBlank()) {
+                        return redactor.redactAndCap(errorMsg.strip(), 1_000);
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+            return redactor.redactAndCap(result.stdout().strip(), 1_000);
+        }
+        return "";
     }
 
     private ScanResult parseSemgrepReport(String rawJson, String repoAbsolutePath) {

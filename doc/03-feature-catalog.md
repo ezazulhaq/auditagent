@@ -40,7 +40,7 @@ This catalog connects each feature to its user/business outcome and main impleme
 | Deadlock-safe scanner I/O | Semgrep stdout and stderr are drained concurrently; diagnostic stderr retains only its final 64 KiB. | `ManagedProcessRunner` |
 | Windows RPC-compatible isolation | Each Semgrep run receives one random, short, private directory directly under the JVM OS-temp root; it is removed after the process tree stops. This avoids native Windows RPC `socketpair` failures caused by deeply nested temp paths. | `ManagedProcessRunner`, `ManagedProcessEnvironment` |
 | Scan deadline and cleanup | A scan defaults to a 15-minute deadline; timeout/interruption and non-zero root exits terminate observed Semgrep descendants before workspace cleanup. | `ScannerConfig`, `ManagedProcessRunner` |
-| Semgrep exit handling | Exit 0 and 1 are accepted; other exits, empty output, and invalid JSON are terminal scan failures and are not persisted as empty reports. | `ScannerService.runSemgrep()` |
+| Semgrep exit handling & auto-fallback | Exit 0 and 1 are accepted; rule directories without YAML rules fall back to auto; other exits, empty output, and invalid JSON extract stdout/stderr error diagnostics and fail terminally without persisting empty reports. | `ScannerService.runSemgrep()`, `ScannerService.getRuleConfigs()` |
 | Finding parsing | Rule, path, line, snippet, description, severity, language, and fingerprint are mapped. | Semgrep JSON `results` |
 | Severity mapping | Semgrep ERROR→HIGH, WARNING→MEDIUM, INFO→LOW; otherwise MEDIUM. | `ScannerService` |
 | Context fallback | When Semgrep omits usable lines, four source lines from the finding are read. | `readContextFromFile()` |
