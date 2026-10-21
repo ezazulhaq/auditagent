@@ -43,11 +43,14 @@ public class LangChainModelConfig {
     @Value("${auditagent.agent.llm-call-timeout-seconds:300}")
     private long timeoutSeconds;
 
+    @Value("${auditagent.agent.llm-max-retries:${auditagent.agent.max-retries:3}}")
+    private int maxRetries;
+
     @Bean
     public ChatModel openAiLangChainModel() {
         logger.info(
-                "Initializing LangChain4j ChatModel with model={} url={} temperature={} maxTokens={} timeoutSeconds={}",
-                modelName, baseUrl, temperature, maxOutputTokens, timeoutSeconds);
+                "Initializing LangChain4j ChatModel with model={} url={} temperature={} maxTokens={} timeoutSeconds={} maxRetries={}",
+                modelName, baseUrl, temperature, maxOutputTokens, timeoutSeconds, maxRetries);
 
         Builder okBuilder = new Builder()
                 .addInterceptor(new GeminiThoughtSignatureInterceptor())
@@ -65,7 +68,7 @@ public class LangChainModelConfig {
                 .temperature(temperature)
                 .maxTokens(maxOutputTokens)
                 .timeout(Duration.ofSeconds(timeoutSeconds))
-                .maxRetries(0)
+                .maxRetries(maxRetries)
                 .httpClientBuilder(httpClientBuilder)
                 .build();
     }
