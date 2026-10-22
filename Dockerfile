@@ -39,8 +39,8 @@ COPY src/ ./src/
 # Inject pre-built frontend static assets into Spring Boot's static resources
 COPY --from=frontend-builder /app/src/main/resources/static/ ./src/main/resources/static/
 
-# Populate application-local.yaml from application-example.yaml if not present
-RUN if [ ! -f src/main/resources/application-local.yaml ]; then \
+# Ensure profile configuration is present from application-example.yaml if not provided
+RUN if [ ! -f src/main/resources/application-${PROFILE}.yaml ]; then \
         cp src/main/resources/application-example.yaml src/main/resources/application-${PROFILE}.yaml; \
     fi \
     && ./mvnw clean package -DskipTests -B
