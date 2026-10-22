@@ -81,8 +81,13 @@ RUN curl -sSL "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION
     && ln -s /opt/gradle-${GRADLE_VERSION}/bin/gradle /usr/local/bin/gradle \
     && rm /tmp/gradle.zip
 
+# Create isolated virtual environment for Semgrep CLI (owned by root, read-only for auditagent)
+ENV VIRTUAL_ENV=/opt/venv
+RUN python3 -m venv $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
 # Install Semgrep CLI statically for security scanning
-RUN python3 -m pip install --no-cache-dir --break-system-packages semgrep
+RUN pip install --no-cache-dir semgrep
 
 # Verify installation of built-in tools
 RUN java -version \

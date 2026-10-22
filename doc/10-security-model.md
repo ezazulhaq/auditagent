@@ -105,6 +105,8 @@ Build/test tools receive workspace-contained `TEMP`/`TMP`/`TMPDIR`. Semgrep rece
 
 Semgrep metrics are disabled.
 
+In containerized deployments, Semgrep is provisioned within an isolated virtual environment (`/opt/venv`) owned by `root:root` with standard read/execute permissions (`755`). The runtime service runs as an unprivileged user (`auditagent` or `sandboxuser`, UID 10001). This respects PEP 668 OS package boundaries, eliminates global dependency conflicts with system packages, and ensures unprivileged application processes cannot tamper with or rewrite scanner binaries and dependencies.
+
 `ManagedProcessRunner` drains Semgrep stdout and stderr concurrently to prevent pipe backpressure deadlocks. It keeps complete JSON stdout but only the final 64 KiB of stderr; user-visible diagnostics pass through secret redaction and length caps. A monotonic deadline defaults to 15 minutes. Timeout or interruption terminates the root and observed descendant processes, escalates to forced termination after five seconds, closes process streams, and prevents report/snapshot persistence. The runner polls for descendants independently of heartbeat emission and also terminates observed survivors after any root exit before deleting the per-run temp directory or allowing workspace cleanup.
 
 ## Model containment
