@@ -50,6 +50,47 @@ export function useScanController({ api, ensureThread, onMessage, onSuccess, onS
     }
   }, [api, ensureThread, onMessage, onStart, onSuccess]);
 
+  const startUploadScan = useCallback(async ({ file, projectName, scannerName }) => {
+    if (!file) {
+      onMessage('agent', 'Please select a ZIP file to scan.');
+      return null;
+    }
+
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const requestId = ++requestRef.current;
+    dispatch({ type: 'START', requestId, startedAt: Date.now() });
+    onStart?.();
+    onMessage('system', `Initializing security scan for uploaded archive: ${file.name}`);
+
+    try {
+      const result = await api.uploadScan({ file, projectName, scannerName }, {
+        signal: controller.signal,
+        onEvent: (event) => {
+          if (requestId !== requestRef.current) return;
+          if (event.type === 'progress') {
+            dispatch({ type: 'PROGRESS', requestId, progress: {
+              step: event.step, progress: event.progress, message: event.message,
+            } });
+          } else if (event.type === 'status' && event.message) {
+            onMessage('agent', event.message);
+          }
+        },
+      });
+      if (requestId !== requestRef.current) return null;
+      dispatch({ type: 'SUCCESS', requestId, result, finishedAt: Date.now() });
+      if (result.message) onMessage('agent', result.message);
+      onSuccess?.(result);
+      return result;
+    } catch (error) {
+      if (error.name === 'AbortError' || requestId !== requestRef.current) return null;
+      dispatch({ type: 'FAILURE', requestId, error: error.message, finishedAt: Date.now() });
+      onMessage('agent', `Upload scan failed: ${error.message}`);
+      return null;
+    }
+  }, [api, onMessage, onStart, onSuccess]);
+
   const replaceResult = useCallback((result) => dispatch({ type: 'REPLACE_RESULT', result }), []);
 
   const cancel = useCallback(() => {
@@ -62,6 +103,7 @@ export function useScanController({ api, ensureThread, onMessage, onSuccess, onS
     ...state,
     isScanning: state.status === 'starting' || state.status === 'streaming',
     startScan,
+    startUploadScan,
     cancel,
     replaceResult,
   };

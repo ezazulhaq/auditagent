@@ -178,6 +178,28 @@ Terminal report payload fields:
 
 `report_available` tells current clients that authenticated artifacts can be loaded. `html_report` remains in scan and restore payloads for backward compatibility; the current frontend does not render or download it.
 
+### `POST /api/scan/upload` — SSE
+
+Uploads and scans a project packaged as a `.zip` file (max 50MB compressed, 250MB uncompressed). Requires an authenticated session and `X-CSRF-Token`. Content-Type is `multipart/form-data`.
+
+Form parts:
+- `file`: The `.zip` archive binary.
+- `projectName` (optional): Display name for the project (defaults to the archive filename without `.zip`).
+- `scannerName` (optional): Default `semgrep`.
+
+Streams Server-Sent Events (`text/event-stream`):
+- `progress`: `{"type": "progress", "step": "uploading|extracting|scanning", "progress": 15, "message": "..."}`
+- `complete`: Final payload with `source: "upload"`, `uploadId: "..."`, `projectName: "..."`, `findings: [...]`, `metadata: {...}`, `report_available: true`, `html_report: "..."`.
+- `error`: Terminal failure event `{"type": "error", "code": "SCAN_FAILED", "message": "..."}`.
+
+### `GET /api/reports/upload?uploadId=...`
+
+Retrieves the persisted scan report for an uploaded project owned by the authenticated caller. Returns 404 if the upload ID does not exist or does not belong to the user.
+
+### `GET /api/reports/upload/export?uploadId=...&format=pdf`
+
+Exports the authorized uploaded project report as an on-demand PDF (`format=pdf`) or Markdown (`format=markdown` or `md`) attachment.
+
 ### `GET /api/reports?repositoryId=42&branch=main`
 
 Returns the latest report payload with type `report`.

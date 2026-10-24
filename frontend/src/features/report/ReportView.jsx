@@ -14,7 +14,7 @@ function saveBlob(blob, filename) {
   URL.revokeObjectURL(url);
 }
 
-export function ReportView({ api, repositoryId, branch, reportAvailable, projectName }) {
+export function ReportView({ api, repositoryId, branch, uploadId, reportAvailable, projectName }) {
   const [pdfArtifact, setPdfArtifact] = useState(null);
   const [pdfUrl, setPdfUrl] = useState('');
   const [loading, setLoading] = useState(true);
@@ -22,13 +22,19 @@ export function ReportView({ api, repositoryId, branch, reportAvailable, project
   const [downloading, setDownloading] = useState('');
   const [reloadToken, setReloadToken] = useState(0);
 
+  const isTargetReady = Boolean(reportAvailable && (uploadId || (repositoryId && branch)));
+
   useEffect(() => {
-    if (!reportAvailable || !repositoryId || !branch) {
+    if (!isTargetReady) {
       return undefined;
     }
     const controller = new AbortController();
     let objectUrl = '';
-    api.reportArtifact(repositoryId, branch, 'pdf', controller.signal).then(artifact => {
+    const fetchPromise = uploadId
+      ? api.uploadReportArtifact(uploadId, 'pdf', controller.signal)
+      : api.reportArtifact(repositoryId, branch, 'pdf', controller.signal);
+
+    fetchPromise.then(artifact => {
       objectUrl = URL.createObjectURL(artifact.blob);
       setPdfArtifact(artifact); setPdfUrl(objectUrl);
     }).catch(requestError => {
@@ -38,18 +44,24 @@ export function ReportView({ api, repositoryId, branch, reportAvailable, project
       controller.abort();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [api, branch, reloadToken, reportAvailable, repositoryId]);
+  }, [api, branch, isTargetReady, reloadToken, repositoryId, uploadId]);
 
   const download = useCallback(async format => {
     setDownloading(format); setError(null);
     try {
-      const artifact = format === 'pdf' && pdfArtifact
-        ? pdfArtifact : await api.reportArtifact(repositoryId, branch, format);
+      let artifact;
+      if (format === 'pdf' && pdfArtifact) {
+        artifact = pdfArtifact;
+      } else if (uploadId) {
+        artifact = await api.uploadReportArtifact(uploadId, format);
+      } else {
+        artifact = await api.reportArtifact(repositoryId, branch, format);
+      }
       saveBlob(artifact.blob, artifact.filename);
     } catch (requestError) {
       setError({ message: requestError.message || `Unable to download the ${format.toUpperCase()} report.`, retryPdf: false });
     } finally { setDownloading(''); }
-  }, [api, branch, pdfArtifact, repositoryId]);
+  }, [api, branch, pdfArtifact, repositoryId, uploadId]);
 
   const retryPdf = useCallback(() => {
     setLoading(true); setError(null); setPdfArtifact(null); setPdfUrl('');

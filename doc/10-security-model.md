@@ -78,6 +78,12 @@ AuditAgent must:
 - Internal `.auditagent` artifacts are excluded from diffs, commits, and changed-file hashes.
 - Backups are kept below the repository's configured backup directory.
 - Cleanup validates the target is a child of the managed root before recursive deletion.
+- **ZIP Upload Sandbox**:
+  - Validates ZIP magic byte header (`0x50, 0x4B`).
+  - Strict ZipSlip prevention: verifies that normalized target paths start with the temporary extraction root directory.
+  - Resource exhaustion caps: 50MB max archive upload size, 250MB max uncompressed extraction size, and 10,000 max entry count.
+  - Automatic exclusion filter: ignores bloat and dependency folders (`node_modules`, `.git`, `vendor`, `target`, `dist`, `build`, `__pycache__`) during extraction.
+  - Immediate disk cleanup: temporary archive files and extracted directories are deleted in a `finally` block immediately after Semgrep scanning completes. No raw source files from uploaded projects remain on the filesystem.
 
 ## Process controls
 
@@ -98,6 +104,8 @@ It relocates:
 Build/test tools receive workspace-contained `TEMP`/`TMP`/`TMPDIR`. Semgrep receives a random per-run `aa-*` directory directly beneath the real JVM OS-temp root. This narrow exception avoids a native Windows RPC `socketpair` failure on deeply nested paths. The runner rejects a symlinked/non-directory temp root, validates that the created directory is a direct child with the expected prefix, applies owner-only POSIX permissions where supported, inherits the user's private temp ACL on Windows, and validates the same boundary before recursive cleanup.
 
 Semgrep metrics are disabled.
+
+In containerized deployments, Semgrep is provisioned within an isolated virtual environment (`/opt/venv`) owned by `root:root` with standard read/execute permissions (`755`). The runtime service runs as an unprivileged user (`auditagent` or `sandboxuser`, UID 10001). This respects PEP 668 OS package boundaries, eliminates global dependency conflicts with system packages, and ensures unprivileged application processes cannot tamper with or rewrite scanner binaries and dependencies.
 
 `ManagedProcessRunner` drains Semgrep stdout and stderr concurrently to prevent pipe backpressure deadlocks. It keeps complete JSON stdout but only the final 64 KiB of stderr; user-visible diagnostics pass through secret redaction and length caps. A monotonic deadline defaults to 15 minutes. Timeout or interruption terminates the root and observed descendant processes, escalates to forced termination after five seconds, closes process streams, and prevents report/snapshot persistence. The runner polls for descendants independently of heartbeat emission and also terminates observed survivors after any root exit before deleting the per-run temp directory or allowing workspace cleanup.
 

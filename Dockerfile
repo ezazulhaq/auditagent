@@ -39,12 +39,11 @@ COPY src/ ./src/
 # Inject pre-built frontend static assets into Spring Boot's static resources
 COPY --from=frontend-builder /app/src/main/resources/static/ ./src/main/resources/static/
 
-# Populate application-local.yaml from application-example.yaml if not present
-RUN if [ ! -f src/main/resources/application-local.yaml ]; then \
+# Ensure profile configuration is present from application-example.yaml if not provided
+RUN if [ ! -f src/main/resources/application-${PROFILE}.yaml ]; then \
         cp src/main/resources/application-example.yaml src/main/resources/application-${PROFILE}.yaml; \
-    fi
-
-RUN ./mvnw clean package -DskipTests -B
+    fi \
+    && ./mvnw clean package -DskipTests -B
 
 # ------------------------------------------------------------------------------
 # Stage 3: Runtime Image with Built-in Tools
@@ -59,9 +58,11 @@ ENV DEBIAN_FRONTEND=noninteractive \
     GRADLE_VERSION=8.10.2 \
     AUDITAGENT_HOME=/app \
     AUDITAGENT_DATA_DIR=/var/lib/auditagent/data \
-    AUDITAGENT_WORKSPACE_DIR=/var/lib/auditagent/workspaces
+    AUDITAGENT_WORKSPACE_DIR=/var/lib/auditagent/workspaces \
+    VIRTUAL_ENV=/opt/venv \
+    PATH="/opt/venv/bin:$PATH"
 
-# Install core OS packages, build tools, python, git, and utilities
+# Install core OS packages, build tools, Gradle, Semgrep venv, service user, and directories
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
@@ -73,36 +74,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     procps \
     docker.io \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Gradle
-RUN curl -sSL "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip" -o /tmp/gradle.zip \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -sSL "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip" -o /tmp/gradle.zip \
     && unzip -q /tmp/gradle.zip -d /opt \
     && ln -s /opt/gradle-${GRADLE_VERSION}/bin/gradle /usr/local/bin/gradle \
-    && rm /tmp/gradle.zip
-
-# Install Semgrep CLI statically for security scanning
-RUN python3 -m pip install --no-cache-dir --break-system-packages semgrep
-
-# Verify installation of built-in tools
-RUN java -version \
+    && rm /tmp/gradle.zip \
+    && python3 -m venv $VIRTUAL_ENV \
+    && pip install --no-cache-dir semgrep \
+    && groupadd -g 10001 auditagent \
+    && useradd -u 10001 -g auditagent -m -s /bin/bash auditagent \
+    && mkdir -p ${AUDITAGENT_HOME}/rules \
+                ${AUDITAGENT_HOME}/.auditagent \
+                ${AUDITAGENT_DATA_DIR} \
+                ${AUDITAGENT_WORKSPACE_DIR} \
+    && chown -R auditagent:auditagent ${AUDITAGENT_HOME} \
+                                     /var/lib/auditagent \
+    && java -version \
     && semgrep --version \
     && mvn -version \
     && gradle -version \
     && git --version \
     && python3 --version
-
-# Create dedicated non-root service user and group
-RUN groupadd -g 10001 auditagent \
-    && useradd -u 10001 -g auditagent -m -s /bin/bash auditagent
-
-# Create required application and data directories
-RUN mkdir -p ${AUDITAGENT_HOME}/rules \
-             ${AUDITAGENT_HOME}/.auditagent \
-             ${AUDITAGENT_DATA_DIR} \
-             ${AUDITAGENT_WORKSPACE_DIR} \
-    && chown -R auditagent:auditagent ${AUDITAGENT_HOME} \
-                                     /var/lib/auditagent
 
 WORKDIR ${AUDITAGENT_HOME}
 

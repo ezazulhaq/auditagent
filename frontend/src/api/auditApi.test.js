@@ -58,7 +58,46 @@ describe('audit API scan adapter', () => {
       expect.objectContaining({ credentials: 'include' }),
     );
     expect(artifact.filename).toBe('repo-main-security-report.pdf');
+  });
+
+  it('handles uploadScan with normalized shape and uploadReportArtifact', async () => {
+    const payload = {
+      type: 'complete',
+      uploadId: 'up-42',
+      projectName: 'demo-app',
+      repository: 'demo-app',
+      html_report: '<html>report</html>',
+      findings: [{ id: 'VULN-1' }],
+      metadata: { projectName: 'demo-app' },
+      message: 'Scan complete',
+    };
+    const fetchImpl = vi.fn().mockImplementation((url) => {
+      if (url.includes('/scan/upload')) {
+        return Promise.resolve(response(`data:${JSON.stringify(payload)}`, 'text/event-stream'));
+      }
+      if (url.includes('/reports/upload/export')) {
+        return Promise.resolve(new Response('pdf-data', {
+          status: 200,
+          headers: {
+            'content-type': 'application/pdf',
+            'content-disposition': 'attachment; filename="demo-app-security-report.pdf"',
+          },
+        }));
+      }
+      return Promise.reject(new Error('Unknown url'));
+    });
+
+    const api = createAuditApi({ fetchImpl });
+    const file = new File(['test'], 'demo.zip', { type: 'application/zip' });
+
+    const scanResult = await api.uploadScan({ file, projectName: 'demo-app' });
+    expect(scanResult.uploadId).toBe('up-42');
+    expect(scanResult.source).toBe('upload');
+    expect(scanResult.projectName).toBe('demo-app');
+
+    const artifact = await api.uploadReportArtifact('up-42', 'pdf');
+    expect(artifact.filename).toBe('demo-app-security-report.pdf');
     expect(artifact.contentType).toBe('application/pdf');
-    expect(await artifact.blob.text()).toBe('pdf-bytes');
+    expect(await artifact.blob.text()).toBe('pdf-data');
   });
 });

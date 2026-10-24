@@ -21,9 +21,13 @@ Open AuditAgent. The sign-in page explains that repository work is performed thr
 
 The browser receives the user's display information and a CSRF token, but never GitHub access, refresh, or installation tokens.
 
-## 2. Choose a repository and branch
+## 2. Choose a repository or upload a ZIP archive
 
-The responsive **Scan configuration** panel lists repositories visible through your GitHub App installations. It appears as a collapsible left rail on desktop (which can be expanded or collapsed to maximize workspace area) and a full-width setup section above the workspace on narrow screens.
+The responsive **Scan configuration** panel supports two audit modes: **GitHub repository scan** and **Manual project upload**. Use the toggle button next to the collapse chevron at the top of the panel to switch between modes.
+
+### A. GitHub repository mode (default)
+
+The panel lists repositories visible through your GitHub App installations. It appears as a collapsible left rail on desktop and a full-width setup section above the workspace on narrow screens.
 
 1. Select a repository.
 2. AuditAgent loads up to the first 100 branches from GitHub.
@@ -36,6 +40,18 @@ If no repository appears:
 - ask an administrator to install or update the GitHub App.
 
 Changing the repository clears the current report and remediation UI. Changing the repository or branch restores the stable conversation and latest report for that exact selection.
+
+### B. Manual ZIP upload mode
+
+Click the mode toggle button (Upload icon) beside the collapse button in the ScanPanel to switch to manual archive upload mode:
+
+1. Drag and drop a project archive in `.zip` format (up to 50MB) onto the upload zone, or click to browse your local filesystem.
+2. The panel validates the archive format and size, displaying the filename and human-readable size with an option to remove/replace the file.
+3. An editable **Project name** field defaults to the base filename (excluding `.zip`).
+4. Click **Scan ZIP Archive** to upload, extract, and scan the codebase.
+
+> [!NOTE]
+> Uploaded ZIP projects support full vulnerability inspection, metrics dashboards, and exportable PDF and Markdown security assessments. Autonomous GitHub PR creation is disabled for manual uploads; scanning a connected GitHub repository is required to create remediation PRs.
 
 ## 3. Run a security scan
 

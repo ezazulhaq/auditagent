@@ -28,6 +28,9 @@ This catalog connects each feature to its user/business outcome and main impleme
 | Feature | Behavior | Implementation |
 |---|---|---|
 | Pinned-commit scan | A report identifies the exact branch commit scanned. | `branchHead()`, `cloneAtCommit()`, `ScanSnapshot` |
+| Manual ZIP upload scan | Users can upload a project in `.zip` format (up to 50MB) to scan source code and generate findings without requiring a GitHub repository. | `POST /api/scan/upload`, `ProjectUploadController`, `ProjectUploadService` |
+| Safe ZIP extraction sandbox | Enforces ZipSlip prevention, limits uncompressed extraction to 250MB (max 10,000 files), excludes dependency/build folders (`node_modules`, `.git`, `vendor`, `target`, `dist`), and immediately removes temporary files from disk after scanning. | `ZipArchiveExtractor`, `ProjectUploadService` |
+| Upload report restore and export | Persists upload reports with key `upload:<uploadId>` in DuckDB/PostgreSQL, scoped to the authenticated user, supporting PDF and Markdown export. | `GET /api/reports/upload`, `GET /api/reports/upload/export`, `UploadedProject` |
 | Scan history clearing | Users can delete all scan reports, snapshots, stats, and vulnerabilities for a selected repository branch. | `DELETE /api/reports/history`, `DatabaseService`, `DashboardView` |
 | Isolated scan clone | Scanner never operates on a browser-supplied local directory. | unique `scan-<UUID>` workspace |
 | Commit-aware cache | Report is reused only if stored base SHA equals current branch SHA and force rescan is false. | `ScanOrchestratorService.scan()` |

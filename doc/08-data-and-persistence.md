@@ -25,11 +25,26 @@ Reports and all related scan artifacts (`vulnerabilities`, `scan_snapshots`, `sc
 
 | Column        | Meaning                                                                                                          |
 |---------------|------------------------------------------------------------------------------------------------------------------|
-| `repo_path`   | Primary report key. Current format is `github:<repositoryId>:<branch>`.                                         |
+| `repo_path`   | Primary report key. Format is `github:<repositoryId>:<branch>` for GitHub scans or `upload:<uploadId>` for uploaded ZIP projects. |
 | `md_report`   | Generated enterprise Markdown retained as the durable scan representation and for compatibility.                 |
 | `html_report` | Generated standalone HTML retained for schema and API compatibility; it is not rendered by the current frontend. |
 | `findings`    | JSON list of findings.                                                                                           |
 | `metadata`    | JSON scan metadata.                                                                                              |
+
+#### `uploaded_projects`
+
+Tracks manual project uploads per authenticated user:
+
+| Column               | Meaning                                                            |
+|----------------------|--------------------------------------------------------------------|
+| `upload_id`          | Unique UUID primary key identifying the upload.                    |
+| `user_id`            | Authenticated user ID owning the upload.                           |
+| `project_name`       | Display name of the uploaded project.                              |
+| `original_file_name` | Original ZIP archive filename.                                     |
+| `report_key`         | Pointer to the `reports` row (`upload:<uploadId>`).                |
+| `file_size_bytes`    | Size of the compressed archive in bytes.                           |
+| `total_findings`     | Count of vulnerabilities identified.                               |
+| `created_at`         | Timestamp of the upload.                                           |
 
 #### `scan_history_stats`
 

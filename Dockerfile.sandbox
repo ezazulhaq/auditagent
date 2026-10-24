@@ -8,9 +8,11 @@ FROM eclipse-temurin:21-jdk
 
 ENV DEBIAN_FRONTEND=noninteractive \
     GRADLE_VERSION=8.10.2 \
-    NODE_VERSION=22
+    NODE_VERSION=22 \
+    VIRTUAL_ENV=/opt/venv \
+    PATH="/opt/venv/bin:$PATH"
 
-# Install base dependencies, build tools, python, git
+# Install base dependencies, Node.js, Gradle, isolated Semgrep venv, and configure sandbox user
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
@@ -21,28 +23,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     ca-certificates \
     procps \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Node.js & npm for projects requiring JS/TS tooling
-RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Gradle
-RUN curl -sSL "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip" -o /tmp/gradle.zip \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -sSL "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip" -o /tmp/gradle.zip \
     && unzip -q /tmp/gradle.zip -d /opt \
     && ln -s /opt/gradle-${GRADLE_VERSION}/bin/gradle /usr/local/bin/gradle \
-    && rm /tmp/gradle.zip
-
-# Install Semgrep CLI
-RUN python3 -m pip install --no-cache-dir --break-system-packages semgrep
-
-# Create non-root user matching AuditAgent container UID
-RUN groupadd -g 10001 sandboxuser \
-    && useradd -u 10001 -g sandboxuser -m -s /bin/bash sandboxuser
-
-# Validate installed tools
-RUN java -version \
+    && rm /tmp/gradle.zip \
+    && python3 -m venv $VIRTUAL_ENV \
+    && pip install --no-cache-dir semgrep \
+    && groupadd -g 10001 sandboxuser \
+    && useradd -u 10001 -g sandboxuser -m -s /bin/bash sandboxuser \
+    && java -version \
     && semgrep --version \
     && mvn -version \
     && gradle -version \

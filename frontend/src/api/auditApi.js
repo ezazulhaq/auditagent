@@ -35,15 +35,17 @@ const errorFor = async (response) => {
 
 export const normalizeScanResult = (payload, source = 'managed') => ({
   repositoryId: payload.repositoryId,
-  repository: payload.repository ?? '',
+  repository: payload.repository ?? payload.projectName ?? '',
   branch: payload.branch ?? '',
   baseSha: payload.baseSha ?? '',
+  uploadId: payload.uploadId ?? '',
+  projectName: payload.projectName ?? '',
   htmlReport: payload.html_report ?? payload.htmlReport ?? '',
   reportAvailable: payload.report_available ?? Boolean(payload.html_report ?? payload.htmlReport),
   findings: payload.findings ?? [],
   metadata: payload.metadata ?? null,
   message: payload.status_message ?? payload.message ?? '',
-  source,
+  source: payload.source ?? source,
 });
 
 export function createAuditApi({ baseUrl = API_BASE_URL, fetchImpl = fetch } = {}) {
@@ -159,6 +161,57 @@ export function createAuditApi({ baseUrl = API_BASE_URL, fetchImpl = fetch } = {
       }
       if (!result) throw new SseProtocolError('Scan stream ended without a result event.');
       return result;
+    },
+
+    async uploadScan({ file, projectName, scannerName = 'semgrep' }, { signal, onEvent } = {}) {
+      const formData = new FormData();
+      formData.append('file', file);
+      if (projectName) formData.append('projectName', projectName);
+      formData.append('scannerName', scannerName);
+
+      let result = null;
+      let terminalError = null;
+
+      await stream('/scan/upload', {
+        method: 'POST',
+        signal,
+        body: formData,
+      }, event => {
+        onEvent?.(event);
+        if (event.type === 'complete') {
+          result = normalizeScanResult(event, 'upload');
+        } else if (event.type === 'error') {
+          terminalError = event;
+        }
+      });
+
+      if (terminalError) {
+        const error = new SseProtocolError(terminalError.message || 'Project upload scan failed.');
+        error.code = terminalError.code || 'SCAN_FAILED';
+        throw error;
+      }
+      if (!result) throw new SseProtocolError('Upload scan stream ended without a result event.');
+      return result;
+    },
+
+    async getUploadReport(uploadId, signal) {
+      const response = await request(`/reports/upload?uploadId=${encodeURIComponent(uploadId)}`, { signal });
+      if (!response.ok) throw await errorFor(response);
+      return normalizeScanResult(await response.json(), 'upload');
+    },
+
+    async uploadReportArtifact(uploadId, format, signal) {
+      const query = `uploadId=${encodeURIComponent(uploadId)}&format=${encodeURIComponent(format)}`;
+      const response = await request(`/reports/upload/export?${query}`, { signal });
+      if (!response.ok) throw await errorFor(response);
+      const disposition = response.headers.get('content-disposition') ?? '';
+      const encodedName = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+      const plainName = disposition.match(/filename="?([^";]+)"?/i)?.[1];
+      let filename = plainName || `auditagent-upload-report.${format === 'pdf' ? 'pdf' : 'md'}`;
+      if (encodedName) {
+        try { filename = decodeURIComponent(encodedName); } catch { /* retain safe fallback */ }
+      }
+      return { blob: await response.blob(), filename, contentType: response.headers.get('content-type') ?? '' };
     },
 
     analyze(payload, onEvent, signal) {

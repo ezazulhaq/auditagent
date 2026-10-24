@@ -29,6 +29,7 @@
 | `LangChainModelConfig.java` | Tool-calling OpenAI model. |
 | `MemoryConfig.java` | Retention, context, retrieval, content limits, and context summarization settings. |
 | `ScannerConfig.java` | Validated Semgrep timeout and heartbeat settings. |
+| `WebFluxConfig.java` | WebFlux multipart and codec in-memory size configuration. |
 
 ### `controller`
 
@@ -41,6 +42,7 @@
 | `GitHubWebhookController.java` | Signed/replay-protected PR webhook. |
 | `ObservabilityController.java` | Aggregated user-level observability metrics (e.g. token usage). |
 | `MemoryController.java` | Thread restore/forget and run resume/discard. |
+| `ProjectUploadController.java` | Multipart upload scan, upload report restore, and export APIs. |
 | `RunPublicationController.java` | Preview, structured decision, publication retry. |
 
 ### `dto`
@@ -119,6 +121,7 @@
 | `PullRequestLifecycleService.java` | Pull request webhook events, and vulnerability state transitions. |
 | `PullRequestProvider.java` | Pull-request abstraction. |
 | `PdfReportRenderer.java` | Paginated enterprise PDF generation through Apache PDFBox. |
+| `ProjectUploadService.java` | Project upload scan orchestration, persistence, and report export. |
 | `RemediationWorkflowService.java` | GitHub-native remediation workflow orchestration. |
 | `ReporterService.java` | Enterprise Markdown/PDF generation and legacy HTML compatibility generation. |
 | `RepositoryAccessService.java` | Centralized repository authorization check. |
@@ -131,6 +134,7 @@
 | `SkillManagerService.java` | Dynamic skill discovery/parsing. |
 | `SourceControlProvider.java` | Repository/workspace abstraction. |
 | `TokenCipher.java` | AES-GCM OAuth encryption. |
+| `ZipArchiveExtractor.java` | Safe archive validation, extraction, ZipSlip protection, and directory cleanup. |
 
 ### `service/data`
 
@@ -217,7 +221,7 @@
 
 ### Backend
 
-`AuditagentApplicationTests`, `ApiSecurityFilterTest`, `AuditControllerReportExportTest`, `GitHubWebhookControllerTest`, `AgentToolServiceSecurityTest`, `ConversationMemoryServiceTest`, `DatabaseMemoryServiceTest`, `GitHubAuthServiceTest`, `GitHubProviderIntegrationTest`, `LlmServiceAgentLoopTest`, `ManagedProcessRunnerTest`, `RemediationWorkflowPreparationTest`, `ScanOrchestratorReportExportTest`, `ScanOrchestratorServiceTest`, `ReporterServiceTest`, `ScannerServiceTest`, and `TokenCipherTest`.
+`AuditagentApplicationTests`, `ApiSecurityFilterTest`, `AuditControllerReportExportTest`, `GitHubWebhookControllerTest`, `AgentToolServiceSecurityTest`, `ConversationMemoryServiceTest`, `DatabaseMemoryServiceTest`, `GitHubAuthServiceTest`, `GitHubProviderIntegrationTest`, `LlmServiceAgentLoopTest`, `ManagedProcessRunnerTest`, `ProjectUploadControllerTest`, `ProjectUploadServiceTest`, `RemediationWorkflowPreparationTest`, `ScanOrchestratorReportExportTest`, `ScanOrchestratorServiceTest`, `ReporterServiceTest`, `ScannerServiceTest`, `TokenCipherTest`, and `ZipArchiveExtractorTest`.
 
 ### Frontend
 

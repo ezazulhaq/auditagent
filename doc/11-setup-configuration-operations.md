@@ -332,6 +332,15 @@ complete boundary against malicious build scripts.
 
 Semgrep also requires a short, writable JVM OS-temp root (`java.io.tmpdir`), especially on Windows. AuditAgent creates one random `aa-*` child per scan and removes it after Semgrep and its observed RPC descendants stop. Do not redirect the JVM OS-temp root into the deeply nested managed scan workspace; Windows Semgrep can fail native RPC `socketpair` creation there. No repository path or credential is used in the temp name.
 
+### Project upload and multipart codecs
+
+| Property | Default | Meaning |
+|---|---:|---|
+| Codec max in-memory size | 60MB | WebFlux codec in-memory buffer limit configured in `WebFluxConfig` to accommodate ZIP project uploads. |
+| Max compressed archive size | 50MB | Maximum allowed `.zip` file size accepted by `ZipArchiveExtractor`. |
+| Max uncompressed size | 250MB | Cumulative uncompressed bytes limit to guard against zip bomb attacks. |
+| Max entry count | 10,000 | Maximum number of files permitted within an uploaded archive. |
+
 ### Agent
 
 | Property | Default | Meaning |
@@ -443,10 +452,10 @@ AuditAgent provides a containerized deployment via `docker-compose.yml` that pac
 
 The production `Dockerfile` builds a Debian-based container equipped with the full suite of security auditing and remediation tools:
 - **Java 21 JDK**: Eclipse Temurin OpenJDK 21 for running the server and compiling/testing Java repositories.
-- **Semgrep CLI**: Installed statically via Python pip for vulnerability detection, file rescanning, and linting.
+- **Semgrep CLI**: Installed inside an isolated virtual environment (`/opt/venv`) via pip for vulnerability detection, file rescanning, and linting without modifying system Python packages.
 - **Maven (`mvn`)**: Installed for compiling and running tests on Maven-based repositories.
 - **Gradle (`gradle`)**: Version 8.10.2 installed for compiling and testing Gradle-based projects.
-- **Python 3 & pip**: Python 3 runtime supporting Semgrep execution and auxiliary scripts.
+- **Python 3 & venv**: Python 3 runtime with an isolated virtual environment (`/opt/venv`) supporting Semgrep execution and auxiliary scripts.
 - **Git (`git`)**: For JGit support and CLI-based workspace operations.
 - **Docker CLI**: For delegating tool execution to sandboxed worker containers when enabled.
 - **Curl & Jq**: Used for container healthchecks and JSON diagnostics.
