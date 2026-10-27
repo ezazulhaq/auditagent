@@ -220,6 +220,7 @@
 | `scripts/install-git-hooks.ps1`                 | Enables versioned hooks for PowerShell/Windows users. |
 | `scripts/install-git-hooks.sh`                  | Enables versioned hooks and executable bit on Unix-like systems. |
 | `.devcontainer/devcontainer.json`               | Temurin Java 21, Node.js 24 & Python 3.12 development container. |
+| `release_notes/*.md`                            | Versioned release notes tracking product, tooling, and infrastructure updates. |
 
 ## Test file map
 
