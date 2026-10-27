@@ -97,12 +97,32 @@ Immediately after opening the PR, proceed to prepare the versioned release notes
      - **Minor (`x.Y.0`)**: New features, new endpoints, new workflows, or significant capabilities.
      - **Major (`X.0.0`)**: Breaking API, database, or architecture changes.
      - If uncertain, confirm the target version with the user.
-2. **Synchronize Project Version Descriptors**:
-   - Update `pom.xml`: `<version>X.Y.Z</version>`
-   - Update `frontend/package.json`: `"version": "X.Y.Z"`
-   - Update `frontend/package-lock.json`: `"version": "X.Y.Z"`
+2. **Synchronize Project Version Descriptors (Mandatory Parity)**:
+   - When generating a release note for a user-specified (or computed) version, **always maintain the exact same version string across all project descriptors**:
+     - **Backend descriptor (`pom.xml`)**:
+       ```xml
+       <version>X.Y.Z</version>
+       ```
+     - **Frontend descriptor (`frontend/package.json`)**:
+       ```json
+       "version": "X.Y.Z"
+       ```
+     - **Frontend lockfile (`frontend/package-lock.json`)**:
+       ```json
+       "version": "X.Y.Z"
+       ```
+   - **Zero-Drift Rule**: Never create or publish a release note without verifying that `pom.xml`, `frontend/package.json`, and `frontend/package-lock.json` are synchronized to the exact target version.
+   - **Pre-Commit Verification**: Run an explicit parity check before committing:
+     ```bash
+     # Verify pom.xml
+     grep -m 1 -E "<version>[0-9]+\.[0-9]+\.[0-9]+</version>" pom.xml
+
+     # Verify frontend/package.json and frontend/package-lock.json
+     node -e 'console.log("package.json:", require("./frontend/package.json").version)'
+     node -e 'console.log("package-lock.json:", require("./frontend/package-lock.json").version)'
+     ```
 3. **Generate Release Note File**:
-   - Create `release_notes/<version>.md` following the standard template:
+   - Create `release_notes/<version>.md` (e.g. `release_notes/2.1.2.md`) following the standard template:
      ```markdown
      # AuditAgent v<version> Release Notes
 
@@ -123,7 +143,7 @@ Immediately after opening the PR, proceed to prepare the versioned release notes
      ---
 
      ## 📦 Versioning & Verification
-     <Version synchronization and test verification summary.>
+     <Version synchronization across pom.xml and frontend/package.json, along with test verification summary.>
      ```
 4. **Documentation Guard Compliance**:
    - Ensure any new release notes or files are registered in `doc/15-source-inventory-and-glossary.md` so that `.githooks/pre-commit` passes without requiring bypass flags.
@@ -131,7 +151,7 @@ Immediately after opening the PR, proceed to prepare the versioned release notes
    - Stage and commit the version bump and release notes on the active feature branch:
      ```bash
      git add release_notes/<version>.md pom.xml frontend/package.json frontend/package-lock.json doc/
-     git commit -m "docs(release): add v<version> release notes and synchronize version"
+     git commit -m "docs(release): add v<version> release notes and synchronize version in pom.xml and package.json"
      git push origin <branch-name>
      ```
    - Pushing automatically updates the existing Pull Request.
