@@ -214,6 +214,6 @@ This catalog connects each feature to its user/business outcome and main impleme
 | Feature | Behavior | Implementation |
 |---|---|---|
 | Documentation navigation skill | Fast search, symbol cross-referencing, invariant validation, and context retrieval across the `doc/` suite (@doc). | `.agents/skills/doc-navigator/SKILL.md`, `scripts/doc-search.sh`, `references/topic-map.md` |
-| Git feature workflow | Automated branch isolation, logical grouped commits, push approvals, and PR verification. | `.agents/skills/git-feature-workflow/SKILL.md` |
+| Git feature workflow | Automated branch isolation, logical grouped commits, push approvals, PR verification, version synchronization, release note generation, and GitHub release publication. | `.agents/skills/git-feature-workflow/SKILL.md` |
 | Systematic debugging | Root-cause tracing, test polluter isolation, and condition-based waiting before proposing fixes. | `.agents/skills/systematic-debugging/SKILL.md` |
 | Frontend design | Distinctive UI design, token styling, typography, and layout rules avoiding generic AI templates. | `.agents/skills/frontend-design/SKILL.md` |

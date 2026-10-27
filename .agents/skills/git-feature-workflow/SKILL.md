@@ -1,11 +1,11 @@
 ---
 name: git-feature-workflow
-description: Branch isolation, grouped logical commits, push approval, and pull request creation workflow when working on master or main branches.
+description: Branch isolation, grouped logical commits, push approval, pull request creation, and versioned release note generation and publishing workflow when working on master or main branches.
 ---
 
 # Git Feature Workflow
 
-This skill guides the standard Git workflow whenever you are asked to make code changes while on the `master` or `main` branch. It ensures changes are isolated in feature branches, committed in logical groups, and reviewed/approved before pushing and creating pull requests.
+This skill guides the standard Git workflow whenever you are asked to make code changes while on the `master` or `main` branch. It ensures changes are isolated in feature branches, committed in logical groups, reviewed/approved before pushing, submitted via pull requests, and followed through to versioned release note generation and GitHub release publication.
 
 ---
 
@@ -83,4 +83,93 @@ Before writing or editing code files:
      - **Verification**: Evidence of passed unit/integration test suites and build output.
 4. **Report Back**:
    - Share the PR URL and status with the user.
+
+---
+
+## 4. Release Note Generation & Version Synchronization
+
+Immediately after opening the PR, proceed to prepare the versioned release notes for the changes delivered in the branch:
+
+1. **Determine Target Release Version**:
+   - If the user explicitly requested a version (e.g., `2.1.2`), use that version.
+   - If no version was specified, compute the next semantic version based on changes:
+     - **Patch (`x.y.Z`)**: Bug fixes, minor documentation updates, developer skills/tooling, or non-breaking maintenance.
+     - **Minor (`x.Y.0`)**: New features, new endpoints, new workflows, or significant capabilities.
+     - **Major (`X.0.0`)**: Breaking API, database, or architecture changes.
+     - If uncertain, confirm the target version with the user.
+2. **Synchronize Project Version Descriptors**:
+   - Update `pom.xml`: `<version>X.Y.Z</version>`
+   - Update `frontend/package.json`: `"version": "X.Y.Z"`
+   - Update `frontend/package-lock.json`: `"version": "X.Y.Z"`
+3. **Generate Release Note File**:
+   - Create `release_notes/<version>.md` following the standard template:
+     ```markdown
+     # AuditAgent v<version> Release Notes
+
+     **Release Date:** <Month Day, Year>
+
+     <Executive summary highlighting the core focus of this release.>
+
+     ---
+
+     ## 🚀 New Features & Enhancements
+     <Bulleted feature breakdown with key technical details.>
+
+     ---
+
+     ## 📚 Documentation & Catalog Synchronization
+     <Updates made to doc/*.md and catalogs.>
+
+     ---
+
+     ## 📦 Versioning & Verification
+     <Version synchronization and test verification summary.>
+     ```
+4. **Documentation Guard Compliance**:
+   - Ensure any new release notes or files are registered in `doc/15-source-inventory-and-glossary.md` so that `.githooks/pre-commit` passes without requiring bypass flags.
+5. **Commit and Push to the Open PR**:
+   - Stage and commit the version bump and release notes on the active feature branch:
+     ```bash
+     git add release_notes/<version>.md pom.xml frontend/package.json frontend/package-lock.json doc/
+     git commit -m "docs(release): add v<version> release notes and synchronize version"
+     git push origin <branch-name>
+     ```
+   - Pushing automatically updates the existing Pull Request.
+
+---
+
+## 5. Pull Request Merge & GitHub Release Publication
+
+Once the user approves merging and publishing the release:
+
+1. **Merge the Pull Request**:
+   - Use the GitHub CLI to merge into `master`:
+     ```bash
+     gh pr merge <pr-number> --merge
+     ```
+   - Verify that the PR transitioned to merged status:
+     ```bash
+     gh pr view <pr-number> --json state,mergedAt
+     ```
+2. **Update Local Tracking Branch**:
+   - Switch back to `master` and pull the latest merged state:
+     ```bash
+     git checkout master && git pull origin master
+     ```
+3. **Publish GitHub Release**:
+   - Create and publish the GitHub release with tag `v<version>` pointing to `master`:
+     ```bash
+     gh release create v<version> --target master --title "v<version>" --notes-file release_notes/<version>.md
+     ```
+   - Fetch the newly created tag to your local git repository:
+     ```bash
+     git fetch --tags origin
+     ```
+4. **Synchronize Long-Lived Branches (`dev`)**:
+   - If the repository maintains a parallel `dev` branch, fast-forward it to keep branches synchronized:
+     ```bash
+     git checkout dev && git merge --ff-only master && git push origin dev && git checkout master
+     ```
+5. **Present Release Handoff**:
+   - Share the published GitHub release URL (`https://github.com/<owner>/<repo>/releases/tag/v<version>`), a concise summary of the highlights, and confirmation of clean repository state.
 
