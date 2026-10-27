@@ -208,3 +208,12 @@ This catalog connects each feature to its user/business outcome and main impleme
 | Dev Container configuration | Standardized development container configured with Java 21, Node.js 24, and Python 3.12. | `.devcontainer/devcontainer.json` |
 | Docker Compose orchestration | Containerized application deployment connecting to external PostgreSQL databases, with optional frontend dev server and sandbox image builder. | `docker-compose.yml`, `.env.example`, `.dockerignore` |
 | Containerized built-in toolchain | Production container equipped with all auditing and remediation tools: Java 21 JDK, Semgrep CLI, Maven, Gradle, Python 3, and Git. | `Dockerfile`, `Dockerfile.sandbox`, `frontend/Dockerfile.dev` |
+
+## Developer and workspace skills
+
+| Feature | Behavior | Implementation |
+|---|---|---|
+| Documentation navigation skill | Fast search, symbol cross-referencing, invariant validation, and context retrieval across the `doc/` suite (@doc). | `.agents/skills/doc-navigator/SKILL.md`, `scripts/doc-search.sh`, `references/topic-map.md` |
+| Git feature workflow | Automated branch isolation, logical grouped commits, push approvals, and PR verification. | `.agents/skills/git-feature-workflow/SKILL.md` |
+| Systematic debugging | Root-cause tracing, test polluter isolation, and condition-based waiting before proposing fixes. | `.agents/skills/systematic-debugging/SKILL.md` |
+| Frontend design | Distinctive UI design, token styling, typography, and layout rules avoiding generic AI templates. | `.agents/skills/frontend-design/SKILL.md` |
