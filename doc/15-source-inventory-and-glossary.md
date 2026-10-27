@@ -202,6 +202,8 @@
 | `.agents/skills/git-feature-workflow/SKILL.md` | Developer assistant skill for branch isolation and grouped commits. |
 | `.agents/skills/systematic-debugging/SKILL.md` | Developer assistant skill for structured root-cause debugging. |
 | `.agents/skills/frontend-design/SKILL.md` | Developer assistant skill for distinctive UI design. |
+| `.agents/rules/git-commit-policy.md` | Developer workspace rule: user approval required prior to git commit. |
+| `.agents/rules/pr-merge-policy.md` | Developer workspace rule: Pull Requests must strictly target and merge into master or main only. |
 | `pom.xml` | Java dependencies, versions, build plugin. |
 | `frontend/package.json` | Frontend dependencies and scripts. |
 | `frontend/vite.config.js` | plugins, backend proxy, production output. |

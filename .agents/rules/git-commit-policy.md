@@ -4,4 +4,5 @@
 - The AI agent must never execute `git commit`, `git push`, or modify Git branches/history autonomously.
 - Always present the proposed changes, file diffs, and verification or test results to the user first.
 - Only proceed with creating a Git commit after the user explicitly reviews the changes and gives confirmation to commit.
+- **Pull Request Target Rule**: Any Pull Request must ONLY target and be merged into the `master` or `main` branch. Never target or merge into `dev` or `prod`, feature branches, or any other branch.
 

@@ -468,6 +468,13 @@ if (fixMatch) {
 
 ## 🛠️ Development Guidelines for AI Assistants
 
+### Git Branching and Pull Request Rules
+- **Strict `master` / `main` Target**: Any Pull Request (PR) must ONLY target and be merged into the `master` or `main` branch.
+- **No Direct PRs to Secondary Branches**: Never open a PR against or merge a PR into `dev`, feature branches, or any other branch.
+- **Base Flag Verification**: When opening a PR (`gh pr create`), the base flag must strictly be `--base master` (or `--base main`).
+- **Merge Verification**: Before executing `gh pr merge`, always verify that the PR base branch is `master` or `main`.
+- **Secondary Branch Synchronization**: Parallel tracking branches (such as `dev`) must only receive updates via fast-forward merge from `master` or `main` after the PR has been merged into `master`/`main`.
+
 ### Architectural & Code Quality Standards (SOLID & OOP)
 - **Single Responsibility Principle (SRP)**: Ensure every class, service, or component has only one reason to change. Avoid monoliths and "god classes". Keep components tightly scoped (e.g., separating authorization, scanning, and PR workflows).
 - **Open-Closed Principle (OCP)**: Design modules to be open for extension but closed for modification. Use interfaces and polymorphism to extend behavior without modifying existing tested code.

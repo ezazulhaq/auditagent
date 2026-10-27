@@ -6,6 +6,13 @@ Change the smallest coherent boundary, preserve durable/security invariants, add
 
 The versioned `.githooks/pre-commit` guard requires a staged `doc/*.md` update when implementation, configuration, rules, skills, build, or runtime files are staged. Enable it after cloning with `scripts/install-git-hooks.ps1` or `scripts/install-git-hooks.sh`. The hook checks presence only; the author remains responsible for updating every affected guide.
 
+## Git workflow and Pull Request rules
+
+- **Branch Isolation**: Never modify or commit code directly to `master` or `main`. All changes must be developed in dedicated feature branches (`feat/`, `fix/`, `refactor/`, `chore/`).
+- **Target `master` or `main` ONLY**: Any Pull Request must strictly target and be merged into the `master` or `main` branch. Never target or merge into `dev`, feature branches, or any other branch.
+- **Base Flag & Merge**: Always specify `--base master` (or `--base main`) when creating a PR. Verify the base branch before running `gh pr merge`.
+- **Secondary Branch Synchronization**: Parallel branches (`dev`) must only receive updates via fast-forward merge from `master` or `main` after PR merge.
+
 ## Common change recipes
 
 ### Add a new API endpoint
