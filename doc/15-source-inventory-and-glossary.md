@@ -198,6 +198,10 @@
 | .auditagent/skills/patch-engineer/SKILL.md | Legacy remediation model playbook. |
 | .auditagent/skills/db-manager/SKILL.md | Discoverable historical database/reporting playbook; its named tools are not registered in the current runtime. |
 | .auditagent/skills/github-pr-manager/SKILL.md | Discoverable historical PR playbook; current publication instead uses automated publication and managed services. |
+| `.agents/skills/doc-navigator/SKILL.md` | Developer assistant skill for navigating and searching `@doc`. |
+| `.agents/skills/git-feature-workflow/SKILL.md` | Developer assistant skill for branch isolation and grouped commits. |
+| `.agents/skills/systematic-debugging/SKILL.md` | Developer assistant skill for structured root-cause debugging. |
+| `.agents/skills/frontend-design/SKILL.md` | Developer assistant skill for distinctive UI design. |
 | `pom.xml` | Java dependencies, versions, build plugin. |
 | `frontend/package.json` | Frontend dependencies and scripts. |
 | `frontend/vite.config.js` | plugins, backend proxy, production output. |
@@ -216,6 +220,7 @@
 | `scripts/install-git-hooks.ps1`                 | Enables versioned hooks for PowerShell/Windows users. |
 | `scripts/install-git-hooks.sh`                  | Enables versioned hooks and executable bit on Unix-like systems. |
 | `.devcontainer/devcontainer.json`               | Temurin Java 21, Node.js 24 & Python 3.12 development container. |
+| `release_notes/*.md`                            | Versioned release notes tracking product, tooling, and infrastructure updates. |
 
 ## Test file map
 
