@@ -99,6 +99,58 @@ public class IssueLifecycleService {
         Thread.startVirtualThread(() -> processIssueRemediation(repository, issueNumber, threadId, title, body));
     }
 
+    public void syncIssuesFromGitHub(ManagedRepository repository, String token) {
+        if (repository == null || token == null || token.isBlank()) return;
+        try {
+            List<GitHubApiClient.GitHubIssueInfo> issues = github.listRepositoryIssues(repository, token);
+            for (GitHubApiClient.GitHubIssueInfo issue : issues) {
+                if (!isTriggered(issue.labels(), issue.title(), issue.body())) {
+                    continue;
+                }
+                Optional<TrackedIssueRecord> existing = database.findTrackedIssue(repository.repositoryId(), issue.number());
+                boolean isOpen = "OPEN".equalsIgnoreCase(issue.state());
+                if (existing.isEmpty()) {
+                    String id = repository.repositoryId() + "-" + issue.number();
+                    TrackedIssueRecord record = new TrackedIssueRecord(
+                            id,
+                            repository.repositoryId(),
+                            issue.number(),
+                            issue.title() != null && !issue.title().isBlank() ? issue.title() : "Issue #" + issue.number(),
+                            issue.body(),
+                            issue.labels(),
+                            isOpen ? "OPEN" : "CLOSED",
+                            null,
+                            null,
+                            isOpen ? "ANALYZING" : "DISCARDED",
+                            null,
+                            null,
+                            isOpen ? "Synced from GitHub, analyzing context..." : "Issue closed on GitHub",
+                            LocalDateTime.now(),
+                            LocalDateTime.now()
+                    );
+                    database.saveTrackedIssue(record);
+                    if (isOpen) {
+                        String threadId = "issue-" + repository.repositoryId() + "-" + issue.number();
+                        Thread.startVirtualThread(() -> processIssueRemediation(repository, issue.number(), threadId, issue.title(), issue.body()));
+                    }
+                } else {
+                    TrackedIssueRecord cur = existing.get();
+                    if (!isOpen && !"CLOSED".equalsIgnoreCase(cur.state())) {
+                        TrackedIssueRecord updated = new TrackedIssueRecord(
+                                cur.id(), cur.repositoryId(), cur.issueNumber(), issue.title(), issue.body(),
+                                issue.labels(), "CLOSED", cur.targetVulnerabilityId(), cur.runId(),
+                                "DISCARDED", cur.pullRequestNumber(), cur.pullRequestUrl(),
+                                "Issue closed on GitHub", cur.createdAt(), LocalDateTime.now()
+                        );
+                        database.saveTrackedIssue(updated);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("Could not sync issues from GitHub for {}: {}", repository.fullName(), e.getMessage());
+        }
+    }
+
     private boolean isTriggered(List<String> labels, String title, String body) {
         if (labels != null) {
             for (String label : labels) {

@@ -193,6 +193,25 @@ public class GitHubApiClient {
                 installationToken, json(payload));
     }
 
+    public List<GitHubIssueInfo> listRepositoryIssues(ManagedRepository repository, String token) {
+        JsonNode response = sendJson("GET", api("/repos/" + repository.fullName() + "/issues?state=all&per_page=100"),
+                token, null);
+        List<GitHubIssueInfo> issues = new ArrayList<>();
+        if (response.isArray()) {
+            for (JsonNode issue : response) {
+                if (issue.hasNonNull("pull_request")) continue;
+                int number = issue.path("number").asInt();
+                String title = issue.path("title").asText("");
+                String body = issue.path("body").asText("");
+                String state = issue.path("state").asText("open").toUpperCase();
+                List<String> labels = new ArrayList<>();
+                issue.path("labels").forEach(l -> labels.add(l.path("name").asText()));
+                issues.add(new GitHubIssueInfo(number, title, body, state, labels));
+            }
+        }
+        return issues;
+    }
+
     private OAuthTokens parseOAuth(JsonNode response) {
         if (response.hasNonNull("error"))
             throw new IllegalStateException("GitHub authorization failed: " +
@@ -341,5 +360,8 @@ public class GitHubApiClient {
     }
 
     public record PrInfo(int number, String url, String headSha, String state, boolean merged) {
+    }
+
+    public record GitHubIssueInfo(int number, String title, String body, String state, List<String> labels) {
     }
 }

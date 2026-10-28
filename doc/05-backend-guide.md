@@ -17,7 +17,7 @@
 
 - Lists repositories from the user's installations and upserts their server-side metadata.
 - Loads branches only after retrieving stored repository metadata and revalidating user read access.
-- Serves tracked GitHub issues (`GET /api/github/repositories/{repositoryId}/issues`) for the authenticated user, validating access and returning persisted issue triage status.
+- Serves tracked GitHub issues (`GET /api/github/repositories/{repositoryId}/issues`) for the authenticated user, validating access, actively synchronizing tagged issues from GitHub REST API on demand, and returning persisted issue triage status.
 
 ### `AuditController`
 

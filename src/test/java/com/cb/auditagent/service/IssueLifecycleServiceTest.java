@@ -235,4 +235,25 @@ class IssueLifecycleServiceTest {
             record.repositoryId() == 42L && record.issueNumber() == 18 && "OPEN".equals(record.state())
         ));
     }
+
+    @Test
+    void syncsIssuesFromGitHubAndPersistsTriggeredOnes() {
+        GitHubApiClient.GitHubIssueInfo triggeredIssue = new GitHubApiClient.GitHubIssueInfo(
+                25, "SQL Injection in auth", "Please fix @auditagent", "open", List.of("security")
+        );
+        GitHubApiClient.GitHubIssueInfo untriggeredIssue = new GitHubApiClient.GitHubIssueInfo(
+                26, "Update Readme", "Docs only", "open", List.of("documentation")
+        );
+        when(github.listRepositoryIssues(sampleRepo, "token-123")).thenReturn(List.of(triggeredIssue, untriggeredIssue));
+        when(database.findTrackedIssue(42L, 25)).thenReturn(Optional.empty());
+
+        service.syncIssuesFromGitHub(sampleRepo, "token-123");
+
+        verify(database).saveTrackedIssue(org.mockito.ArgumentMatchers.argThat(record -> 
+            record.issueNumber() == 25 && "OPEN".equals(record.state()) && "ANALYZING".equals(record.remediationStatus())
+        ));
+        verify(database, never()).saveTrackedIssue(org.mockito.ArgumentMatchers.argThat(record -> 
+            record.issueNumber() == 26
+        ));
+    }
 }

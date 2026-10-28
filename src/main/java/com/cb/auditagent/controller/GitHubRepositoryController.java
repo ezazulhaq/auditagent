@@ -11,6 +11,7 @@ import com.cb.auditagent.domain.ManagedRepository;
 import com.cb.auditagent.domain.TrackedIssueRecord;
 import com.cb.auditagent.service.DatabaseService;
 import com.cb.auditagent.service.GitHubAuthService;
+import com.cb.auditagent.service.IssueLifecycleService;
 import com.cb.auditagent.service.SourceControlProvider;
 
 import java.util.List;
@@ -21,12 +22,14 @@ public class GitHubRepositoryController {
     private final GitHubAuthService auth;
     private final SourceControlProvider sourceControl;
     private final DatabaseService database;
+    private final IssueLifecycleService issueLifecycle;
 
     public GitHubRepositoryController(GitHubAuthService auth, SourceControlProvider sourceControl,
-            DatabaseService database) {
+            DatabaseService database, IssueLifecycleService issueLifecycle) {
         this.auth = auth;
         this.sourceControl = sourceControl;
         this.database = database;
+        this.issueLifecycle = issueLifecycle;
     }
 
     @GetMapping
@@ -58,6 +61,7 @@ public class GitHubRepositoryController {
         if (!sourceControl.userCanRead(userToken, repository)) {
             throw new SecurityException("The authenticated user cannot access this repository");
         }
+        issueLifecycle.syncIssuesFromGitHub(repository, userToken);
         return database.listTrackedIssues(repositoryId);
     }
 }

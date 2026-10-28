@@ -5,6 +5,7 @@ import com.cb.auditagent.domain.ManagedRepository;
 import com.cb.auditagent.domain.TrackedIssueRecord;
 import com.cb.auditagent.service.DatabaseService;
 import com.cb.auditagent.service.GitHubAuthService;
+import com.cb.auditagent.service.IssueLifecycleService;
 import com.cb.auditagent.service.SourceControlProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,12 +20,14 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class GitHubRepositoryControllerTest {
     private GitHubAuthService auth;
     private SourceControlProvider sourceControl;
     private DatabaseService database;
+    private IssueLifecycleService issueLifecycle;
     private GitHubRepositoryController controller;
 
     private ManagedRepository sampleRepo;
@@ -36,7 +39,8 @@ class GitHubRepositoryControllerTest {
         auth = mock(GitHubAuthService.class);
         sourceControl = mock(SourceControlProvider.class);
         database = mock(DatabaseService.class);
-        controller = new GitHubRepositoryController(auth, sourceControl, database);
+        issueLifecycle = mock(IssueLifecycleService.class);
+        controller = new GitHubRepositoryController(auth, sourceControl, database, issueLifecycle);
 
         sampleRepo = new ManagedRepository(42L, 999L, "octocat", "repo", "octocat/repo",
                 "https://github.com/octocat/repo.git", "main", false, "ADMIN");
@@ -59,6 +63,7 @@ class GitHubRepositoryControllerTest {
         when(database.listTrackedIssues(42L)).thenReturn(List.of(record));
 
         List<TrackedIssueRecord> result = controller.issues(42L, exchange);
+        verify(issueLifecycle).syncIssuesFromGitHub(sampleRepo, "token-abc");
         assertEquals(1, result.size());
         assertEquals(18, result.get(0).issueNumber());
         assertEquals("PR_OPEN", result.get(0).remediationStatus());
