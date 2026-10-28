@@ -82,6 +82,32 @@ Returns `ManagedRepository[]`:
 
 Returns a JSON array of branch names after access revalidation.
 
+### `GET /api/github/repositories/{repositoryId}/issues`
+
+Returns a list of tracked GitHub issues for the specified repository after revalidating user read access:
+
+```json
+[
+  {
+    "id": "42-18",
+    "repositoryId": 42,
+    "issueNumber": 18,
+    "title": "Fix SQL injection in Database.java",
+    "body": "Fix please @auditagent",
+    "labels": ["security", "auditagent-fix"],
+    "state": "OPEN",
+    "targetVulnerabilityId": "VULN-000042",
+    "runId": "run-101",
+    "remediationStatus": "PR_OPEN",
+    "pullRequestNumber": 19,
+    "pullRequestUrl": "https://github.com/acme/payments/pull/19",
+    "statusMessage": "Pull request #19 opened",
+    "createdAt": "2026-10-28T10:00:00",
+    "updatedAt": "2026-10-28T10:05:00"
+  }
+]
+```
+
 ## Threads and memory
 
 ### `POST /api/memory/threads`
@@ -406,13 +432,13 @@ Returns the raw `text/plain` markdown content of the requested documentation fil
 
 ### `POST /api/webhooks/github`
 
-Receives asynchronous GitHub App webhook events (`pull_request` and `issues`) to synchronize backend state, trigger autonomous vulnerability remediation, update issue threads, and automatically update grouped vulnerability statuses to `FIXED`.
+Receives asynchronous GitHub App webhook events (`pull_request`, `issues`, and `issue_comment`) to synchronize backend state, trigger autonomous vulnerability remediation, update issue threads, persist tracked issue status, and automatically update grouped vulnerability statuses to `FIXED`.
 
 Required headers:
 
 - `X-Hub-Signature-256`: HMAC signature for validation.
 - `X-GitHub-Delivery`: Unique delivery ID.
-- `X-GitHub-Event`: Event type (`pull_request` or `issues`).
+- `X-GitHub-Event`: Event type (`pull_request`, `issues`, or `issue_comment`).
 
 Behavior:
 

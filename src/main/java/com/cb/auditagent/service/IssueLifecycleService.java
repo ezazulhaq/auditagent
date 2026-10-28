@@ -7,6 +7,7 @@ import com.cb.auditagent.domain.AuthenticatedUser;
 import com.cb.auditagent.domain.ManagedRepository;
 import com.cb.auditagent.domain.Report;
 import com.cb.auditagent.domain.ScanSnapshot;
+import com.cb.auditagent.domain.TrackedIssueRecord;
 import com.cb.auditagent.domain.Vulnerability;
 import com.cb.auditagent.domain.VulnerabilityStatus;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -15,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -58,7 +60,7 @@ public class IssueLifecycleService {
         String threadId = "issue-" + repositoryId + "-" + issueNumber;
 
         if ("closed".equalsIgnoreCase(action)) {
-            handleIssueClosed(threadId, issueNumber);
+            handleIssueClosed(repositoryId, threadId, issueNumber);
             return;
         }
 
@@ -72,6 +74,27 @@ public class IssueLifecycleService {
             logger.debug("Issue #{} does not match trigger criteria (labels or mentions)", issueNumber);
             return;
         }
+
+        String id = repositoryId + "-" + issueNumber;
+        Optional<TrackedIssueRecord> existing = database.findTrackedIssue(repositoryId, issueNumber);
+        TrackedIssueRecord initial = new TrackedIssueRecord(
+                id,
+                repositoryId,
+                issueNumber,
+                title != null && !title.isBlank() ? title : (existing.isPresent() ? existing.get().title() : "Issue #" + issueNumber),
+                body != null ? body : (existing.isPresent() ? existing.get().body() : null),
+                labels != null ? labels : (existing.isPresent() ? existing.get().labels() : List.of()),
+                "OPEN",
+                existing.map(TrackedIssueRecord::targetVulnerabilityId).orElse(null),
+                existing.map(TrackedIssueRecord::runId).orElse(null),
+                "ANALYZING",
+                existing.map(TrackedIssueRecord::pullRequestNumber).orElse(null),
+                existing.map(TrackedIssueRecord::pullRequestUrl).orElse(null),
+                "Issue received, analyzing context and matching findings...",
+                existing.map(TrackedIssueRecord::createdAt).orElse(LocalDateTime.now()),
+                LocalDateTime.now()
+        );
+        database.saveTrackedIssue(initial);
 
         Thread.startVirtualThread(() -> processIssueRemediation(repository, issueNumber, threadId, title, body));
     }
@@ -91,7 +114,28 @@ public class IssueLifecycleService {
         return VULN_ID_PATTERN.matcher(combined).find();
     }
 
-    private void handleIssueClosed(String threadId, int issueNumber) {
+    private void handleIssueClosed(long repositoryId, String threadId, int issueNumber) {
+        database.findTrackedIssue(repositoryId, issueNumber).ifPresent(tracked -> {
+            TrackedIssueRecord updated = new TrackedIssueRecord(
+                    tracked.id(),
+                    tracked.repositoryId(),
+                    tracked.issueNumber(),
+                    tracked.title(),
+                    tracked.body(),
+                    tracked.labels(),
+                    "CLOSED",
+                    tracked.targetVulnerabilityId(),
+                    tracked.runId(),
+                    "DISCARDED",
+                    tracked.pullRequestNumber(),
+                    tracked.pullRequestUrl(),
+                    "Issue closed on GitHub",
+                    tracked.createdAt(),
+                    LocalDateTime.now()
+            );
+            database.saveTrackedIssue(updated);
+        });
+
         database.findRecoverableRuns(threadId).forEach(run -> {
             if (run.status() == AgentRunStatus.AWAITING_APPROVAL || run.status() == AgentRunStatus.ACTIVE
                     || run.status() == AgentRunStatus.INTERRUPTED) {
@@ -101,6 +145,30 @@ public class IssueLifecycleService {
                         run.rescanPassed(), run.testsPassed(), run.checkpointJson(),
                         "Run discarded because GitHub issue #" + issueNumber + " was closed", null, null);
             }
+        });
+    }
+
+    private void updateTrackedIssueStatus(long repositoryId, int issueNumber, String status, String vulnId,
+            String runId, Integer prNumber, String prUrl, String message) {
+        database.findTrackedIssue(repositoryId, issueNumber).ifPresent(existing -> {
+            TrackedIssueRecord updated = new TrackedIssueRecord(
+                    existing.id(),
+                    existing.repositoryId(),
+                    existing.issueNumber(),
+                    existing.title(),
+                    existing.body(),
+                    existing.labels(),
+                    existing.state(),
+                    vulnId != null ? vulnId : existing.targetVulnerabilityId(),
+                    runId != null ? runId : existing.runId(),
+                    status != null ? status : existing.remediationStatus(),
+                    prNumber != null ? prNumber : existing.pullRequestNumber(),
+                    prUrl != null ? prUrl : existing.pullRequestUrl(),
+                    message != null ? message : existing.statusMessage(),
+                    existing.createdAt(),
+                    LocalDateTime.now()
+            );
+            database.saveTrackedIssue(updated);
         });
     }
 
@@ -116,6 +184,9 @@ public class IssueLifecycleService {
                     || existingRun.get().status() == AgentRunStatus.ACTIVE)) {
                 logger.info("Issue #{} already has an active or open PR run: {}", issueNumber,
                         existingRun.get().runId());
+                updateTrackedIssueStatus(repository.repositoryId(), issueNumber,
+                        existingRun.get().status().name(), null, existingRun.get().runId(), null, null,
+                        "Issue already has an active or open PR run (" + existingRun.get().runId() + ")");
                 return;
             }
 
@@ -125,17 +196,19 @@ public class IssueLifecycleService {
 
             Optional<ScanSnapshot> snapshotOpt = database.findLatestScanSnapshot(repository.repositoryId(), branch);
             if (snapshotOpt.isEmpty()) {
+                String msg = "no scan report exists for branch `" + branch + "`. Please run a scan on `" + branch + "` first.";
+                updateTrackedIssueStatus(repository.repositoryId(), issueNumber, "FAILED", null, null, null, null, msg);
                 postComment(repository, issueNumber,
-                        "AuditAgent was triggered to remediate this issue, but no scan report exists for branch `"
-                                + branch + "`. Please run a scan on `" + branch + "` first.");
+                        "AuditAgent was triggered to remediate this issue, but " + msg);
                 return;
             }
 
             Optional<Report> reportOpt = database.getReport(snapshotOpt.get().reportKey());
             if (reportOpt.isEmpty() || reportOpt.get().getFindings() == null || reportOpt.get().getFindings().isEmpty()) {
+                String msg = "no active detected vulnerabilities were found on branch `" + branch + "`. If this is a new vulnerability, please trigger a scan or supply the finding ID.";
+                updateTrackedIssueStatus(repository.repositoryId(), issueNumber, "FAILED", null, null, null, null, msg);
                 postComment(repository, issueNumber,
-                        "AuditAgent was triggered to remediate this issue, but no active detected vulnerabilities were found on branch `"
-                                + branch + "`. If this is a new vulnerability, please trigger a scan or supply the finding ID.");
+                        "AuditAgent was triggered to remediate this issue, but " + msg);
                 return;
             }
 
@@ -145,14 +218,17 @@ public class IssueLifecycleService {
                     .toList();
 
             if (activeFindings.isEmpty()) {
+                String msg = "all findings on branch `" + branch + "` have already been addressed or resolved.";
+                updateTrackedIssueStatus(repository.repositoryId(), issueNumber, "FIXED", null, null, null, null, msg);
                 postComment(repository, issueNumber,
-                        "AuditAgent was triggered to remediate this issue, but all findings on branch `"
-                                + branch + "` have already been addressed or resolved.");
+                        "AuditAgent was triggered to remediate this issue, but " + msg);
                 return;
             }
 
             Optional<String> matchedVulnId = llm.matchFindingForIssue(title, body, activeFindings);
             if (matchedVulnId.isEmpty()) {
+                String msg = "Could not identify a matching vulnerability from active findings on branch `" + branch + "`.";
+                updateTrackedIssueStatus(repository.repositoryId(), issueNumber, "UNMATCHED", null, null, null, null, msg);
                 postComment(repository, issueNumber,
                         "AuditAgent analyzed this issue against active findings in branch `" + branch
                                 + "`, but could not identify a matching vulnerability. Please specify the vulnerability ID (e.g., `VULN-XXXXXX`) in the issue title or body.");
@@ -160,6 +236,8 @@ public class IssueLifecycleService {
             }
 
             String vulnId = matchedVulnId.get();
+            updateTrackedIssueStatus(repository.repositoryId(), issueNumber, "ANALYZING", vulnId, null, null, null,
+                    "Matched finding " + vulnId + ". Starting autonomous remediation...");
             logger.info("Starting autonomous remediation for issue #{} (finding {}) in {}", issueNumber, vulnId,
                     repository.fullName());
 
@@ -176,6 +254,8 @@ public class IssueLifecycleService {
                             if ("approval_ready".equals(node.path("type").asText())) {
                                 runIdRef.set(node.path("runId").asText());
                                 digestRef.set(node.path("preview").path("digest").asText());
+                                updateTrackedIssueStatus(repository.repositoryId(), issueNumber, "AWAITING_APPROVAL",
+                                        vulnId, runIdRef.get(), null, null, "Fix verified. Creating pull request...");
                             }
                         } catch (Exception ignore) {
                         }
@@ -204,6 +284,8 @@ public class IssueLifecycleService {
                     .blockLast();
 
             if (prNumberRef.get() > 0 && prUrlRef.get() != null) {
+                updateTrackedIssueStatus(repository.repositoryId(), issueNumber, "PR_OPEN", vulnId, runIdRef.get(),
+                        prNumberRef.get(), prUrlRef.get(), "Pull request #" + prNumberRef.get() + " opened");
                 postComment(repository, issueNumber,
                         "AuditAgent has resolved this issue in pull request #" + prNumberRef.get() + " ("
                                 + prUrlRef.get() + ").\n\n"
@@ -217,6 +299,8 @@ public class IssueLifecycleService {
         } catch (Exception e) {
             logger.error("Failed processing issue remediation for #{} in {}: {}", issueNumber, repository.fullName(),
                     e.getMessage(), e);
+            updateTrackedIssueStatus(repository.repositoryId(), issueNumber, "FAILED", null, null, null, null,
+                    "Remediation error: " + e.getMessage());
             postComment(repository, issueNumber,
                     "AuditAgent encountered an error while attempting to process this issue: " + e.getMessage());
         }
@@ -235,6 +319,7 @@ public class IssueLifecycleService {
                 }
             }
         }
+        updateTrackedIssueStatus(repository.repositoryId(), issueNumber, "FAILED", vulnId, runId, null, null, reason);
         postComment(repository, issueNumber,
                 "AuditAgent attempted to remediate finding `" + vulnId + "` for this issue, but automated remediation failed: "
                         + reason + ". Manual inspection is required.");

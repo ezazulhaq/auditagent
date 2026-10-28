@@ -38,8 +38,8 @@
 | `ApiExceptionHandler.java` | Safe 400/403/409 JSON errors. |
 | `AuditController.java` | Scan, analyze, report, skill, and chat APIs. |
 | `AuthController.java` | Session, OAuth start/callback, logout. |
-| `GitHubRepositoryController.java` | Installed repositories and branches. |
-| `GitHubWebhookController.java` | Signed/replay-protected PR and issue webhook. |
+| `GitHubRepositoryController.java` | Installed repositories, branches, and tracked GitHub issues. |
+| `GitHubWebhookController.java` | Signed/replay-protected PR, issue, and issue comment webhook. |
 | `ObservabilityController.java` | Aggregated user-level observability metrics (e.g. token usage). |
 | `MemoryController.java` | Thread restore/forget and run resume/discard. |
 | `ProjectUploadController.java` | Multipart upload scan, upload report restore, and export APIs. |
@@ -81,6 +81,7 @@
 | `Severity.java` | HIGH, MEDIUM, LOW, INFO. |
 | `ReportArtifact.java` | In-memory PDF or Markdown bytes with response content type and safe filename. |
 | `Skill.java` | Loaded skill metadata/instructions/path. |
+| `TrackedIssueRecord.java` | Durable tracked GitHub issue record. |
 | `Vulnerability.java` | Finding evidence, identity, fix, and status. |
 | `VulnerabilityStatus.java` | Finding lifecycle enum. |
 
@@ -144,7 +145,7 @@
 | `ConversationDataService.java` | Domain data service managing `MemoryThread` aggregate root and `MemoryMessage` collections. |
 | `RemediationDataService.java` | Domain data service managing `AgentRun` aggregate root, steps, verification results, changes, checkpoints, and repository memories. |
 | `UserDataService.java` | Domain data service managing `AppUser` aggregate root, user sessions, GitHub authorizations, OAuth state, and notifications. |
-| `ScanDataService.java` | Domain data service managing `ManagedRepository` aggregate root, scan snapshots, scan history stats, reports, vulnerabilities, webhooks, and token usage. |
+| `ScanDataService.java` | Domain data service managing `ManagedRepository` aggregate root, scan snapshots, scan history stats, reports, vulnerabilities, webhooks, tracked issues, and token usage. |
 
 ## Frontend production files
 
@@ -175,10 +176,11 @@
 | `src/features/chat/useChatState.js` | Chat view state, unread behavior, and streaming status. |
 | `src/features/dashboard/DashboardView.jsx` | Scan summary/empty state. |
 | `src/features/findings/FindingsView.jsx` | Responsive severity-prioritized inventory, count-aware filters, search/reset controls, and finding selection. |
+| `src/features/issues/IssuesView.jsx` | Tracked GitHub issues view displaying webhook/label-triggered issues, remediation status, finding links, PR links, and search/filtering. |
 | `src/features/remediation/FindingDrawer.jsx` | Evidence, diff, decisions, retry, PR state. |
 | `src/features/remediation/useRemediationController.js` | Run/publication browser state. |
 | `src/features/report/ReportView.jsx` | Authenticated PDF viewer plus PDF/Markdown downloads, loading, retry, and Blob URL cleanup. |
-| `src/features/report/WorkspaceTabs.jsx` | Main tab navigation. |
+| `src/features/report/WorkspaceTabs.jsx` | Main tab navigation (Dashboard, Findings, Issues, Audit Report) with count badges. |
 | `src/features/scan/ScanPanel.jsx` | Selection, progress, errors, install guidance. |
 | `src/features/scan/scanState.js` | Scan reducer and stale-event rules. |
 | `src/features/scan/useScanController.js` | Scan request/SSE lifecycle. |
@@ -229,11 +231,11 @@
 
 ### Backend
 
-`AuditagentApplicationTests`, `ApiSecurityFilterTest`, `AuditControllerReportExportTest`, `GitHubWebhookControllerTest`, `IssueLifecycleServiceTest`, `AgentToolServiceSecurityTest`, `ConversationMemoryServiceTest`, `DatabaseMemoryServiceTest`, `GitHubAuthServiceTest`, `GitHubProviderIntegrationTest`, `LlmServiceAgentLoopTest`, `ManagedProcessRunnerTest`, `ProjectUploadControllerTest`, `ProjectUploadServiceTest`, `RemediationWorkflowPreparationTest`, `ScanOrchestratorReportExportTest`, `ScanOrchestratorServiceTest`, `ReporterServiceTest`, `ScannerServiceTest`, `TokenCipherTest`, and `ZipArchiveExtractorTest`.
+`AuditagentApplicationTests`, `ApiSecurityFilterTest`, `AuditControllerReportExportTest`, `GitHubWebhookControllerTest`, `GitHubRepositoryControllerTest`, `IssueLifecycleServiceTest`, `AgentToolServiceSecurityTest`, `ConversationMemoryServiceTest`, `DatabaseMemoryServiceTest`, `GitHubAuthServiceTest`, `GitHubProviderIntegrationTest`, `LlmServiceAgentLoopTest`, `ManagedProcessRunnerTest`, `ProjectUploadControllerTest`, `ProjectUploadServiceTest`, `RemediationWorkflowPreparationTest`, `ScanOrchestratorReportExportTest`, `ScanOrchestratorServiceTest`, `ReporterServiceTest`, `ScannerServiceTest`, `TokenCipherTest`, and `ZipArchiveExtractorTest`.
 
 ### Frontend
 
-Tests cover App, API, SSE, scan state/panel/wall-clock timing, thread restore, remediation controller/drawer, findings, and report.
+Tests cover App, API, SSE, scan state/panel/wall-clock timing, thread restore, remediation controller/drawer, findings, tracked issues, and report.
 
 ## Rule inventory
 

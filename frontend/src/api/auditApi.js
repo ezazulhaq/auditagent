@@ -94,6 +94,12 @@ export function createAuditApi({ baseUrl = API_BASE_URL, fetchImpl = fetch } = {
       return response.json();
     },
 
+    async issues(repositoryId, signal) {
+      const response = await request(`/github/repositories/${encodeURIComponent(repositoryId)}/issues`, { signal });
+      if (!response.ok) throw await errorFor(response);
+      return response.json();
+    },
+
     async restoreThread(repositoryId, branch, signal) {
       const response = await request('/memory/threads', {
         method: 'POST', signal, headers: { 'Content-Type': 'application/json' },

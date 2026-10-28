@@ -148,7 +148,8 @@ This catalog connects each feature to its user/business outcome and main impleme
 ## Pull request publication, human-in-the-loop approval, and webhooks
 
 | Automated webhook sync | GitHub App webhooks track PR state (`merged`, `closed`) and auto-update grouped finding statuses (e.g., instantly marking all file findings as `FIXED`). | `GitHubWebhookController` |
-| GitHub Issue webhook triage & remediation | Receives signed GitHub App issue webhooks (`opened`, `reopened`, `labeled`, `closed`), matches reported vulnerabilities via two-tier extraction (explicit VULN-ID or LLM semantic matching), autonomously executes remediation, opens fix PRs with `Fixes #<issueNumber>`, and posts verification and progress updates back to the issue thread. | `IssueLifecycleService` |
+| GitHub Issue webhook triage & remediation | Receives signed GitHub App issue and issue comment webhooks (`opened`, `reopened`, `labeled`, `created`, `closed`), matches reported vulnerabilities via two-tier extraction (explicit VULN-ID or LLM semantic matching), autonomously executes remediation, opens fix PRs with `Fixes #<issueNumber>`, persists state in `tracked_issues`, and posts verification and progress updates back to the issue thread. | `IssueLifecycleService` |
+| Tracked GitHub Issues Dashboard & Tab | Main panel tab beside Findings listing all tagged/triggered GitHub issues with live remediation status, linked finding badges, PR links, and search/filtering. | `IssuesView`, `WorkspaceTabs`, `GitHubRepositoryController` |
 | Frontend webhook polling | UI polling seamlessly updates the PR timeline and displays the merged status without requiring a manual page refresh. | `useRemediationController` |
 | Pull request preview | Shows exact diff, files, base, planned branch, evidence, and summary. | `ApprovalPreview` |
 | PR payload digest | SHA-256 binds run, finding, base, branch, file hashes, and verification map prior to pushing. | canonical sorted map JSON |

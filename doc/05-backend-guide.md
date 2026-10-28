@@ -17,6 +17,7 @@
 
 - Lists repositories from the user's installations and upserts their server-side metadata.
 - Loads branches only after retrieving stored repository metadata and revalidating user read access.
+- Serves tracked GitHub issues (`GET /api/github/repositories/{repositoryId}/issues`) for the authenticated user, validating access and returning persisted issue triage status.
 
 ### `AuditController`
 
@@ -52,7 +53,7 @@
 - Validates `X-Hub-Signature-256` with HMAC-SHA256.
 - Deduplicates `X-GitHub-Delivery`.
 - Routes `pull_request` events to `PullRequestLifecycleService` (processing `closed` actions with merge/close status).
-- Routes `issues` events to `IssueLifecycleService` (processing `opened`, `reopened`, `labeled`, and `closed` actions).
+- Routes `issues` and `issue_comment` events to `IssueLifecycleService` (processing `opened`, `reopened`, `labeled`, `created`, and `closed` actions).
 - Ignores unsupported event types after recording delivery.
 - Releases the delivery claim if processing fails, allowing GitHub to retry.
 
@@ -120,7 +121,7 @@ Processes GitHub pull request events via webhooks or manual reconciliation. It u
 
 ### `IssueLifecycleService`
 
-Handles asynchronous GitHub App issue webhook events. It evaluates trigger criteria (labels such as `auditagent-fix`, `security`, `auditagent` or body/title mentions of `@auditagent` or vulnerability IDs), resolves matching findings via two-tier extraction (explicit `VULN-ID` or LLM semantic triage against the latest scan findings of the default branch), executes autonomous remediation on an isolated issue thread (`issue-<repoId>-<issueNumber>`), creates PRs linking `Fixes #<issueNumber>`, and posts verification summaries and status updates back to the GitHub issue. When an issue is closed manually without PR merge, it discards active remediation runs for that issue thread.
+Handles asynchronous GitHub App issue and issue comment webhook events. It evaluates trigger criteria (labels such as `auditagent-fix`, `security`, `auditagent` or body/title/comment mentions of `@auditagent` or vulnerability IDs), resolves matching findings via two-tier extraction (explicit `VULN-ID` or LLM semantic triage against the latest scan findings of the default branch), executes autonomous remediation on an isolated issue thread (`issue-<repoId>-<issueNumber>`), creates PRs linking `Fixes #<issueNumber>`, persists tracked issue lifecycle states into `tracked_issues` (`ANALYZING`, `AWAITING_APPROVAL`, `PR_OPEN`, `FIXED`, `UNMATCHED`, `FAILED`, `DISCARDED`), and posts verification summaries and status updates back to the GitHub issue. When an issue is closed manually without PR merge, it discards active remediation runs for that issue thread and updates the tracked issue record.
 
 ### `LlmService`
 

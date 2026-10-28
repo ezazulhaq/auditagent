@@ -166,6 +166,20 @@ The responsive inventory presents severity, type, ID, filename/line, directory, 
 
 It features checkbox multi-selection with header select-all and per-file grouping controls. When items are selected, a floating action bar allows triggering bulk "Analyze" (invoking `analyzeBatch`) and deferred "Ignore". During batch execution, the floating bar morphs into a live progress indicator (`Analyzing X of Y vulnerabilities...`) with a percentage bar, failed counter, and a "Cancel Batch" button that aborts the pipeline. Finding rows actively being remediated display an inline spinning `LoaderCircle` next to their status badge.
 
+### `WorkspaceTabs`
+
+Sticky workspace tab navigation bar positioned at the top of the main panel providing seamless switching between **Dashboard**, **Findings**, **Issues**, and **Audit Report**. Features tabular count badges for active findings and tracked GitHub issues.
+
+### `IssuesView`
+
+Presents an executive and operational dashboard for GitHub issues tagged for autonomous remediation via webhooks, labels (`auditagent-fix`), or `@auditagent` mentions. Provides:
+
+- Metrics row tracking total tagged issues, PR open count, fixed issues, in-progress analyses, and issues needing attention.
+- Search input filtering issues across title, issue number, linked finding ID, labels, and status explanation.
+- Status dropdown filtering by lifecycle status (`ANALYZING`, `AWAITING_APPROVAL`, `PR_OPEN`, `FIXED`, `UNMATCHED`, `FAILED`, `DISCARDED`).
+- Interactive issue cards displaying GitHub issue numbers linking directly to GitHub, title, tags, status badge with animated spinners during active remediation, pull request badges with direct links to created PRs, and clickable target finding badges that open the finding drawer.
+- Zero-state guidance outlining how developers can tag issues to trigger autonomous remediation.
+
 ### `FindingDrawer`
 
 The most security-sensitive UI:

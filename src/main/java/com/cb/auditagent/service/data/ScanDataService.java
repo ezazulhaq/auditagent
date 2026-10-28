@@ -32,6 +32,7 @@ public class ScanDataService {
     private final WebhookDeliveryRepository webhookDeliveryRepository;
     private final TokenUsageRepository tokenUsageRepository;
     private final MemoryThreadRepository memoryThreadRepository;
+    private final TrackedIssueRepository trackedIssueRepository;
 
     public ScanDataService(ManagedRepositoryRepository managedRepositoryRepository,
                            ScanSnapshotRepository scanSnapshotRepository,
@@ -40,7 +41,8 @@ public class ScanDataService {
                            VulnerabilityEntityRepository vulnerabilityEntityRepository,
                            WebhookDeliveryRepository webhookDeliveryRepository,
                            TokenUsageRepository tokenUsageRepository,
-                           MemoryThreadRepository memoryThreadRepository) {
+                           MemoryThreadRepository memoryThreadRepository,
+                           TrackedIssueRepository trackedIssueRepository) {
         this.managedRepositoryRepository = managedRepositoryRepository;
         this.scanSnapshotRepository = scanSnapshotRepository;
         this.scanHistoryStatsRepository = scanHistoryStatsRepository;
@@ -49,6 +51,7 @@ public class ScanDataService {
         this.webhookDeliveryRepository = webhookDeliveryRepository;
         this.tokenUsageRepository = tokenUsageRepository;
         this.memoryThreadRepository = memoryThreadRepository;
+        this.trackedIssueRepository = trackedIssueRepository;
     }
 
     private String sha256(String value) {
@@ -316,6 +319,80 @@ public class ScanDataService {
             result.add(map);
         });
         return result;
+    }
+
+    private TrackedIssueRecord mapToTrackedIssueRecord(com.cb.auditagent.entity.TrackedIssue entity) {
+        if (entity == null) return null;
+        List<String> labelList = new ArrayList<>();
+        if (entity.getLabels() != null && !entity.getLabels().isBlank()) {
+            for (String l : entity.getLabels().split(",")) {
+                if (!l.isBlank()) labelList.add(l.trim());
+            }
+        }
+        return new TrackedIssueRecord(
+                entity.getId(),
+                entity.getRepositoryId(),
+                entity.getIssueNumber(),
+                entity.getTitle(),
+                entity.getBody(),
+                labelList,
+                entity.getState(),
+                entity.getTargetVulnerabilityId(),
+                entity.getRunId(),
+                entity.getRemediationStatus(),
+                entity.getPullRequestNumber(),
+                entity.getPullRequestUrl(),
+                entity.getStatusMessage(),
+                entity.getCreatedAt(),
+                entity.getUpdatedAt()
+        );
+    }
+
+    @Transactional
+    public void saveTrackedIssue(TrackedIssueRecord record) {
+        if (record == null) return;
+        com.cb.auditagent.entity.TrackedIssue entity = trackedIssueRepository.findById(record.id())
+                .orElse(new com.cb.auditagent.entity.TrackedIssue());
+        entity.setId(record.id());
+        entity.setRepositoryId(record.repositoryId());
+        entity.setIssueNumber(record.issueNumber());
+        entity.setTitle(record.title());
+        entity.setBody(record.body());
+        entity.setLabels(record.labels() != null ? String.join(",", record.labels()) : null);
+        entity.setState(record.state() != null ? record.state() : "OPEN");
+        entity.setTargetVulnerabilityId(record.targetVulnerabilityId());
+        entity.setRunId(record.runId());
+        entity.setRemediationStatus(record.remediationStatus());
+        entity.setPullRequestNumber(record.pullRequestNumber());
+        entity.setPullRequestUrl(record.pullRequestUrl());
+        entity.setStatusMessage(record.statusMessage());
+        if (entity.getCreatedAt() == null) {
+            entity.setCreatedAt(record.createdAt() != null ? record.createdAt() : LocalDateTime.now());
+        }
+        entity.setUpdatedAt(LocalDateTime.now());
+        trackedIssueRepository.save(entity);
+    }
+
+    public List<TrackedIssueRecord> listTrackedIssues(long repositoryId) {
+        return trackedIssueRepository.findByRepositoryIdOrderByUpdatedAtDesc(repositoryId).stream()
+                .map(this::mapToTrackedIssueRecord)
+                .toList();
+    }
+
+    public Optional<TrackedIssueRecord> findTrackedIssue(long repositoryId, int issueNumber) {
+        return trackedIssueRepository.findByRepositoryIdAndIssueNumber(repositoryId, issueNumber)
+                .map(this::mapToTrackedIssueRecord);
+    }
+
+    @Transactional
+    public void updateTrackedIssueStatusByPr(int pullRequestNumber, String status, String state, String statusMessage) {
+        trackedIssueRepository.findByPullRequestNumber(pullRequestNumber).ifPresent(entity -> {
+            if (status != null) entity.setRemediationStatus(status);
+            if (state != null) entity.setState(state);
+            if (statusMessage != null) entity.setStatusMessage(statusMessage);
+            entity.setUpdatedAt(LocalDateTime.now());
+            trackedIssueRepository.save(entity);
+        });
     }
 }
 

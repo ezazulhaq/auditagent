@@ -48,13 +48,20 @@ public class GitHubWebhookController {
             return ResponseEntity.ok(Map.of("accepted", true, "duplicate", true));
         }
         try {
-            if ("issues".equals(eventType)) {
+            if ("issues".equals(eventType) || "issue_comment".equals(eventType)) {
                 JsonNode payload = objectMapper.readTree(rawBody);
                 String action = payload.path("action").asText();
                 long repositoryId = payload.path("repository").path("id").asLong();
                 int issueNumber = payload.path("issue").path("number").asInt();
                 String title = payload.path("issue").path("title").asText("");
                 String body = payload.path("issue").path("body").asText("");
+                if ("issue_comment".equals(eventType)) {
+                    String commentBody = payload.path("comment").path("body").asText("");
+                    body = body.isEmpty() ? commentBody : body + "\n\n" + commentBody;
+                    if ("created".equalsIgnoreCase(action)) {
+                        action = "opened";
+                    }
+                }
                 List<String> labels = new ArrayList<>();
                 payload.path("issue").path("labels").forEach(l -> labels.add(l.path("name").asText()));
                 issueLifecycle.handleIssueEvent(repositoryId, issueNumber, action, title, body, labels);

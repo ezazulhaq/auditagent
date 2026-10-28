@@ -151,6 +151,9 @@ public class PullRequestLifecycleService {
         });
 
         refreshReport(publication.reportKey(), repository);
+        database.updateTrackedIssueStatusByPr(prNumber, merged ? "FIXED" : "DISCARDED",
+                merged ? "CLOSED" : "OPEN",
+                merged ? "Resolved via merged PR #" + prNumber : "PR closed unmerged");
     }
 
     public void reconcilePullRequest(AuthenticatedUser user, String runId) {

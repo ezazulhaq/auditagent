@@ -223,4 +223,16 @@ class IssueLifecycleServiceTest {
         verify(github, timeout(2000)).createIssueComment(eq(sampleRepo), eq(18),
                 contains("automated remediation failed: Verification failed"), eq("token-123"));
     }
+
+    @Test
+    void savesTrackedIssueOnTriggerAndUpdatesStatus() {
+        when(database.getManagedRepository(42L)).thenReturn(Optional.of(sampleRepo));
+        when(github.installationToken(999L)).thenReturn("token-123");
+
+        service.handleIssueEvent(42L, 18, "opened", "Fix issue", "body with @auditagent", List.of());
+
+        verify(database).saveTrackedIssue(org.mockito.ArgumentMatchers.argThat(record -> 
+            record.repositoryId() == 42L && record.issueNumber() == 18 && "OPEN".equals(record.state())
+        ));
+    }
 }

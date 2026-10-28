@@ -159,6 +159,24 @@ public class DatabaseService {
         return scanDataService.getTokenUsageForUser(userId);
     }
 
+    @Transactional
+    public void saveTrackedIssue(TrackedIssueRecord issue) {
+        scanDataService.saveTrackedIssue(issue);
+    }
+
+    public List<TrackedIssueRecord> listTrackedIssues(long repositoryId) {
+        return scanDataService.listTrackedIssues(repositoryId);
+    }
+
+    public Optional<TrackedIssueRecord> findTrackedIssue(long repositoryId, int issueNumber) {
+        return scanDataService.findTrackedIssue(repositoryId, issueNumber);
+    }
+
+    @Transactional
+    public void updateTrackedIssueStatusByPr(int pullRequestNumber, String status, String state, String statusMessage) {
+        scanDataService.updateTrackedIssueStatusByPr(pullRequestNumber, status, state, statusMessage);
+    }
+
     // --- Conversation & Memory Thread Operations ---
 
     public String getOrCreateMemoryThread(String clientId, String repoPath) {
