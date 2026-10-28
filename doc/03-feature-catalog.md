@@ -148,6 +148,7 @@ This catalog connects each feature to its user/business outcome and main impleme
 ## Pull request publication, human-in-the-loop approval, and webhooks
 
 | Automated webhook sync | GitHub App webhooks track PR state (`merged`, `closed`) and auto-update grouped finding statuses (e.g., instantly marking all file findings as `FIXED`). | `GitHubWebhookController` |
+| GitHub Issue webhook triage & remediation | Receives signed GitHub App issue webhooks (`opened`, `reopened`, `labeled`, `closed`), matches reported vulnerabilities via two-tier extraction (explicit VULN-ID or LLM semantic matching), autonomously executes remediation, opens fix PRs with `Fixes #<issueNumber>`, and posts verification and progress updates back to the issue thread. | `IssueLifecycleService` |
 | Frontend webhook polling | UI polling seamlessly updates the PR timeline and displays the merged status without requiring a manual page refresh. | `useRemediationController` |
 | Pull request preview | Shows exact diff, files, base, planned branch, evidence, and summary. | `ApprovalPreview` |
 | PR payload digest | SHA-256 binds run, finding, base, branch, file hashes, and verification map prior to pushing. | canonical sorted map JSON |

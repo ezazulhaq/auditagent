@@ -37,6 +37,7 @@ AuditAgent must:
 - Run ID and vulnerability ID must match.
 - Base branch and file state must remain unchanged.
 - Deleting scan history revalidates current user repository read access before bulk removal.
+- Webhook-initiated issue remediation runs under the isolated actor identity `github-bot` on dedicated threads (`issue-<repoId>-<issueNumber>`), operating strictly within verified GitHub App installation permissions (requiring Issues read/write and Contents/Pull Requests write).
 
 ## Secret handling
 

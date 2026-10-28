@@ -186,6 +186,13 @@ public class GitHubApiClient {
         }
     }
 
+    public void createIssueComment(ManagedRepository repository, int issueNumber, String comment,
+            String installationToken) {
+        JsonNode payload = objectMapper.valueToTree(Map.of("body", comment));
+        sendJson("POST", api("/repos/" + repository.fullName() + "/issues/" + issueNumber + "/comments"),
+                installationToken, json(payload));
+    }
+
     private OAuthTokens parseOAuth(JsonNode response) {
         if (response.hasNonNull("error"))
             throw new IllegalStateException("GitHub authorization failed: " +

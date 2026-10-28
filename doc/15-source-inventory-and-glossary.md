@@ -39,7 +39,7 @@
 | `AuditController.java` | Scan, analyze, report, skill, and chat APIs. |
 | `AuthController.java` | Session, OAuth start/callback, logout. |
 | `GitHubRepositoryController.java` | Installed repositories and branches. |
-| `GitHubWebhookController.java` | Signed/replay-protected PR webhook. |
+| `GitHubWebhookController.java` | Signed/replay-protected PR and issue webhook. |
 | `ObservabilityController.java` | Aggregated user-level observability metrics (e.g. token usage). |
 | `MemoryController.java` | Thread restore/forget and run resume/discard. |
 | `ProjectUploadController.java` | Multipart upload scan, upload report restore, and export APIs. |
@@ -110,9 +110,10 @@
 | `DatabaseService.java` | Unified persistence facade delegating to Conversation, Remediation, User, and Scan domain data services. |
 | `FilePatchService.java` | Backup, rollback, diff, and legacy patch helper. |
 | `FindingFingerprint.java` | Stable normalized SHA-256 finding identity. |
-| `GitHubApiClient.java` | OAuth/App/installation/repository/PR HTTP APIs and PR diff retrieval (`getPullRequestDiff`). |
+| `GitHubApiClient.java` | OAuth/App/installation/repository/PR HTTP APIs, issue comments (`createIssueComment`), and PR diff retrieval (`getPullRequestDiff`). |
 | `GitHubAuthService.java` | OAuth, tokens, sessions, CSRF, refresh. |
 | `GitHubProvider.java` | JGit clone/diff/hash/commit/push/PR/cleanup. |
+| `IssueLifecycleService.java` | GitHub App issue webhook event processor, triage matching, autonomous remediation, and issue thread tracking. |
 | `LlmService.java` | Chat, tool-calling remediation loop, failure reflection (`reflectOnFailure`), and PR diff learning (`summarizeDiffForGlobalPattern`). |
 | `ManagedProcessEnvironment.java` | Secret scrubbing, contained runtime directories, and validated scanner-temp override. |
 | `ManagedProcessRunner.java` | Concurrent stream draining, heartbeat, deadline, process-tree termination, and short per-scan temp lifecycle. |
@@ -228,7 +229,7 @@
 
 ### Backend
 
-`AuditagentApplicationTests`, `ApiSecurityFilterTest`, `AuditControllerReportExportTest`, `GitHubWebhookControllerTest`, `AgentToolServiceSecurityTest`, `ConversationMemoryServiceTest`, `DatabaseMemoryServiceTest`, `GitHubAuthServiceTest`, `GitHubProviderIntegrationTest`, `LlmServiceAgentLoopTest`, `ManagedProcessRunnerTest`, `ProjectUploadControllerTest`, `ProjectUploadServiceTest`, `RemediationWorkflowPreparationTest`, `ScanOrchestratorReportExportTest`, `ScanOrchestratorServiceTest`, `ReporterServiceTest`, `ScannerServiceTest`, `TokenCipherTest`, and `ZipArchiveExtractorTest`.
+`AuditagentApplicationTests`, `ApiSecurityFilterTest`, `AuditControllerReportExportTest`, `GitHubWebhookControllerTest`, `IssueLifecycleServiceTest`, `AgentToolServiceSecurityTest`, `ConversationMemoryServiceTest`, `DatabaseMemoryServiceTest`, `GitHubAuthServiceTest`, `GitHubProviderIntegrationTest`, `LlmServiceAgentLoopTest`, `ManagedProcessRunnerTest`, `ProjectUploadControllerTest`, `ProjectUploadServiceTest`, `RemediationWorkflowPreparationTest`, `ScanOrchestratorReportExportTest`, `ScanOrchestratorServiceTest`, `ReporterServiceTest`, `ScannerServiceTest`, `TokenCipherTest`, and `ZipArchiveExtractorTest`.
 
 ### Frontend
 

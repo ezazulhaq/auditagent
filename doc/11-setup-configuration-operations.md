@@ -86,8 +86,9 @@ Create a GitHub App with:
   - Metadata: read;
   - Contents: read and write;
   - Pull requests: read and write;
+  - Issues: read and write (required for issue triage, comments, and issue-triggered remediation);
   - Workflows: read and write (required if remediating CI/CD workflows under `.github/workflows/`);
-- subscribed event: Pull request.
+- subscribed events: Pull request, Issues.
 
 Install the App on the intended repositories. The frontend can show `GITHUB_APP_INSTALLATION_URL` when no repository is available.
 
@@ -144,8 +145,8 @@ In the owning user or organization, open **Settings → Developer settings → G
 3. Leave expiring user authorization tokens enabled so OAuth supplies refresh tokens.
 4. Enable webhooks, set the exact `/api/webhooks/github` URL, paste `GITHUB_APP_WEBHOOK_SECRET`, and keep SSL
    verification enabled.
-5. Grant Metadata read, Contents read/write, Pull requests read/write, and Workflows read/write (required if remediating CI/CD workflows under `.github/workflows/`).
-6. Subscribe to the Pull request event.
+5. Grant Metadata read, Contents read/write, Pull requests read/write, Issues read/write, and Workflows read/write (required if remediating CI/CD workflows under `.github/workflows/`).
+6. Subscribe to the Pull request and Issues events.
 7. Select the appropriate visibility: account-only for a private internal deployment, or a broader option only when
    other accounts must install it.
 

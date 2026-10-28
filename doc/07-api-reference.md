@@ -406,19 +406,20 @@ Returns the raw `text/plain` markdown content of the requested documentation fil
 
 ### `POST /api/webhooks/github`
 
-Receives asynchronous GitHub App webhook events (e.g., `pull_request` close and merge actions) to synchronize backend state and automatically update grouped vulnerability statuses to `FIXED`.
+Receives asynchronous GitHub App webhook events (`pull_request` and `issues`) to synchronize backend state, trigger autonomous vulnerability remediation, update issue threads, and automatically update grouped vulnerability statuses to `FIXED`.
 
 Required headers:
 
 - `X-Hub-Signature-256`: HMAC signature for validation.
 - `X-GitHub-Delivery`: Unique delivery ID.
-- `X-GitHub-Event`: Event type (must be `pull_request`).
+- `X-GitHub-Event`: Event type (`pull_request` or `issues`).
 
 Behavior:
 
 - Validates HMAC signature.
 - Deduplicates using delivery ID.
-- Transitions associated vulnerabilities to `FIXED` upon PR merge.
+- **`pull_request`**: Transitions associated vulnerabilities to `FIXED` upon PR merge (`closed` with `merged: true`), or reverts them to `DETECTED` if closed unmerged.
+- **`issues`**: Processes `opened`, `reopened`, and `labeled` events that match trigger labels (`auditagent-fix`, `security`, `auditagent`) or mentions (`@auditagent`, `VULN-XXXXXX`). Resolves the target vulnerability and runs autonomous remediation to generate a fix PR with `Fixes #<issueNumber>` and posts comments back to the issue. Discards active runs if the issue is closed unmerged.
 - Returns accepted/duplicate/ignored flags. Signature failure is 403. A duplicate delivery returns success without processing again.
 
 ## Error responses

@@ -1,8 +1,8 @@
 package com.cb.auditagent.controller;
 
 import com.cb.auditagent.config.GitHubAppConfig;
-import com.cb.auditagent.controller.GitHubWebhookController;
 import com.cb.auditagent.service.DatabaseService;
+import com.cb.auditagent.service.IssueLifecycleService;
 import com.cb.auditagent.service.PullRequestLifecycleService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -12,6 +12,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.util.HexFormat;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -26,6 +27,9 @@ class GitHubWebhookControllerTest {
         private static final String BODY = """
                         {"action":"closed","repository":{"id":42},"number":7,"pull_request":{"merged":true}}
                         """.trim();
+        private static final String ISSUE_BODY = """
+                        {"action":"opened","repository":{"id":42},"issue":{"number":18,"title":"Fix SQLi","body":"Please fix @auditagent","labels":[{"name":"security"}]}}
+                        """.trim();
 
         @Test
         void validatesSignatureAndProcessesDeliveryOnlyOnce() throws Exception {
@@ -33,9 +37,10 @@ class GitHubWebhookControllerTest {
                 config.setWebhookSecret(SECRET);
                 DatabaseService database = mock(DatabaseService.class);
                 PullRequestLifecycleService remediation = mock(PullRequestLifecycleService.class);
+                IssueLifecycleService issueLifecycle = mock(IssueLifecycleService.class);
                 when(database.recordWebhookDelivery("delivery-1", "pull_request")).thenReturn(true, false);
                 GitHubWebhookController controller = new GitHubWebhookController(
-                                config, database, remediation, new ObjectMapper());
+                                config, database, remediation, issueLifecycle, new ObjectMapper());
 
                 assertEquals(200, controller.receive(signature(BODY), "delivery-1", "pull_request", BODY)
                                 .getStatusCode().value());
@@ -46,13 +51,32 @@ class GitHubWebhookControllerTest {
         }
 
         @Test
+        void processesIssueWebhookEvents() throws Exception {
+                GitHubAppConfig config = new GitHubAppConfig();
+                config.setWebhookSecret(SECRET);
+                DatabaseService database = mock(DatabaseService.class);
+                PullRequestLifecycleService remediation = mock(PullRequestLifecycleService.class);
+                IssueLifecycleService issueLifecycle = mock(IssueLifecycleService.class);
+                when(database.recordWebhookDelivery("delivery-issue-1", "issues")).thenReturn(true);
+                GitHubWebhookController controller = new GitHubWebhookController(
+                                config, database, remediation, issueLifecycle, new ObjectMapper());
+
+                assertEquals(200, controller.receive(signature(ISSUE_BODY), "delivery-issue-1", "issues", ISSUE_BODY)
+                                .getStatusCode().value());
+
+                verify(issueLifecycle).handleIssueEvent(42, 18, "opened", "Fix SQLi", "Please fix @auditagent",
+                                List.of("security"));
+        }
+
+        @Test
         void rejectsInvalidSignatureBeforeRecordingDelivery() {
                 GitHubAppConfig config = new GitHubAppConfig();
                 config.setWebhookSecret(SECRET);
                 DatabaseService database = mock(DatabaseService.class);
                 PullRequestLifecycleService remediation = mock(PullRequestLifecycleService.class);
+                IssueLifecycleService issueLifecycle = mock(IssueLifecycleService.class);
                 GitHubWebhookController controller = new GitHubWebhookController(
-                                config, database, remediation, new ObjectMapper());
+                                config, database, remediation, issueLifecycle, new ObjectMapper());
 
                 assertThrows(SecurityException.class,
                                 () -> controller.receive("sha256=invalid", "delivery-2", "pull_request", BODY));
@@ -65,11 +89,12 @@ class GitHubWebhookControllerTest {
                 config.setWebhookSecret(SECRET);
                 DatabaseService database = mock(DatabaseService.class);
                 PullRequestLifecycleService remediation = mock(PullRequestLifecycleService.class);
+                IssueLifecycleService issueLifecycle = mock(IssueLifecycleService.class);
                 when(database.recordWebhookDelivery("delivery-3", "pull_request")).thenReturn(true);
                 doThrow(new IllegalStateException("temporary database failure"))
                                 .when(remediation).handlePullRequestEvent(42, 7, true, true);
                 GitHubWebhookController controller = new GitHubWebhookController(
-                                config, database, remediation, new ObjectMapper());
+                                config, database, remediation, issueLifecycle, new ObjectMapper());
 
                 assertThrows(IllegalStateException.class,
                                 () -> controller.receive(signature(BODY), "delivery-3", "pull_request", BODY));

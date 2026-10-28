@@ -83,6 +83,11 @@ public class RemediationWorkflowService {
 
     public Flux<String> analyze(AuthenticatedUser user, String threadId, long repositoryId,
             String branch, String vulnerabilityId) {
+        return analyze(user, threadId, repositoryId, branch, vulnerabilityId, null);
+    }
+
+    public Flux<String> analyze(AuthenticatedUser user, String threadId, long repositoryId,
+            String branch, String vulnerabilityId, Integer issueNumber) {
         requireThreadOwner(threadId, user);
         Sinks.Many<String> sink = Sinks.many().unicast().onBackpressureBuffer();
         Thread.startVirtualThread(() -> {
@@ -109,6 +114,9 @@ public class RemediationWorkflowService {
                 state.put("repositoryId", repositoryId);
                 state.put("branch", branch);
                 state.put("vulnerabilityId", vulnerabilityId);
+                if (issueNumber != null && issueNumber > 0) {
+                    state.put("issueNumber", issueNumber);
+                }
 
                 var config = org.bsc.langgraph4j.RunnableConfig.builder().threadId(workflowId).build();
                 var stream = workflowGraph.getGraph().stream(org.bsc.langgraph4j.GraphInput.args(state), config);
