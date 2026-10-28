@@ -60,7 +60,7 @@ class IssueLifecycleServiceTest {
 
         service.handleIssueEvent(42L, 18, "opened", "Fix issue", "body", List.of("security"));
 
-        verify(database, never()).getOrCreateMemoryThread(anyString(), anyString());
+        verify(database, never()).ensureMemoryThread(anyString(), anyString(), anyString());
         verify(github, never()).createIssueComment(any(), anyInt(), anyString(), anyString());
     }
 
@@ -70,7 +70,7 @@ class IssueLifecycleServiceTest {
 
         service.handleIssueEvent(42L, 18, "edited", "Fix issue", "body", List.of("security"));
 
-        verify(database, never()).getOrCreateMemoryThread(anyString(), anyString());
+        verify(database, never()).ensureMemoryThread(anyString(), anyString(), anyString());
     }
 
     @Test
@@ -94,7 +94,7 @@ class IssueLifecycleServiceTest {
 
         service.handleIssueEvent(42L, 18, "opened", "Update Readme", "Just updating docs", List.of("documentation"));
 
-        verify(database, never()).getOrCreateMemoryThread(anyString(), anyString());
+        verify(database, never()).ensureMemoryThread(anyString(), anyString(), anyString());
     }
 
     @Test
@@ -189,6 +189,7 @@ class IssueLifecycleServiceTest {
 
         service.handleIssueEvent(42L, 18, "opened", "Fix VULN-001", "Please remediate VULN-001", List.of("auditagent-fix"));
 
+        verify(database, timeout(2000)).ensureMemoryThread(eq("issue-42-18"), eq("github-bot"), eq("github:42:master"));
         verify(github, timeout(2000)).createIssueComment(eq(sampleRepo), eq(18),
                 contains("resolved this issue in pull request #99 (https://github.com/ezazulhaq/auditagent/pull/99)"),
                 eq("token-123"));

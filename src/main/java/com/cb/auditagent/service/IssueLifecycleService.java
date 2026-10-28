@@ -227,7 +227,11 @@ public class IssueLifecycleService {
     private void processIssueRemediation(ManagedRepository repository, int issueNumber, String threadId,
             String title, String body) {
         try {
-            database.getOrCreateMemoryThread("github-bot", threadId);
+            String branch = repository.defaultBranch() != null && !repository.defaultBranch().isBlank()
+                    ? repository.defaultBranch()
+                    : "master";
+            String repoPath = "github:" + repository.repositoryId() + ":" + branch;
+            database.ensureMemoryThread(threadId, "github-bot", repoPath);
 
             Optional<AgentRunRecord> existingRun = database.findRecoverableRun(threadId);
             if (existingRun.isPresent() && (existingRun.get().status() == AgentRunStatus.PR_OPEN
@@ -241,10 +245,6 @@ public class IssueLifecycleService {
                         "Issue already has an active or open PR run (" + existingRun.get().runId() + ")");
                 return;
             }
-
-            String branch = repository.defaultBranch() != null && !repository.defaultBranch().isBlank()
-                    ? repository.defaultBranch()
-                    : "master";
 
             Optional<ScanSnapshot> snapshotOpt = database.findLatestScanSnapshot(repository.repositoryId(), branch);
             if (snapshotOpt.isEmpty()) {
