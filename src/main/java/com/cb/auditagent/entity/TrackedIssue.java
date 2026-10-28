@@ -2,10 +2,16 @@ package com.cb.auditagent.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "tracked_issues")
+@Table(name = "tracked_issues", indexes = {
+    @Index(name = "idx_tracked_issues_repo", columnList = "repository_id"),
+    @Index(name = "idx_tracked_issues_repo_issue", columnList = "repository_id, issue_number"),
+    @Index(name = "idx_tracked_issues_pr", columnList = "pull_request_number")
+})
 @Getter
 @Setter
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
@@ -17,8 +23,10 @@ public class TrackedIssue {
     @EqualsAndHashCode.Include
     private String id; // format: "repoId-issueNumber"
 
-    @Column(nullable = false)
-    private Long repositoryId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "repository_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
+    private ManagedRepository repository;
 
     @Column(nullable = false)
     private Integer issueNumber;
@@ -50,4 +58,27 @@ public class TrackedIssue {
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
+
+    public Long getRepositoryId() {
+        return repository != null ? repository.getRepositoryId() : null;
+    }
+
+    public void setRepositoryId(Long repositoryId) {
+        if (repositoryId != null) {
+            this.repository = ManagedRepository.builder().repositoryId(repositoryId).build();
+        } else {
+            this.repository = null;
+        }
+    }
+
+    public static class TrackedIssueBuilder {
+        public TrackedIssueBuilder repositoryId(Long repositoryId) {
+            if (repositoryId != null) {
+                this.repository = ManagedRepository.builder().repositoryId(repositoryId).build();
+            } else {
+                this.repository = null;
+            }
+            return this;
+        }
+    }
 }

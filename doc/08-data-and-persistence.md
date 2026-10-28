@@ -278,12 +278,12 @@ Deduplicates GitHub delivery IDs and stores event type/time.
 
 #### `tracked_issues`
 
-Tracks GitHub issues triggered for autonomous remediation via webhooks, labels (`auditagent-fix`), or `@auditagent` mentions:
+Tracks GitHub issues triggered for autonomous remediation via webhooks, labels (`auditagent-fix`), or `@auditagent` mentions. Mapped with a bidirectional `@ManyToOne` relationship to `ManagedRepository` with cascading delete:
 
 | Column | Meaning |
 |---|---|
 | `id` | Composite primary key formatted as `<repositoryId>-<issueNumber>`. |
-| `repository_id` | GitHub repository numeric ID. |
+| `repository_id` | Foreign key referencing `managed_repositories(repository_id)` with `ON DELETE CASCADE`. |
 | `issue_number` | GitHub issue number. |
 | `title` | Issue title. |
 | `body` | Issue markdown body context. |
