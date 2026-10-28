@@ -27,6 +27,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+      SPRING_DEVTOOLS_RESTART_ENABLED: ${SPRING_DEVTOOLS_RESTART_ENABLED:-false}
 
       # DuckDB FTS Knowledge Base & Isolated Workspaces
       AUDITAGENT_DB_PATH: /var/lib/auditagent/data/audit_reports.duckdb

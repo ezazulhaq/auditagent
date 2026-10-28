@@ -1222,4 +1222,68 @@ public class LlmService {
         return "";
     }
 
+    public Optional<String> matchFindingForIssue(String issueTitle, String issueBody,
+            List<com.cb.auditagent.domain.Vulnerability> activeFindings) {
+        if (activeFindings == null || activeFindings.isEmpty()) {
+            return Optional.empty();
+        }
+
+        // Tier 1: Look for explicit VULN-[A-Za-z0-9_-]+ in title and body
+        String combinedText = ((issueTitle != null ? issueTitle : "") + " " + (issueBody != null ? issueBody : "")).trim();
+        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("VULN-[A-Za-z0-9_-]+",
+                java.util.regex.Pattern.CASE_INSENSITIVE).matcher(combinedText);
+        while (matcher.find()) {
+            String extracted = matcher.group().toUpperCase();
+            for (var v : activeFindings) {
+                if (v.getId() != null && v.getId().equalsIgnoreCase(extracted)) {
+                    return Optional.of(v.getId());
+                }
+            }
+        }
+
+        // Tier 2: LLM semantic triage matching against active findings
+        if (chatModel == null) {
+            return Optional.empty();
+        }
+
+        StringBuilder sb = new StringBuilder();
+        for (var v : activeFindings) {
+            sb.append(String.format("- ID: %s | Rule: %s | Type: %s | File: %s | Line: %d | Description: %s\n",
+                    v.getId(), v.getRuleId(), v.getVulnType(), v.getFilePath(), v.getLineNumber(), v.getDescription()));
+        }
+
+        String prompt = "You are an automated security triage assistant. A GitHub issue was reported:\n"
+                + "Title: " + (issueTitle != null ? issueTitle : "") + "\n"
+                + "Description: " + (issueBody != null ? issueBody : "") + "\n\n"
+                + "Here are the active security findings detected in the repository:\n"
+                + sb.toString() + "\n"
+                + "Match the reported issue to the most relevant finding ID from the list.\n"
+                + "If there is a clear match, respond ONLY with: [MATCH:<VULN_ID>] (e.g. [MATCH:VULN-000001]).\n"
+                + "If none of the findings match the issue, respond ONLY with: [NO_MATCH].";
+
+        try {
+            Prompt aiPrompt = new Prompt(
+                    List.of(new org.springframework.ai.chat.messages.UserMessage(prompt)));
+            org.springframework.ai.chat.model.ChatResponse response = chatModel.call(aiPrompt);
+            String output = response != null && response.getResult() != null
+                    && response.getResult().getOutput() != null
+                    ? response.getResult().getOutput().getText()
+                    : "";
+            java.util.regex.Matcher matchResult = java.util.regex.Pattern.compile("\\[MATCH:(VULN-[A-Za-z0-9_-]+)\\]",
+                    java.util.regex.Pattern.CASE_INSENSITIVE).matcher(output);
+            if (matchResult.find()) {
+                String matchedId = matchResult.group(1).toUpperCase();
+                for (var v : activeFindings) {
+                    if (v.getId() != null && v.getId().equalsIgnoreCase(matchedId)) {
+                        return Optional.of(v.getId());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("LLM issue finding matching failed: {}", e.getMessage());
+        }
+
+        return Optional.empty();
+    }
+
 }

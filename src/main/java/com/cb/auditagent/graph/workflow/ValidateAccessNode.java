@@ -33,8 +33,10 @@ public class ValidateAccessNode implements NodeAction<WorkflowState> {
         ManagedRepository repository = database.getManagedRepository(repositoryId)
                 .orElseThrow(() -> new IllegalArgumentException("Repository not found"));
 
-        if (!sourceControl.userCanRead(auth.accessToken(user.userId()), repository)) {
-            throw new SecurityException("The authenticated user cannot access this repository");
+        if (user == null || !"github-bot".equals(user.userId())) {
+            if (!sourceControl.userCanRead(auth.accessToken(user.userId()), repository)) {
+                throw new SecurityException("The authenticated user cannot access this repository");
+            }
         }
 
         Map<String, Object> updates = new HashMap<>();

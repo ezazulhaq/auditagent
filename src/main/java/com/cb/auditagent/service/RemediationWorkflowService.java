@@ -83,6 +83,11 @@ public class RemediationWorkflowService {
 
     public Flux<String> analyze(AuthenticatedUser user, String threadId, long repositoryId,
             String branch, String vulnerabilityId) {
+        return analyze(user, threadId, repositoryId, branch, vulnerabilityId, null);
+    }
+
+    public Flux<String> analyze(AuthenticatedUser user, String threadId, long repositoryId,
+            String branch, String vulnerabilityId, Integer issueNumber) {
         requireThreadOwner(threadId, user);
         Sinks.Many<String> sink = Sinks.many().unicast().onBackpressureBuffer();
         Thread.startVirtualThread(() -> {
@@ -109,6 +114,9 @@ public class RemediationWorkflowService {
                 state.put("repositoryId", repositoryId);
                 state.put("branch", branch);
                 state.put("vulnerabilityId", vulnerabilityId);
+                if (issueNumber != null && issueNumber > 0) {
+                    state.put("issueNumber", issueNumber);
+                }
 
                 var config = org.bsc.langgraph4j.RunnableConfig.builder().threadId(workflowId).build();
                 var stream = workflowGraph.getGraph().stream(org.bsc.langgraph4j.GraphInput.args(state), config);
@@ -568,9 +576,11 @@ public class RemediationWorkflowService {
     private void publish(AuthenticatedUser user, AgentRunRecord run, RunPublicationRecord publication,
             Sinks.Many<String> sink, boolean firstAttempt) {
         ManagedRepository repository = repositoryAccess.requireRepository(publication.repositoryId());
-        String userToken = auth.accessToken(user.userId());
-        if (!sourceControl.userCanPush(userToken, repository))
-            throw new SecurityException("GitHub write permission is required at approval time");
+        if (user == null || !"github-bot".equals(user.userId())) {
+            String userToken = auth.accessToken(user.userId());
+            if (!sourceControl.userCanPush(userToken, repository))
+                throw new SecurityException("GitHub write permission is required at approval time");
+        }
         String installationToken = github.installationToken(publication.installationId());
         if (!github.installationCanPublish(publication.installationId())) {
             throw new SecurityException("GitHub App requires Contents and Pull requests write permissions");
@@ -709,6 +719,9 @@ public class RemediationWorkflowService {
 
     private AgentRunRecord requireOwnedRun(AuthenticatedUser user, String runId) {
         RunPublicationRecord publication = requirePublication(runId);
+        if (user != null && "github-bot".equals(user.userId())) {
+            return database.getAgentRun(runId).orElseThrow(() -> new IllegalArgumentException("Unknown run"));
+        }
         if (!publication.userId().equals(user.userId()))
             throw new SecurityException("Only the run owner may approve it");
         return database.getAgentRun(runId).orElseThrow(() -> new IllegalArgumentException("Unknown run"));
@@ -719,7 +732,13 @@ public class RemediationWorkflowService {
     }
 
     private void requireThreadOwner(String threadId, AuthenticatedUser user) {
-        if (threadId == null || !database.memoryThreadBelongsTo(threadId, user.userId()))
+        if (threadId == null) {
+            throw new SecurityException("Thread ID is required");
+        }
+        if (user != null && "github-bot".equals(user.userId())) {
+            return;
+        }
+        if (!database.memoryThreadBelongsTo(threadId, user.userId()))
             throw new SecurityException("Conversation does not belong to the authenticated user");
     }
 

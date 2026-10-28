@@ -222,4 +222,47 @@ class DomainDataServicesTest {
                 remediationDataService.createManagedAgentRun(threadId, vuln3, "/workspaces/run-1", 10));
         assertTrue(exWs.getMessage().contains("already active for this vulnerability or workspace"));
     }
+
+    @Test
+    void testTrackedIssuePersistenceWithManagedRepository() {
+        long repoId = 999L;
+        ManagedRepository repo = new ManagedRepository(
+                repoId, 1000L, "testorg", "testrepo", "testorg/testrepo",
+                "https://github.com/testorg/testrepo.git", "main", false, "admin"
+        );
+        scanDataService.upsertManagedRepository(repo);
+
+        TrackedIssueRecord issue = new TrackedIssueRecord(
+                repoId + "-42",
+                repoId,
+                42,
+                "Fix Vulnerability in Auth",
+                "Details about the vulnerability",
+                List.of("auditagent-fix", "security"),
+                "OPEN",
+                "VULN-AUTH-1",
+                "run-auth-1",
+                "ANALYZING",
+                null,
+                null,
+                "Remediation initiated",
+                LocalDateTime.now(),
+                LocalDateTime.now()
+        );
+        scanDataService.saveTrackedIssue(issue);
+
+        Optional<TrackedIssueRecord> found = scanDataService.findTrackedIssue(repoId, 42);
+        assertTrue(found.isPresent());
+        assertEquals("Fix Vulnerability in Auth", found.get().title());
+        assertEquals(repoId, found.get().repositoryId());
+        assertEquals(42, found.get().issueNumber());
+
+        List<TrackedIssueRecord> issues = scanDataService.listTrackedIssues(repoId);
+        assertEquals(1, issues.size());
+        assertEquals("VULN-AUTH-1", issues.get(0).targetVulnerabilityId());
+
+        scanDataService.updateTrackedIssueStatusByPr(101, "FIXED", "CLOSED", "Merged into master");
+        // No match for PR 101 yet
+        assertEquals("ANALYZING", scanDataService.findTrackedIssue(repoId, 42).get().remediationStatus());
+    }
 }

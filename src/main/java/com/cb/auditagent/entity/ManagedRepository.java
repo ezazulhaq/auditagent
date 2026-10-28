@@ -74,4 +74,8 @@ public class ManagedRepository {
     @Builder.Default
     private List<ScanHistoryStats> historyStats = new ArrayList<>();
 
+    @OneToMany(mappedBy = "repository", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<TrackedIssue> trackedIssues = new ArrayList<>();
+
 }

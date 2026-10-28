@@ -2,6 +2,7 @@ package com.cb.auditagent.controller;
 
 import com.cb.auditagent.config.GitHubAppConfig;
 import com.cb.auditagent.service.DatabaseService;
+import com.cb.auditagent.service.IssueLifecycleService;
 import com.cb.auditagent.service.PullRequestLifecycleService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,7 +14,9 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.ArrayList;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -22,13 +25,16 @@ public class GitHubWebhookController {
     private final GitHubAppConfig config;
     private final DatabaseService database;
     private final PullRequestLifecycleService pullRequestLifecycle;
+    private final IssueLifecycleService issueLifecycle;
     private final ObjectMapper objectMapper;
 
     public GitHubWebhookController(GitHubAppConfig config, DatabaseService database,
-            PullRequestLifecycleService pullRequestLifecycle, ObjectMapper objectMapper) {
+            PullRequestLifecycleService pullRequestLifecycle, IssueLifecycleService issueLifecycle,
+            ObjectMapper objectMapper) {
         this.config = config;
         this.database = database;
         this.pullRequestLifecycle = pullRequestLifecycle;
+        this.issueLifecycle = issueLifecycle;
         this.objectMapper = objectMapper;
     }
 
@@ -42,6 +48,25 @@ public class GitHubWebhookController {
             return ResponseEntity.ok(Map.of("accepted", true, "duplicate", true));
         }
         try {
+            if ("issues".equals(eventType) || "issue_comment".equals(eventType)) {
+                JsonNode payload = objectMapper.readTree(rawBody);
+                String action = payload.path("action").asText();
+                long repositoryId = payload.path("repository").path("id").asLong();
+                int issueNumber = payload.path("issue").path("number").asInt();
+                String title = payload.path("issue").path("title").asText("");
+                String body = payload.path("issue").path("body").asText("");
+                if ("issue_comment".equals(eventType)) {
+                    String commentBody = payload.path("comment").path("body").asText("");
+                    body = body.isEmpty() ? commentBody : body + "\n\n" + commentBody;
+                    if ("created".equalsIgnoreCase(action)) {
+                        action = "opened";
+                    }
+                }
+                List<String> labels = new ArrayList<>();
+                payload.path("issue").path("labels").forEach(l -> labels.add(l.path("name").asText()));
+                issueLifecycle.handleIssueEvent(repositoryId, issueNumber, action, title, body, labels);
+                return ResponseEntity.ok(Map.of("accepted", true));
+            }
             if (!"pull_request".equals(eventType)) {
                 return ResponseEntity.ok(Map.of("accepted", true, "ignored", true));
             }

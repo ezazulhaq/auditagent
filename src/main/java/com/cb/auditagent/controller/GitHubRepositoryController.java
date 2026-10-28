@@ -8,8 +8,10 @@ import org.springframework.web.server.ServerWebExchange;
 
 import com.cb.auditagent.domain.AuthenticatedUser;
 import com.cb.auditagent.domain.ManagedRepository;
+import com.cb.auditagent.domain.TrackedIssueRecord;
 import com.cb.auditagent.service.DatabaseService;
 import com.cb.auditagent.service.GitHubAuthService;
+import com.cb.auditagent.service.IssueLifecycleService;
 import com.cb.auditagent.service.SourceControlProvider;
 
 import java.util.List;
@@ -20,12 +22,14 @@ public class GitHubRepositoryController {
     private final GitHubAuthService auth;
     private final SourceControlProvider sourceControl;
     private final DatabaseService database;
+    private final IssueLifecycleService issueLifecycle;
 
     public GitHubRepositoryController(GitHubAuthService auth, SourceControlProvider sourceControl,
-            DatabaseService database) {
+            DatabaseService database, IssueLifecycleService issueLifecycle) {
         this.auth = auth;
         this.sourceControl = sourceControl;
         this.database = database;
+        this.issueLifecycle = issueLifecycle;
     }
 
     @GetMapping
@@ -46,5 +50,18 @@ public class GitHubRepositoryController {
             throw new SecurityException("The authenticated user cannot access this repository");
         }
         return sourceControl.listBranches(userToken, repository);
+    }
+
+    @GetMapping("/{repositoryId}/issues")
+    public List<TrackedIssueRecord> issues(@PathVariable long repositoryId, ServerWebExchange exchange) {
+        AuthenticatedUser user = auth.requireUser(exchange);
+        ManagedRepository repository = database.getManagedRepository(repositoryId)
+                .orElseThrow(() -> new IllegalArgumentException("Repository must be selected again"));
+        String userToken = auth.accessToken(user.userId());
+        if (!sourceControl.userCanRead(userToken, repository)) {
+            throw new SecurityException("The authenticated user cannot access this repository");
+        }
+        issueLifecycle.syncIssuesFromGitHub(repository, userToken);
+        return database.listTrackedIssues(repositoryId);
     }
 }

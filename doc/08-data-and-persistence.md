@@ -276,6 +276,27 @@ Stores finer-grained publication progress markers (`COMMITTED`, `PUSHED`, `PR_CR
 
 Deduplicates GitHub delivery IDs and stores event type/time.
 
+#### `tracked_issues`
+
+Tracks GitHub issues triggered for autonomous remediation via webhooks, labels (`auditagent-fix`), or `@auditagent` mentions. Mapped with a bidirectional `@ManyToOne` relationship to `ManagedRepository` with cascading delete:
+
+| Column | Meaning |
+|---|---|
+| `id` | Composite primary key formatted as `<repositoryId>-<issueNumber>`. |
+| `repository_id` | Foreign key referencing `managed_repositories(repository_id)` with `ON DELETE CASCADE`. |
+| `issue_number` | GitHub issue number. |
+| `title` | Issue title. |
+| `body` | Issue markdown body context. |
+| `labels` | Comma-delimited issue labels. |
+| `state` | GitHub issue state (`OPEN`, `CLOSED`). |
+| `target_vulnerability_id` | Matched finding ID (e.g. `VULN-XXXXXX`), or null if unmatched. |
+| `run_id` | Autonomous remediation agent run ID. |
+| `remediation_status` | Status: `ANALYZING`, `AWAITING_APPROVAL`, `PR_OPEN`, `FIXED`, `UNMATCHED`, `FAILED`, `DISCARDED`. |
+| `pull_request_number` | Number of opened pull request, if created. |
+| `pull_request_url` | HTML URL of opened pull request. |
+| `status_message` | Human-readable explanation of current status. |
+| `created_at`, `updated_at` | Audit timestamps. |
+
 ## Finding identity and rescan behavior
 
 Fingerprint material:
@@ -435,7 +456,7 @@ Before Hibernate applies schema updates (`ddl-auto: update`), existing databases
 - `ConversationDataService`: Encapsulates `MemoryThreadRepository` and `MemoryMessageRepository`.
 - `RemediationDataService`: Encapsulates `AgentRunRepository`, `AgentStepRepository`, `VerificationResultRepository`, `RunChangeRepository`, `GraphCheckpointRepository`, `GraphNodeEventRepository`, `SubagentStateRepository`, `RunPublicationRepository`, `RepositoryMemoryRepository`, and `GlobalRemediationPatternRepository`.
 - `UserDataService`: Encapsulates `AppUserRepository`, `UserSessionRepository`, `GithubAuthorizationRepository`, `UserNotificationRepository`, and `OauthStateRepository`.
-- `ScanDataService`: Encapsulates `ManagedRepositoryRepository`, `ScanSnapshotRepository`, `ScanHistoryStatsRepository`, `ReportRepository`, `VulnerabilityEntityRepository`, `WebhookDeliveryRepository`, and `TokenUsageRepository`.
+- `ScanDataService`: Encapsulates `ManagedRepositoryRepository`, `ScanSnapshotRepository`, `ScanHistoryStatsRepository`, `ReportRepository`, `VulnerabilityEntityRepository`, `WebhookDeliveryRepository`, `TokenUsageRepository`, and `TrackedIssueRepository`.
 
 `DatabaseService` remains as the unified public facade, preserving its exact method signatures and transactional contracts.
 

@@ -104,7 +104,11 @@ public class PublicationNode implements NodeAction<WorkflowState> {
                 Vulnerability vulnerability = database.getVulnerabilityById(run.vulnerabilityId())
                                 .orElseThrow(() -> new IllegalStateException("Run finding no longer exists"));
 
+                Integer issueNumber = state.<Integer>value("issueNumber").orElse(null);
                 String summary = "Automated security remediation for " + vulnerability.getRuleId();
+                if (issueNumber != null && issueNumber > 0) {
+                        summary += "\n\nFixes #" + issueNumber;
+                }
                 String approvingUser = user != null ? user.login()
                                 : (publication.approvedBy() != null ? publication.approvedBy() : "system");
                 java.time.LocalDateTime approvedAt = publication.approvedAt() != null

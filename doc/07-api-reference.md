@@ -82,6 +82,32 @@ Returns `ManagedRepository[]`:
 
 Returns a JSON array of branch names after access revalidation.
 
+### `GET /api/github/repositories/{repositoryId}/issues`
+
+Returns a list of tracked GitHub issues for the specified repository after revalidating user read access:
+
+```json
+[
+  {
+    "id": "42-18",
+    "repositoryId": 42,
+    "issueNumber": 18,
+    "title": "Fix SQL injection in Database.java",
+    "body": "Fix please @auditagent",
+    "labels": ["security", "auditagent-fix"],
+    "state": "OPEN",
+    "targetVulnerabilityId": "VULN-000042",
+    "runId": "run-101",
+    "remediationStatus": "PR_OPEN",
+    "pullRequestNumber": 19,
+    "pullRequestUrl": "https://github.com/acme/payments/pull/19",
+    "statusMessage": "Pull request #19 opened",
+    "createdAt": "2026-10-28T10:00:00",
+    "updatedAt": "2026-10-28T10:05:00"
+  }
+]
+```
+
 ## Threads and memory
 
 ### `POST /api/memory/threads`
@@ -406,19 +432,20 @@ Returns the raw `text/plain` markdown content of the requested documentation fil
 
 ### `POST /api/webhooks/github`
 
-Receives asynchronous GitHub App webhook events (e.g., `pull_request` close and merge actions) to synchronize backend state and automatically update grouped vulnerability statuses to `FIXED`.
+Receives asynchronous GitHub App webhook events (`pull_request`, `issues`, and `issue_comment`) to synchronize backend state, trigger autonomous vulnerability remediation, update issue threads, persist tracked issue status, and automatically update grouped vulnerability statuses to `FIXED`.
 
 Required headers:
 
 - `X-Hub-Signature-256`: HMAC signature for validation.
 - `X-GitHub-Delivery`: Unique delivery ID.
-- `X-GitHub-Event`: Event type (must be `pull_request`).
+- `X-GitHub-Event`: Event type (`pull_request`, `issues`, or `issue_comment`).
 
 Behavior:
 
 - Validates HMAC signature.
 - Deduplicates using delivery ID.
-- Transitions associated vulnerabilities to `FIXED` upon PR merge.
+- **`pull_request`**: Transitions associated vulnerabilities to `FIXED` upon PR merge (`closed` with `merged: true`), or reverts them to `DETECTED` if closed unmerged.
+- **`issues`**: Processes `opened`, `reopened`, and `labeled` events that match trigger labels (`auditagent-fix`, `security`, `auditagent`) or mentions (`@auditagent`, `VULN-XXXXXX`). Resolves the target vulnerability and runs autonomous remediation to generate a fix PR with `Fixes #<issueNumber>` and posts comments back to the issue. Discards active runs if the issue is closed unmerged.
 - Returns accepted/duplicate/ignored flags. Signature failure is 403. A duplicate delivery returns success without processing again.
 
 ## Error responses

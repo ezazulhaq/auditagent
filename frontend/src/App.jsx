@@ -12,6 +12,7 @@ import { useChatController } from './features/chat/useChatController';
 import { useChatState } from './features/chat/useChatState';
 import { DashboardView } from './features/dashboard/DashboardView';
 import { FindingsView } from './features/findings/FindingsView';
+import { IssuesView } from './features/issues/IssuesView';
 import { FindingDrawer } from './features/remediation/FindingDrawer';
 import { useRemediationController } from './features/remediation/useRemediationController';
 import { ReportView } from './features/report/ReportView';
@@ -37,6 +38,8 @@ export default function App({ api = auditApi }) {
   const [branches, setBranches] = useState([]);
   const [loadingRepositories, setLoadingRepositories] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [issues, setIssues] = useState([]);
+  const [loadingIssues, setLoadingIssues] = useState(false);
   const [restoredSession, setRestoredSession] = useState(null);
   const [scanHistory, setScanHistory] = useState([]);
   const selectedKeyRef = useRef('');
@@ -128,6 +131,34 @@ export default function App({ api = auditApi }) {
       });
     }
   }, [config.repositoryId, config.branch, remediation, toast]);
+
+  const loadIssues = useCallback((signal) => {
+    if (!config.repositoryId || typeof api?.issues !== 'function') {
+      setIssues([]);
+      return Promise.resolve();
+    }
+    setLoadingIssues(true);
+    return api.issues(config.repositoryId, signal)
+      .then(items => {
+        setIssues(Array.isArray(items) ? items : []);
+      })
+      .catch(error => {
+        if (error.name !== 'AbortError') {
+          console.error(`Issues load failed: ${error.message}`);
+        }
+      })
+      .finally(() => setLoadingIssues(false));
+  }, [api, config.repositoryId]);
+
+  useEffect(() => {
+    if (!config.repositoryId) {
+      setIssues([]);
+      return undefined;
+    }
+    const controller = new AbortController();
+    loadIssues(controller.signal);
+    return () => controller.abort();
+  }, [config.repositoryId, loadIssues]);
 
   useEffect(() => {
     if (scan.finishedAt && config.repositoryId && config.branch) {
@@ -285,10 +316,14 @@ export default function App({ api = auditApi }) {
         repositories={repositories} branches={branches} loadingRepositories={loadingRepositories}
         installationUrl={authSession.installationUrl} isOpen={isSidebarOpen} onToggle={() => setIsSidebarOpen(!isSidebarOpen)} />
       <main className="workspace-surface min-w-0 flex-1 lg:flex lg:min-h-0 lg:flex-col">
-        <WorkspaceTabs activeTab={activeTab} onChange={setActiveTab} findingCount={findings.length} />
+        <WorkspaceTabs activeTab={activeTab} onChange={setActiveTab} findingCount={findings.length} issueCount={issues.length} />
         <div className="min-h-0 flex-1 overflow-auto scroll-smooth">
           {activeTab === 'dashboard' && <DashboardView metadata={metadata} findings={findings} counts={counts} scanHistory={scanHistory} repositoryLabel={isUploadScan ? `${result?.projectName || 'Project'} (Manual Upload)` : (result?.repository || selectedRepository?.fullName || '')} onSelect={setSelectedFinding} onShowFindings={(title, modalFindings) => setActiveModal({ title, findings: modalFindings })} onClearHistory={clearScanHistory} />}
           {activeTab === 'findings' && <FindingsView findings={findings} runs={runs} onSelect={setSelectedFinding} onBulkAction={handleBulkAction} onRefresh={refreshReport} batchState={batchState} onCancelBatch={cancelBatch} isAnalyzingMap={isAnalyzingMap} isUploadScan={isUploadScan} />}
+          {activeTab === 'issues' && <IssuesView issues={issues} loading={loadingIssues} onRefresh={() => loadIssues()} onSelectFinding={id => {
+            const f = findings.find(x => x.id === id);
+            if (f) setSelectedFinding(f);
+          }} repository={selectedRepository} />}
           {activeTab === 'report' && <ReportView key={isUploadScan ? `upload:${result?.uploadId}` : `${config.repositoryId}:${config.branch}`} api={api} repositoryId={config.repositoryId} branch={config.branch} uploadId={isUploadScan ? result?.uploadId : null}
             reportAvailable={result?.reportAvailable ?? Boolean(result?.htmlReport)} projectName={metadata?.projectName || result?.projectName || selectedRepository?.name} />}
         </div>
