@@ -42,6 +42,7 @@
 | `GitHubWebhookController.java` | Signed/replay-protected PR, issue, and issue comment webhook. |
 | `ObservabilityController.java` | Aggregated user-level observability metrics (e.g. token usage). |
 | `MemoryController.java` | Thread restore/forget and run resume/discard. |
+| `NotificationController.java` | User notification retrieval, creation, and mark-read endpoints. |
 | `ProjectUploadController.java` | Multipart upload scan, upload report restore, and export APIs. |
 | `RunPublicationController.java` | Preview, structured decision, publication retry. |
 
@@ -69,6 +70,7 @@
 | `GitHubAuthorization.java` | Encrypted OAuth metadata. |
 | `ManagedRepository.java` | Installed GitHub repository identity/permission. |
 | `MemoryMessageRecord.java` | Durable ordered message. |
+| `Notification.java` | User workflow and security notification domain model. |
 | `PublicationCheckpoint.java` | Commit/push/PR callback checkpoint. |
 | `PublishResult.java` | Successful publication result. |
 | `PullRequestState.java` | GitHub PR state for reconciliation. |
@@ -159,6 +161,7 @@
 | `src/api/auditApi.js` | Credentialed API/SSE client and result normalization. |
 | `src/api/sse.js` | Robust JSON SSE parser. |
 | `src/components/AppHeader.jsx` | Brand, scan summary, identity, logout. |
+| `src/components/NotificationDropdown.jsx` | Bell icon notification dropdown with unread badge and real-time updates. |
 | `src/components/TokenUsageView.jsx` | User-level UI displaying aggregated token usage and observability metrics. |
 | `src/features/auth/LoginPage.jsx` | Login/configuration screen. |
 | `src/features/chat/ChatWidget.jsx` | Floating durable chat/recovery controls. |
