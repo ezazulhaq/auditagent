@@ -299,6 +299,9 @@ export function createAuditApi({ baseUrl = API_BASE_URL, fetchImpl = fetch } = {
         body: JSON.stringify({ type, message })
       });
       if (!response.ok) throw await errorFor(response);
+      if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+        window.dispatchEvent(new CustomEvent('notification-added', { detail: { type, message } }));
+      }
     },
 
     async markNotificationsRead() {

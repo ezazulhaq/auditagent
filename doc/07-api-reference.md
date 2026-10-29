@@ -428,6 +428,44 @@ Returns a JSON array of all available `.md` documentation filenames within the r
 
 Returns the raw `text/plain` markdown content of the requested documentation file. Access is restricted exclusively to files within the `doc/` directory to prevent directory traversal attacks.
 
+## Notifications
+
+### `GET /api/notifications`
+
+Returns the top 100 most recent notifications for the authenticated user, ordered descending by creation date.
+
+Response:
+
+```json
+[
+  {
+    "id": "c138fd94-f203-490c-a9b0-98fc5cfa488b",
+    "userId": "server-user-id",
+    "type": "success",
+    "message": "Analysis completed for VULN-000001: Remediation verified and awaiting approval.",
+    "read": false,
+    "createdAt": "2026-10-29T07:15:00Z"
+  }
+]
+```
+
+### `POST /api/notifications`
+
+Creates and persists a new user notification. Supports types `success`, `error`, `warning`, and `info`.
+
+Request body:
+
+```json
+{
+  "type": "success",
+  "message": "Pull request #42 created for VULN-000001."
+}
+```
+
+### `POST /api/notifications/read`
+
+Marks all notifications as read for the authenticated user (`isRead = true`).
+
 ## GitHub webhook
 
 ### `POST /api/webhooks/github`

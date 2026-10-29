@@ -84,6 +84,7 @@ This catalog connects each feature to its user/business outcome and main impleme
 | Last good report preservation | Starting or failing a new scan keeps the prior successful result visible. | `scanReducer` |
 | Structured recovery banner | Interrupted and publication-failed runs show appropriate actions. | `ChatWidget` |
 | PR link | Open PR is visible in drawer and chat. | restored or streamed publication state |
+| Notification center and workflow tracking | Bell icon dropdown in header tracking real-time error and success responses during finding analysis, batch remediation, security scans, and PR publication with unread badges, read-state synchronization, and persistence. | `NotificationDropdown.jsx`, `NotificationController`, `UserDataService`, `useRemediationController`, `useScanController`, `auditApi` |
 | Explicit forget confirmation | Destructive memory actions require browser confirmation. | `window.confirm()` |
 
 ## Chat and AI behavior

@@ -40,12 +40,14 @@ export function useScanController({ api, ensureThread, onMessage, onSuccess, onS
       if (requestId !== requestRef.current) return null;
       dispatch({ type: 'SUCCESS', requestId, result, finishedAt: Date.now() });
       if (result.message) onMessage('agent', result.message);
+      api?.saveNotification?.('success', `Security scan completed on branch ${branch}: ${result.findings?.length ?? 0} findings detected.`)?.catch?.(() => {});
       onSuccess?.(result);
       return result;
     } catch (error) {
       if (error.name === 'AbortError' || requestId !== requestRef.current) return null;
       dispatch({ type: 'FAILURE', requestId, error: error.message, finishedAt: Date.now() });
       onMessage('agent', `Scan failed: ${error.message}`);
+      api?.saveNotification?.('error', `Security scan failed on branch ${branch}: ${error.message}`)?.catch?.(() => {});
       return null;
     }
   }, [api, ensureThread, onMessage, onStart, onSuccess]);
@@ -81,12 +83,14 @@ export function useScanController({ api, ensureThread, onMessage, onSuccess, onS
       if (requestId !== requestRef.current) return null;
       dispatch({ type: 'SUCCESS', requestId, result, finishedAt: Date.now() });
       if (result.message) onMessage('agent', result.message);
+      api?.saveNotification?.('success', `Upload scan completed for ${file.name}: ${result.findings?.length ?? 0} findings detected.`)?.catch?.(() => {});
       onSuccess?.(result);
       return result;
     } catch (error) {
       if (error.name === 'AbortError' || requestId !== requestRef.current) return null;
       dispatch({ type: 'FAILURE', requestId, error: error.message, finishedAt: Date.now() });
       onMessage('agent', `Upload scan failed: ${error.message}`);
+      api?.saveNotification?.('error', `Upload scan failed for ${file.name}: ${error.message}`)?.catch?.(() => {});
       return null;
     }
   }, [api, onMessage, onStart, onSuccess]);

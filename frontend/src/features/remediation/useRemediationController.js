@@ -77,6 +77,24 @@ export function useRemediationController({ api, toast, onMessage, onReport, onFi
     setRuns(prev => ({ ...prev, [vulnId]: typeof updater === 'function' ? updater(prev[vulnId]) : updater }));
   }, []);
 
+  const notify = useCallback((type, message) => {
+    if (!message) return;
+    try {
+      if (api?.saveNotification) {
+        api.saveNotification(type, message).catch(err => {
+          console.warn('Failed to save notification to server:', err);
+          if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+            window.dispatchEvent(new CustomEvent('notification-added', { detail: { type, message } }));
+          }
+        });
+      } else if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+        window.dispatchEvent(new CustomEvent('notification-added', { detail: { type, message } }));
+      }
+    } catch (e) {
+      console.warn('Failed to dispatch notification:', e);
+    }
+  }, [api]);
+
   const analyze = useCallback(async (finding, repoId, br, threadId) => {
     const vulnId = finding?.id;
     const targetRepoId = repoId ?? repositoryId;
@@ -111,8 +129,9 @@ export function useRemediationController({ api, toast, onMessage, onReport, onFi
         } else if (event.type === 'workspace_prepared') {
           updateRun(vulnId, prev => ({ ...(prev || {}), status: 'ACTIVE', runId: event.runId }));
         } else if (event.type === 'status') {
-          if (event.message?.startsWith('Remediation failed')) {
+          if (event.message?.startsWith('Remediation failed') || event.status === 'FAILED') {
             toast?.error?.(event.message);
+            notify('error', event.message || `Analysis failed for ${vulnId}.`);
           } else {
             onMessage('agent', event.message);
           }
@@ -126,12 +145,20 @@ export function useRemediationController({ api, toast, onMessage, onReport, onFi
             ...(prev || {}), runId: event.runId ?? prev?.runId,
             status: event.requires_approval ? 'AWAITING_APPROVAL' : (prev?.status || 'FAILED')
           }));
+          if (event.requires_approval) {
+            notify('success', `Analysis completed for ${vulnId}: Remediation verified and awaiting approval.`);
+          } else if (event.status === 'FAILED') {
+            notify('error', event.message || `Analysis failed for ${vulnId}.`);
+          }
         } else if (event.type === 'publish_progress' && event.message) {
           onMessage('system', event.message);
         } else if (event.type === 'pr_created') {
           setPublications(prev => ({ ...prev, [vulnId]: event }));
           updateRun(vulnId, prev => ({ ...(prev || {}), status: 'PR_OPEN' }));
-          if (event.pullRequestNumber) onMessage('agent', `Pull request #${event.pullRequestNumber} created: ${event.pullRequestUrl}`);
+          if (event.pullRequestNumber) {
+            onMessage('agent', `Pull request #${event.pullRequestNumber} created: ${event.pullRequestUrl}`);
+            notify('success', `Pull request #${event.pullRequestNumber} created for ${vulnId}.`);
+          }
         } else if (event.type === 'complete') {
           if (event.message) onMessage('agent', event.message);
           updateRun(vulnId, prev => ({
@@ -147,11 +174,12 @@ export function useRemediationController({ api, toast, onMessage, onReport, onFi
       if (error.name !== 'AbortError') {
         toast?.error?.(`Analysis failed: ${error.message}`);
         onMessage('agent', `Analysis failed: ${error.message}`);
+        notify('error', `Analysis failed for ${vulnId}: ${error.message}`);
       }
     } finally {
       setIsAnalyzingMap(prev => ({ ...prev, [vulnId]: false }));
     }
-  }, [api, onMessage, toast, refreshReport, repositoryId, branch, updateRun]);
+  }, [api, onMessage, toast, refreshReport, repositoryId, branch, updateRun, notify]);
 
   const cancelBatch = useCallback(() => {
     if (batchAbortRef.current) {
@@ -226,6 +254,11 @@ export function useRemediationController({ api, toast, onMessage, onReport, onFi
         } else if (event.type === 'batch_complete') {
           setBatchState(null);
           refreshReport(targetRepoId, targetBranch, true).catch(() => {});
+          const total = event.total ?? vulnIds.length;
+          const completed = event.completed ?? 0;
+          const failed = event.failed ?? 0;
+          const type = failed === 0 ? 'success' : (completed > 0 ? 'warning' : 'error');
+          notify(type, `Batch analysis completed: ${completed} of ${total} vulnerabilities analyzed${failed > 0 ? ` (${failed} failed)` : ''}.`);
         }
 
         if (eventVulnId) {
@@ -249,10 +282,16 @@ export function useRemediationController({ api, toast, onMessage, onReport, onFi
               status: event.requires_approval ? 'AWAITING_APPROVAL' : (prev?.status || 'FAILED')
             }));
             setIsAnalyzingMap(prev => ({ ...prev, [eventVulnId]: false }));
+            if (event.requires_approval) {
+              notify('success', `Analysis completed for ${eventVulnId}: Remediation verified.`);
+            } else if (event.status === 'FAILED') {
+              notify('error', event.message || `Analysis failed for ${eventVulnId}.`);
+            }
           } else if (event.type === 'status') {
-            if (event.status === 'FAILED') {
+            if (event.status === 'FAILED' || event.message?.startsWith('Remediation failed')) {
               updateRun(eventVulnId, prev => ({ ...(prev || {}), status: 'FAILED' }));
               setIsAnalyzingMap(prev => ({ ...prev, [eventVulnId]: false }));
+              notify('error', event.message || `Analysis failed for ${eventVulnId}.`);
             }
           }
         }
@@ -261,6 +300,7 @@ export function useRemediationController({ api, toast, onMessage, onReport, onFi
       if (error.name !== 'AbortError') {
         toast?.error?.(`Batch analysis failed: ${error.message}`);
         onMessage?.('agent', `Batch analysis failed: ${error.message}`);
+        notify('error', `Batch analysis failed: ${error.message}`);
       }
     } finally {
       setBatchState(null);
@@ -271,7 +311,7 @@ export function useRemediationController({ api, toast, onMessage, onReport, onFi
       });
       refreshReport(targetRepoId, targetBranch, true).catch(() => {});
     }
-  }, [api, onMessage, toast, refreshReport, repositoryId, branch, updateRun]);
+  }, [api, onMessage, toast, refreshReport, repositoryId, branch, updateRun, notify]);
 
   const loadApprovalPreview = useCallback(async (vulnId) => {
     const runId = runs[vulnId]?.runId;
@@ -324,11 +364,13 @@ export function useRemediationController({ api, toast, onMessage, onReport, onFi
           updateRun(vulnId, prev => ({ ...(prev || {}), status: event.runStatus ?? 'PUBLISH_FAILED' }));
           setPublications(prev => ({ ...prev, [vulnId]: { ...prev[vulnId], publishError: event.message } }));
           onMessage('agent', `Publication failed: ${event.message}`);
+          notify('error', `Publication failed for ${vulnId}: ${event.message}`);
         }
         if (event.type === 'pr_created') {
           setPublications(prev => ({ ...prev, [vulnId]: event }));
           updateRun(vulnId, prev => ({ ...(prev || {}), status: 'PR_OPEN' }));
           onMessage('agent', `Pull request #${event.pullRequestNumber} created: ${event.pullRequestUrl}`);
+          notify('success', `Pull request #${event.pullRequestNumber} created for ${vulnId}.`);
         }
         if (event.type === 'complete' && event.message) onMessage('agent', event.message);
       });
@@ -340,10 +382,11 @@ export function useRemediationController({ api, toast, onMessage, onReport, onFi
       setPreviews(prev => { const n = { ...prev }; delete n[vulnId]; return n; });
     } catch (error) {
       onMessage('agent', `Decision failed: ${error.message}`);
+      notify('error', `Decision failed for ${vulnId}: ${error.message}`);
     } finally {
       setIsPublishingMap(prev => ({ ...prev, [vulnId]: false }));
     }
-  }, [runs, previews, api, onMessage, refreshReport, updateRun]);
+  }, [runs, previews, api, onMessage, refreshReport, updateRun, notify]);
 
   const retryPublish = useCallback(async (vulnId, repoId, br) => {
     const runId = runs[vulnId]?.runId;
@@ -352,14 +395,18 @@ export function useRemediationController({ api, toast, onMessage, onReport, onFi
     try {
       await api.retryPublish(runId, event => {
         if (event.message) onMessage(event.type === 'publish_failed' ? 'agent' : 'system', event.message);
+        if (event.type === 'publish_failed') {
+          notify('error', `Retry publication failed for ${vulnId}: ${event.message}`);
+        }
         if (event.type === 'pr_created') {
           setPublications(prev => ({ ...prev, [vulnId]: event }));
           updateRun(vulnId, prev => ({ ...(prev || {}), status: 'PR_OPEN' }));
+          notify('success', `Pull request #${event.pullRequestNumber} created for ${vulnId}.`);
         }
       });
       await refreshReport(repoId, br);
     } finally { setIsPublishingMap(prev => ({ ...prev, [vulnId]: false })); }
-  }, [runs, api, onMessage, refreshReport, updateRun]);
+  }, [runs, api, onMessage, refreshReport, updateRun, notify]);
 
   const resume = useCallback(async (vulnId, threadId) => {
     const runId = runs[vulnId]?.runId;
@@ -375,7 +422,10 @@ export function useRemediationController({ api, toast, onMessage, onReport, onFi
         } else if (event.type === 'pr_created') {
           setPublications(prev => ({ ...prev, [vulnId]: event }));
           updateRun(vulnId, prev => ({ ...(prev || {}), status: 'PR_OPEN' }));
-          if (event.pullRequestNumber) onMessage('agent', `Pull request #${event.pullRequestNumber} created: ${event.pullRequestUrl}`);
+          if (event.pullRequestNumber) {
+            onMessage('agent', `Pull request #${event.pullRequestNumber} created: ${event.pullRequestUrl}`);
+            notify('success', `Pull request #${event.pullRequestNumber} created for ${vulnId}.`);
+          }
         } else if (event.type === 'complete') {
           if (event.message) onMessage('agent', event.message);
           updateRun(vulnId, prev => ({
@@ -385,9 +435,12 @@ export function useRemediationController({ api, toast, onMessage, onReport, onFi
         }
       });
       if (runs[vulnId]?.status !== 'PUBLISH_FAILED') await loadApprovalPreview(vulnId);
-    } catch (error) { onMessage('agent', `Resume failed: ${error.message}`); }
+    } catch (error) {
+      onMessage('agent', `Resume failed: ${error.message}`);
+      notify('error', `Resume failed for ${vulnId}: ${error.message}`);
+    }
     finally { setIsAnalyzingMap(prev => ({ ...prev, [vulnId]: false })); }
-  }, [runs, api, loadApprovalPreview, onMessage, updateRun]);
+  }, [runs, api, loadApprovalPreview, onMessage, updateRun, notify]);
 
   const discard = useCallback(async (vulnId) => {
     const runId = runs[vulnId]?.runId;

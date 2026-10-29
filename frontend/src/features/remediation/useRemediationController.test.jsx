@@ -73,4 +73,61 @@ describe('useRemediationController', () => {
     expect(result.current.runs['VULN-000002'].status).toBe('FAILED');
     expect(result.current.batchState).toBeNull();
   });
+
+  it('records notifications on analysis success, failure stream events, and thrown errors', async () => {
+    const preview = { runId: 'run-1', vulnerabilityId: 'VULN-000001', approvalDigest: 'digest-1' };
+    const api = {
+      analyze: vi.fn(async (payload, onEvent) => {
+        if (payload.vulnId === 'VULN-FAIL') {
+          onEvent({ type: 'status', message: 'Remediation failed: Compilation error at Line 42' });
+        } else if (payload.vulnId === 'VULN-CRASH') {
+          throw new Error('Network stream abruptly disconnected');
+        } else {
+          onEvent({ type: 'analysis_complete', runId: 'run-1', requires_approval: true, preview });
+        }
+      }),
+      saveNotification: vi.fn().mockResolvedValue({}),
+      getReport: vi.fn().mockResolvedValue({ findings: [], metadata: null }),
+    };
+
+    const { result } = renderHook(() => useRemediationController({
+      api, onMessage: vi.fn(), onReport: vi.fn(), onFindings: vi.fn(), toast: { error: vi.fn() }
+    }));
+
+    // 1. Success analysis
+    await act(() => result.current.analyze({ id: 'VULN-SUCCESS' }, 42, 'main', 'thread-1'));
+    expect(api.saveNotification).toHaveBeenCalledWith('success', expect.stringContaining('VULN-SUCCESS'));
+
+    // 2. Failure stream status
+    await act(() => result.current.analyze({ id: 'VULN-FAIL' }, 42, 'main', 'thread-1'));
+    expect(api.saveNotification).toHaveBeenCalledWith('error', expect.stringContaining('Compilation error at Line 42'));
+
+    // 3. Thrown error
+    await act(() => result.current.analyze({ id: 'VULN-CRASH' }, 42, 'main', 'thread-1'));
+    expect(api.saveNotification).toHaveBeenCalledWith('error', expect.stringContaining('Network stream abruptly disconnected'));
+  });
+
+  it('records notifications for batch analysis progress and final summary', async () => {
+    const preview = { runId: 'run-1', vulnerabilityId: 'VULN-001', approvalDigest: 'd1' };
+    const api = {
+      analyzeBatch: vi.fn(async (payload, onEvent) => {
+        onEvent({ type: 'batch_start', total: 2, vulnIds: payload.vulnIds });
+        onEvent({ type: 'analysis_complete', vulnId: 'VULN-001', requires_approval: true, preview });
+        onEvent({ type: 'status', vulnId: 'VULN-002', status: 'FAILED', message: 'Remediation failed for VULN-002: syntax error' });
+        onEvent({ type: 'batch_complete', total: 2, completed: 1, failed: 1 });
+      }),
+      saveNotification: vi.fn().mockResolvedValue({}),
+      getReport: vi.fn().mockResolvedValue({ findings: [], metadata: null }),
+    };
+
+    const { result } = renderHook(() => useRemediationController({
+      api, onMessage: vi.fn(), onReport: vi.fn(), onFindings: vi.fn(), toast: { error: vi.fn() }
+    }));
+
+    await act(() => result.current.analyzeBatch([{ id: 'VULN-001' }, { id: 'VULN-002' }], 42, 'main', 'thread-1'));
+
+    expect(api.saveNotification).toHaveBeenCalledWith('success', expect.stringContaining('VULN-001'));
+    expect(api.saveNotification).toHaveBeenCalledWith('error', expect.stringContaining('VULN-002'));
+    expect(api.saveNotification).toHaveBeenCalledWith('warning', expect.stringContaining('1 of 2 vulnerabilities analyzed (1 failed)'));
+  });
 });

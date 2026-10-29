@@ -26,7 +26,24 @@ export function NotificationDropdown({ api = auditApi }) {
 
     load();
 
-    const handleNew = () => {
+    const handleNew = (event) => {
+      if (event?.detail?.message) {
+        setNotifications(current => {
+          if (current.some(n => n.message === event.detail.message && (!n.id || String(n.id).startsWith('temp-')))) {
+            return current;
+          }
+          return [
+            {
+              id: event.detail.id || `temp-${Date.now()}-${Math.random()}`,
+              type: event.detail.type || 'info',
+              message: event.detail.message,
+              read: false,
+              createdAt: new Date().toISOString(),
+            },
+            ...current,
+          ];
+        });
+      }
       load();
     };
 
@@ -76,8 +93,15 @@ export function NotificationDropdown({ api = auditApi }) {
       {isOpen && (
         <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] shadow-2xl shadow-slate-900/10 dark:shadow-black/50 backdrop-blur-xl z-50 overflow-hidden flex flex-col max-h-[70vh]">
           <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-4 py-3 bg-[var(--surface-inset)]/60">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">Notifications</h3>
-            <button onClick={() => setIsOpen(false)} className="rounded-lg p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-inset)] transition">
+            <div className="flex items-center gap-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">Notifications</h3>
+              {unreadCount > 0 && (
+                <span className="rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] font-semibold text-rose-400 font-mono">
+                  {unreadCount} new
+                </span>
+              )}
+            </div>
+            <button onClick={() => setIsOpen(false)} aria-label="Close notifications" className="rounded-lg p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-inset)] transition">
               <X size={15} />
             </button>
           </div>
@@ -85,16 +109,23 @@ export function NotificationDropdown({ api = auditApi }) {
             {notifications.length === 0 ? (
               <p className="text-center text-xs text-[var(--text-muted)] py-8">No notifications</p>
             ) : (
-              notifications.map(n => (
-                <div key={n.id} className="flex gap-3 items-start p-2.5 hover:bg-[var(--surface-inset)] rounded-xl transition">
+              notifications.map((n, idx) => (
+                <div key={n.id || `${n.message}-${idx}`} className={`flex gap-3 items-start p-2.5 hover:bg-[var(--surface-inset)] rounded-xl transition ${!n.read ? 'bg-[var(--surface-inset)]/40' : ''}`}>
                   {n.type === 'success' && <CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" />}
                   {n.type === 'error' && <AlertCircle size={16} className="text-rose-500 shrink-0 mt-0.5" />}
                   {n.type === 'warning' && <AlertCircle size={16} className="text-amber-500 shrink-0 mt-0.5" />}
-                  {n.type === 'info' && <Info size={16} className="text-cyan-500 shrink-0 mt-0.5" />}
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-xs font-medium text-[var(--text-primary)] break-words">{n.message}</span>
+                  {(!n.type || n.type === 'info') && <Info size={16} className="text-cyan-500 shrink-0 mt-0.5" />}
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-[var(--text-primary)] break-words">{n.message}</span>
+                      {!n.read && (
+                        <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 shrink-0" title="Unread" />
+                      )}
+                    </div>
                     <span className="text-[10px] text-[var(--text-muted)] font-mono mt-1">
-                      {new Date(n.createdAt).toLocaleString()}
+                      {n.createdAt && !isNaN(new Date(n.createdAt).getTime())
+                        ? new Date(n.createdAt).toLocaleString()
+                        : 'Just now'}
                     </span>
                   </div>
                 </div>
