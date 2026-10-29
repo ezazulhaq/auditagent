@@ -1,11 +1,11 @@
 ---
 name: git-feature-workflow
-description: Branch isolation, grouped logical commits, push approval, pull request creation, and versioned release note generation and publishing workflow when working on master or main branches.
+description: Branch isolation, grouped logical commits, push approval, pull request creation, and versioned release note generation and publishing workflow when working on dev branch.
 ---
 
 # Git Feature Workflow
 
-This skill guides the standard Git workflow whenever you are asked to make code changes while on the `master` or `main` branch. It ensures changes are isolated in feature branches, committed in logical groups, reviewed/approved before pushing, submitted via pull requests, and followed through to versioned release note generation and GitHub release publication.
+This skill guides the standard Git workflow whenever you are asked to make code changes while on the `dev` branch. It ensures changes are isolated in feature branches, committed in logical groups, reviewed/approved before pushing, submitted via pull requests, and followed through to versioned release note generation and GitHub release publication.
 
 ---
 
@@ -17,14 +17,15 @@ Before writing or editing code files:
    ```bash
    git branch --show-current
    ```
-2. **If currently on `master` or `main`**:
-   - Do **NOT** modify or commit files directly on `master` or `main`.
+2. **If currently on `dev` (or `master` / `main`)**:
+   - Do **NOT** modify or commit files directly on `dev`, `master`, or `main`.
+   - If currently on `master` or `main`, check out `dev` first and pull latest (`git checkout dev && git pull origin dev`).
    - Determine the nature of the change:
      - New feature / capability: `feat/<kebab-case-name>`
      - Bug fix / defect resolution: `fix/<kebab-case-name>`
      - Performance / refactor: `refactor/<kebab-case-name>`
      - Maintenance / chores / tooling: `chore/<kebab-case-name>`
-   - Create and check out the new branch:
+   - Create and check out the new branch off `dev`:
      ```bash
      git checkout -b <branch-name>
      ```
@@ -66,7 +67,7 @@ Before writing or editing code files:
 1. **Request Push Approval**:
    - Once all grouped commits are created, do **NOT** push autonomously.
    - Ask the user explicitly for confirmation to push the branch to remote:
-     > *"All changes are committed locally on branch `<branch-name>`. May I push this branch to `origin` and open a Pull Request against `master`?"*
+     > *"All changes are committed locally on branch `<branch-name>`. May I push this branch to `origin` and open a Pull Request against `dev`?"*
 2. **Push to Remote (Upon Approval)**:
    - Once the user gives confirmation:
      ```bash
@@ -75,7 +76,7 @@ Before writing or editing code files:
 3. **Create the Pull Request**:
    - Open the PR using the GitHub CLI (`gh`):
      ```bash
-     gh pr create --base master --head <branch-name> --title "<type>(<scope>): <concise title>" --body "<Detailed Markdown summary>"
+     gh pr create --base dev --head <branch-name> --title "<type>(<scope>): <concise title>" --body "<Detailed Markdown summary>"
      ```
    - The PR body should include:
      - **Overview / Objective**: What problem this PR solves or feature it adds.
@@ -163,7 +164,7 @@ Immediately after opening the PR, proceed to prepare the versioned release notes
 Once the user approves merging and publishing the release:
 
 1. **Merge the Pull Request**:
-   - Use the GitHub CLI to merge into `master`:
+   - Use the GitHub CLI to merge into `dev`:
      ```bash
      gh pr merge <pr-number> --merge
      ```
@@ -172,23 +173,23 @@ Once the user approves merging and publishing the release:
      gh pr view <pr-number> --json state,mergedAt
      ```
 2. **Update Local Tracking Branch**:
-   - Switch back to `master` and pull the latest merged state:
+   - Switch back to `dev` and pull the latest merged state:
      ```bash
-     git checkout master && git pull origin master
+     git checkout dev && git pull origin dev
      ```
 3. **Publish GitHub Release**:
-   - Create and publish the GitHub release with tag `v<version>` pointing to `master`:
+   - Create and publish the GitHub release with tag `v<version>` pointing to `dev`:
      ```bash
-     gh release create v<version> --target master --title "v<version>" --notes-file release_notes/<version>.md
+     gh release create v<version> --target dev --title "v<version>" --notes-file release_notes/<version>.md
      ```
    - Fetch the newly created tag to your local git repository:
      ```bash
      git fetch --tags origin
      ```
-4. **Synchronize Long-Lived Branches (`dev`)**:
-   - If the repository maintains a parallel `dev` branch, fast-forward it to keep branches synchronized:
+4. **Synchronize Long-Lived Branches (`master`)**:
+   - If the repository maintains a parallel `master` branch, fast-forward it to keep branches synchronized:
      ```bash
-     git checkout dev && git merge --ff-only master && git push origin dev && git checkout master
+     git checkout master && git merge --ff-only dev && git push origin master && git checkout dev
      ```
 5. **Present Release Handoff**:
    - Share the published GitHub release URL (`https://github.com/<owner>/<repo>/releases/tag/v<version>`), a concise summary of the highlights, and confirmation of clean repository state.

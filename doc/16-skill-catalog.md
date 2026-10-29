@@ -80,7 +80,7 @@ Provides structured navigation, keyword/header search, symbol cross-referencing,
 Status: `ACTIVE`.
 
 Located at `.agents/skills/git-feature-workflow/SKILL.md`.
-Enforces branch isolation when on `master` or `main`, grouped logical commits, push approvals, pull request creation, mandatory version parity across `pom.xml` and `frontend/package.json`, release note generation, and GitHub release publication.
+Enforces branch isolation when on `dev` (or `master`/`main`), grouped logical commits, push approvals, pull request creation targeting `dev`, mandatory version parity across `pom.xml` and `frontend/package.json`, release note generation, and GitHub release publication.
 
 ### `systematic-debugging`
 
