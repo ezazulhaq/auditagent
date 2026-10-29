@@ -100,4 +100,26 @@ describe('audit API scan adapter', () => {
     expect(artifact.contentType).toBe('application/pdf');
     expect(await artifact.blob.text()).toBe('pdf-data');
   });
+
+  it('posts notifications and dispatches notification-added window event', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(new Response('', { status: 200 }));
+    const api = createAuditApi({ fetchImpl });
+
+    const eventListener = vi.fn();
+    window.addEventListener('notification-added', eventListener);
+
+    await api.saveNotification('success', 'Analysis completed for VULN-1');
+
+    expect(fetchImpl).toHaveBeenCalledWith('/api/notifications', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ type: 'success', message: 'Analysis completed for VULN-1' }),
+    }));
+    expect(eventListener).toHaveBeenCalledTimes(1);
+    expect(eventListener.mock.calls[0][0].detail).toEqual({
+      type: 'success',
+      message: 'Analysis completed for VULN-1',
+    });
+
+    window.removeEventListener('notification-added', eventListener);
+  });
 });
