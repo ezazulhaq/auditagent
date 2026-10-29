@@ -98,8 +98,12 @@ class DomainDataServicesTest {
         List<Notification> notifs = userDataService.getNotifications(userId);
         assertEquals(1, notifs.size());
         assertEquals("Test notification", notifs.get(0).getMessage());
+        assertFalse(notifs.get(0).isRead());
 
         userDataService.markNotificationsRead(userId);
+        List<Notification> updatedNotifs = userDataService.getNotifications(userId);
+        assertEquals(1, updatedNotifs.size());
+        assertTrue(updatedNotifs.get(0).isRead());
         userDataService.deleteUserSession(sessionHash);
         assertTrue(userDataService.findAuthenticatedUser(sessionHash).isEmpty());
     }

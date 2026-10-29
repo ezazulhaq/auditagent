@@ -61,6 +61,7 @@ public class UserDataService {
         d.setUserId(e.getUserId());
         d.setType(e.getType());
         d.setMessage(e.getMessage());
+        d.setRead(Boolean.TRUE.equals(e.getIsRead()));
         d.setCreatedAt(e.getCreatedAt() != null ? e.getCreatedAt().toInstant(ZoneOffset.UTC) : null);
         return d;
     }
@@ -156,12 +157,14 @@ public class UserDataService {
     @Transactional
     public void saveNotification(Notification notification) {
         UserNotification u = new UserNotification();
-        u.setId(notification.getId());
+        u.setId(notification.getId() != null ? notification.getId() : UUID.randomUUID().toString());
         u.setUserId(notification.getUserId());
         u.setType(notification.getType());
         u.setMessage(notification.getMessage());
-        u.setIsRead(false);
-        u.setCreatedAt(LocalDateTime.now());
+        u.setIsRead(notification.isRead());
+        u.setCreatedAt(notification.getCreatedAt() != null
+                ? LocalDateTime.ofInstant(notification.getCreatedAt(), ZoneOffset.UTC)
+                : LocalDateTime.now(ZoneOffset.UTC));
         userNotificationRepository.save(u);
     }
 

@@ -11,7 +11,7 @@ public interface UserNotificationRepository extends JpaRepository<UserNotificati
     @Query("SELECT n FROM UserNotification n WHERE n.user.userId = :userId ORDER BY n.createdAt DESC")
     List<UserNotification> findTop100ByUserIdOrderByCreatedAtDesc(@Param("userId") String userId);
 
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE UserNotification n SET n.isRead = true WHERE n.user.userId = :userId")
     int markAllAsReadByUserId(@Param("userId") String userId);
 }
