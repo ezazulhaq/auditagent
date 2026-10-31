@@ -28,6 +28,16 @@ public class ApiExceptionHandler {
                 "error", safe(exception)));
     }
 
+    @ExceptionHandler(com.cb.auditagent.service.UserLlmConfigurationException.class)
+    ResponseEntity<?> handleLlmConfigException(com.cb.auditagent.service.UserLlmConfigurationException exception) {
+        log.warn("User LLM Configuration error: {} ({})", safe(exception), exception.getErrorCode());
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(Map.of(
+                "message", exception.getMessage(),
+                "code", exception.getErrorCode(),
+                "requiresLlmConfig", true,
+                "error", safe(exception)));
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     ResponseEntity<?> badRequest(IllegalArgumentException exception) {
         log.warn("Bad request: {}", safe(exception));

@@ -156,7 +156,24 @@ public class RemediationWorkflowService {
                 sink.tryEmitComplete();
             } catch (Exception e) {
                 logger.error("Managed remediation failed: {}", safeMessage(e));
-                emit(sink, java.util.Map.of("type", "status", "message", "Remediation failed: " + safeMessage(e)));
+                String rawMsg = e.getMessage() != null ? e.getMessage() : "";
+                String errorCode = "REMEDIATION_FAILED";
+                boolean requiresLlmConfig = false;
+                if (e instanceof UserLlmConfigurationException uce) {
+                    errorCode = uce.getErrorCode();
+                    requiresLlmConfig = true;
+                } else if (rawMsg.contains("401") || rawMsg.toLowerCase().contains("unauthorized") || rawMsg.toLowerCase().contains("invalid api key")) {
+                    errorCode = "CREDENTIALS_INVALID";
+                    requiresLlmConfig = true;
+                } else if (rawMsg.contains("402") || rawMsg.toLowerCase().contains("credit") || rawMsg.toLowerCase().contains("quota")) {
+                    errorCode = "QUOTA_EXCEEDED";
+                    requiresLlmConfig = true;
+                }
+                emit(sink, java.util.Map.of(
+                        "type", "error",
+                        "errorCode", errorCode,
+                        "requiresLlmConfig", requiresLlmConfig,
+                        "message", "Remediation failed: " + safeMessage(e)));
                 sink.tryEmitComplete();
             } finally {
                 keepAliveTimer.cancel();

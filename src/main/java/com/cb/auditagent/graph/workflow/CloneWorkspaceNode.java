@@ -127,6 +127,8 @@ public class CloneWorkspaceNode implements NodeAction<WorkflowState> {
 
         Map<String, Object> updates = new HashMap<>();
         updates.put("runId", run.runId());
+        updates.put("userId", state.getAuthenticatedUser() != null ? state.getAuthenticatedUser().userId() : null);
+        updates.put("authenticatedUser", state.getAuthenticatedUser());
         updates.put("workspacePath", workspace.toString());
         updates.put("vulnerability", vulnerability);
         updates.put("repoPath", workspace.toString());

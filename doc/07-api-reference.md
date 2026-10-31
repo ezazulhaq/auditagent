@@ -36,11 +36,13 @@ Response:
     "name": "Octo Cat",
     "avatarUrl": "https://..."
   },
-  "csrfToken": "opaque"
+  "csrfToken": "opaque",
+  "llmConfigured": true,
+  "userKeysRequired": true
 }
 ```
 
-Unauthenticated responses omit `user` and `csrfToken`.
+Unauthenticated responses omit `user` and `csrfToken`. `llmConfigured` indicates whether the authenticated user has configured their API key in `user_llm_configs`; `userKeysRequired` reflects the server property `auditagent.llm.user-keys-required`.
 
 ### `GET /api/auth/github/login`
 
@@ -56,6 +58,87 @@ Invalidates the session and returns:
 
 ```json
 {"authenticated": false}
+```
+
+## User LLM configuration
+
+### `GET /api/user/llm-config`
+
+Retrieves the authenticated user's current LLM configuration. Requires active session.
+
+Response:
+
+```json
+{
+  "userId": "server-user-id",
+  "provider": "openrouter",
+  "baseUrl": null,
+  "modelName": "anthropic/claude-3.5-sonnet",
+  "supervisorModelName": null,
+  "hasApiKey": true,
+  "maskedApiKey": "sk-or-••••••••3a8f",
+  "createdAt": "2026-10-31T07:00:00",
+  "updatedAt": "2026-10-31T07:00:00"
+}
+```
+
+If the user has not configured credentials yet, returns default provider and model values with `hasApiKey: false` and `maskedApiKey: null`.
+
+### `POST /api/user/llm-config`
+
+Saves or updates the authenticated user's LLM configuration. Requires active session and `X-CSRF-Token`.
+
+Request:
+
+```json
+{
+  "provider": "openrouter",
+  "apiKey": "sk-or-v1-abcdef123456...",
+  "baseUrl": null,
+  "modelName": "anthropic/claude-3.5-sonnet",
+  "supervisorModelName": null
+}
+```
+
+If an API key is already configured and the client sends an empty `apiKey` (or placeholder dots), the existing encrypted key is retained.
+
+Response:
+
+Returns the updated `UserLlmConfigDto` object (same structure as `GET /api/user/llm-config`).
+
+### `POST /api/user/llm-config/test`
+
+Tests live connectivity against the target LLM provider using an ephemeral ping prompt before saving. Requires active session and `X-CSRF-Token`.
+
+Request:
+
+```json
+{
+  "provider": "openrouter",
+  "apiKey": "sk-or-v1-abcdef123456...",
+  "baseUrl": null,
+  "modelName": "anthropic/claude-3.5-sonnet"
+}
+```
+
+Response (Success):
+
+```json
+{
+  "success": true,
+  "message": "Connection successful! Provider returned: pong",
+  "modelTested": "anthropic/claude-3.5-sonnet"
+}
+```
+
+Response (Failure):
+
+```json
+{
+  "success": false,
+  "message": "Connection failed: 401 Unauthorized - Invalid API key",
+  "modelTested": "anthropic/claude-3.5-sonnet"
+}
 ```
 
 ## Repositories
@@ -500,4 +583,16 @@ Typical JSON:
 | `401`       | No valid session, produced by security filter.                                                             |
 | `403`       | CSRF, ownership, GitHub access, signature, or authorization failure.                                       |
 | `409`       | State conflict such as stale base, invalid lifecycle, or changed workspace.                                |
+| `422`       | User LLM configuration missing or required credentials unconfigured (`code: "LLM_KEY_REQUIRED"`).          |
 | `500`       | Unhandled integration/runtime failure; not all exceptions have a dedicated advice mapping.                 |
+
+When remediation (`POST /api/analyze` or `POST /api/analyze/batch`) encounters missing credentials while `user-keys-required` is enabled, the SSE stream emits a terminal error event:
+
+```json
+{
+  "type": "error",
+  "message": "User LLM credentials are required. Please configure your API key in Profile settings.",
+  "code": "LLM_KEY_REQUIRED",
+  "requiresLlmConfig": true
+}
+```

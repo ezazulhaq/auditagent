@@ -32,15 +32,18 @@ public class ModelCallNode implements NodeAction<RemediationState> {
     private final AgentConfig agentConfig;
     private final ConversationMemoryService memoryService;
     private final LlmService llmService;
+    private final com.cb.auditagent.service.UserLlmClientFactory clientFactory;
 
     public ModelCallNode(ChatModel agentModel,
             AgentConfig agentConfig,
             ConversationMemoryService memoryService,
-            @Lazy LlmService llmService) {
+            @Lazy LlmService llmService,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) @Lazy com.cb.auditagent.service.UserLlmClientFactory clientFactory) {
         this.agentModel = agentModel;
         this.agentConfig = agentConfig;
         this.memoryService = memoryService;
         this.llmService = llmService;
+        this.clientFactory = clientFactory;
     }
 
     @Override
@@ -66,9 +69,12 @@ public class ModelCallNode implements NodeAction<RemediationState> {
                 .toolSpecifications(toolSpecs)
                 .build();
 
+        ChatModel activeModel = clientFactory != null ? clientFactory.getAgentModel(state.getUserId()) : this.agentModel;
+        String modelName = clientFactory != null ? clientFactory.getAgentModelName(state.getUserId()) : llmService.getAgentModelName();
+
         ChatResponse response = null;
         CompletableFuture<ChatResponse> llmFuture = CompletableFuture
-                .supplyAsync(() -> agentModel.chat(request));
+                .supplyAsync(() -> activeModel.chat(request));
 
         try {
             response = llmFuture.get(agentConfig.getLlmCallTimeoutSeconds(), TimeUnit.SECONDS);
@@ -103,7 +109,7 @@ public class ModelCallNode implements NodeAction<RemediationState> {
 
         if (response != null && response.tokenUsage() != null && response.tokenUsage().totalTokenCount() != null) {
             String vulnId = state.getVulnerability() != null ? state.getVulnerability().getId() : null;
-            llmService.recordTokens(llmService.getAgentModelName(), response.tokenUsage().totalTokenCount(), threadId,
+            llmService.recordTokens(modelName, response.tokenUsage().totalTokenCount(), threadId,
                     runId, vulnId);
         }
 

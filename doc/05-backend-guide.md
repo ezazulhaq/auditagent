@@ -63,11 +63,18 @@
 
 - Backed by user-bound queries in `DatabaseService`.
 
+### `UserLlmConfigController`
+
+- `GET /api/user/llm-config`: Retrieves the current user's saved LLM provider, base URL, primary model, supervisor model, and masked API key (`sk-or-••••••••3a8f`).
+- `POST /api/user/llm-config`: Validates and saves or updates the authenticated user's LLM credentials, encrypting the API key using AES-GCM via `TokenCipher` and evicting any cached model instances for that user.
+- `POST /api/user/llm-config/test`: Tests live API connectivity to the configured provider and model using an ephemeral ping prompt before saving.
+
 ### `ApiExceptionHandler`
 
 - `SecurityException` → 403.
 - `IllegalArgumentException` → 400.
 - `IllegalStateException` → 409.
+- `UserLlmConfigurationException` → 422 Unprocessable Entity (code: `LLM_KEY_REQUIRED`).
 - Messages are secret-redacted and capped at 500 characters.
 - Filter-level unauthenticated requests return 401 directly.
 
@@ -88,6 +95,10 @@ Holds GitHub credentials, endpoints, workspace root, API version, cookie behavio
 ### `AgentConfig`, `ScannerConfig`, and `MemoryConfig`
 
 Typed and validated settings for model/tool limits, Semgrep timeout and heartbeat, backup path, retention, context budget, retrieval, and content caps.
+
+### `LlmProperties`
+
+Binds `auditagent.llm` properties, controlling `user-keys-required` (default: `true`), execution `mode` (`user` vs `system`), provider (`openrouter` or `openai-compatible`), and fallback system-level OpenAI credentials (`openai.base-url`, `openai.api-key`, `openai.model-name`).
 
 ### `LangChainModelConfig`
 
@@ -123,6 +134,23 @@ Processes GitHub pull request events via webhooks or manual reconciliation. It u
 
 Handles asynchronous GitHub App issue and issue comment webhook events. It evaluates trigger criteria (labels such as `auditagent-fix`, `security`, `auditagent` or body/title/comment mentions of `@auditagent` or vulnerability IDs), resolves matching findings via two-tier extraction (explicit `VULN-ID` or LLM semantic triage against the latest scan findings of the default branch), executes autonomous remediation on an isolated issue thread (`issue-<repoId>-<issueNumber>`), creates PRs linking `Fixes #<issueNumber>`, persists tracked issue lifecycle states into `tracked_issues` (`ANALYZING`, `AWAITING_APPROVAL`, `PR_OPEN`, `FIXED`, `UNMATCHED`, `FAILED`, `DISCARDED`), and posts verification summaries and status updates back to the GitHub issue. When an issue is closed manually without PR merge, it discards active remediation runs for that issue thread and updates the tracked issue record.
 
+### `UserLlmConfigService`
+
+Manages user-provided LLM credentials stored in the `user_llm_configs` table. It ensures:
+- API keys are encrypted at rest using AES-GCM via `TokenCipher`.
+- API keys are masked (`sk-or-••••••••3a8f`) when transmitted to the frontend.
+- When updating credentials, users can keep their existing key or supply a new one.
+- Validates live connectivity against the target model and provider via ephemeral test prompt before saving.
+- Automatically evicts cached models in `UserLlmClientFactory` upon configuration updates.
+
+### `UserLlmClientFactory`
+
+Provides dynamically instantiated and cached `ChatModel` (Spring AI) and `OpenAiChatModel` (LangChain4j) clients per authenticated user:
+- Constructs provider-specific configurations (including OpenRouter headers and OpenAI-compatible base URLs).
+- Dynamically resolves either user-scoped models (when configured or required) or system-level fallback models.
+- Caches models using an LRU cache keyed by `userId:hash(apiKey,provider,model,baseUrl)`.
+- Injected into `SupervisorNode`, `ModelCallNode`, and `LlmService` to resolve active user models on demand.
+
 ### `LlmService`
 
 Has two modes:
@@ -130,7 +158,7 @@ Has two modes:
 - simple Spring AI conversation endpoint;
 - LangChain4j tool-calling remediation loop.
 
-It constructs prompts, loads approved memory, restores durable history, applies model timeouts, executes tools, persists idempotent steps and evidence, enforces verification, and emits progress.
+It constructs prompts, loads approved memory, restores durable history, applies model timeouts, executes tools, persists idempotent steps and evidence, enforces verification, and emits progress. It resolves user-scoped models via `UserLlmClientFactory`, enforcing user key requirements when enabled.
 
 ### `AgentToolService`
 

@@ -88,6 +88,12 @@ public class LlmService {
     private final RepositoryMemoryService repositoryMemoryService;
     private final MemoryRedactor memoryRedactor;
     private final MeterRegistry meterRegistry;
+    private UserLlmClientFactory clientFactory;
+
+    @Autowired(required = false)
+    public void setClientFactory(UserLlmClientFactory clientFactory) {
+        this.clientFactory = clientFactory;
+    }
 
     @Value("${spring.ai.openai.chat.model:anthropic.claude-3-5-sonnet-20241022-v2:0}")
     private String chatModelName;
@@ -1117,7 +1123,12 @@ public class LlmService {
 
     public Flux<String> chatStream(String threadId, String repoPath, String userMessage,
             List<com.cb.auditagent.domain.Vulnerability> findings) {
-        logger.info("Processing redacted chat message with Bedrock ({} characters) - Streaming",
+        return chatStream(null, threadId, repoPath, userMessage, findings);
+    }
+
+    public Flux<String> chatStream(String userId, String threadId, String repoPath, String userMessage,
+            List<com.cb.auditagent.domain.Vulnerability> findings) {
+        logger.info("Processing redacted chat message ({} characters) - Streaming",
                 userMessage == null ? 0 : userMessage.length());
         String conversationContext = "";
         if (threadId != null && !threadId.isBlank()) {
@@ -1163,6 +1174,16 @@ public class LlmService {
                 "If the user asks to scan the project/repo, include [TRIGGER_SCAN].\n" +
                 "If you cannot identify which vulnerability they want to fix or if they ask a general question, explain the vulnerabilities, ask for clarification, or discuss security best practices. Be helpful, concise, and professional.";
 
+        ChatModel activeChatModel = (clientFactory != null && userId != null)
+                ? clientFactory.getSpringChatModel(userId)
+                : this.chatModel;
+        String activeChatModelName = (clientFactory != null && userId != null)
+                ? clientFactory.getChatModelName(userId)
+                : getChatModelName();
+        if (activeChatModel == null) {
+            activeChatModel = this.chatModel;
+        }
+
         try {
             org.springframework.ai.chat.messages.SystemMessage systemMsg = new org.springframework.ai.chat.messages.SystemMessage(
                     systemInstructions);
@@ -1171,13 +1192,13 @@ public class LlmService {
             Prompt prompt = new Prompt(List.of(systemMsg, userMsg));
 
             StringBuilder fullResponse = new StringBuilder();
-            return chatModel.stream(prompt)
+            return activeChatModel.stream(prompt)
                     .map(response -> {
                         if (response != null && response.getMetadata() != null
                                 && response.getMetadata().getUsage() != null
                                 && response.getMetadata().getUsage().getTotalTokens() != null
                                 && response.getMetadata().getUsage().getTotalTokens() > 0) {
-                            recordTokens(getChatModelName(),
+                            recordTokens(activeChatModelName,
                                     response.getMetadata().getUsage().getTotalTokens().intValue(), threadId, null,
                                     null);
                         }
@@ -1197,14 +1218,34 @@ public class LlmService {
                         persistChatAnswer(threadId, fullResponse.toString().trim(), repoPath);
                     })
                     .onErrorResume(e -> {
-                        logger.error("Chat streaming failed with {}", e.getClass().getSimpleName());
-                        String errorMsg = "Error: Could not process the chat message through Amazon Bedrock.";
+                        logger.error("Chat streaming failed with {}: {}", e.getClass().getSimpleName(), e.getMessage());
+                        String msg = e.getMessage() != null ? e.getMessage() : "";
+                        String errorMsg;
+                        if (msg.contains("401") || msg.toLowerCase().contains("unauthorized") || msg.toLowerCase().contains("invalid api key")) {
+                            errorMsg = "Error: Invalid API Key. Please update your API key in Profile & LLM Settings.";
+                        } else if (msg.contains("402") || msg.toLowerCase().contains("credit") || msg.toLowerCase().contains("quota")) {
+                            errorMsg = "Error: Insufficient credits or quota exceeded. Please check your account in Profile & LLM Settings.";
+                        } else if (e instanceof UserLlmConfigurationException uce) {
+                            errorMsg = "Error: " + uce.getMessage() + ". Please configure your API key in Profile & LLM Settings.";
+                        } else {
+                            errorMsg = "Error: Could not process the chat message: " + (msg.isBlank() ? e.getClass().getSimpleName() : msg);
+                        }
                         persistChatAnswer(threadId, errorMsg, repoPath);
                         return Flux.just(errorMsg);
                     });
         } catch (Exception e) {
-            logger.error("Chat response generation failed with {}", e.getClass().getSimpleName());
-            String errorMsg = "Error: Could not process the chat message through Amazon Bedrock.";
+            logger.error("Chat response generation failed with {}: {}", e.getClass().getSimpleName(), e.getMessage());
+            String msg = e.getMessage() != null ? e.getMessage() : "";
+            String errorMsg;
+            if (msg.contains("401") || msg.toLowerCase().contains("unauthorized") || msg.toLowerCase().contains("invalid api key")) {
+                errorMsg = "Error: Invalid API Key. Please update your API key in Profile & LLM Settings.";
+            } else if (msg.contains("402") || msg.toLowerCase().contains("credit") || msg.toLowerCase().contains("quota")) {
+                errorMsg = "Error: Insufficient credits or quota exceeded. Please check your account in Profile & LLM Settings.";
+            } else if (e instanceof UserLlmConfigurationException uce) {
+                errorMsg = "Error: " + uce.getMessage() + ". Please configure your API key in Profile & LLM Settings.";
+            } else {
+                errorMsg = "Error: Could not process the chat message: " + (msg.isBlank() ? e.getClass().getSimpleName() : msg);
+            }
             persistChatAnswer(threadId, errorMsg, repoPath);
             return Flux.just(errorMsg);
         }

@@ -48,6 +48,7 @@ public class DatabasePreflightCleanup {
             "DELETE FROM user_sessions WHERE user_id IS NOT NULL AND user_id NOT IN (SELECT user_id FROM app_users)",
             "DELETE FROM github_authorizations WHERE user_id IS NOT NULL AND user_id NOT IN (SELECT user_id FROM app_users)",
             "DELETE FROM user_notifications WHERE user_id IS NOT NULL AND user_id NOT IN (SELECT user_id FROM app_users)",
+            "DELETE FROM user_llm_configs WHERE user_id IS NOT NULL AND user_id NOT IN (SELECT user_id FROM app_users)",
 
             // Repository child entities referencing managed_repositories
             "DELETE FROM scan_snapshots WHERE repository_id IS NOT NULL AND repository_id NOT IN (SELECT repository_id FROM managed_repositories)",
