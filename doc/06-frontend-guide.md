@@ -28,10 +28,11 @@ The frontend uses React 19, Vite 5, Tailwind CSS 4, Lucide React, Vitest, Testin
 
 1. Fetch `/api/auth/session`.
 2. Show loading state, login page, or authenticated application.
-3. When authenticated, fetch repositories.
-4. When repository changes, fetch branches and prefer the default.
-5. When repository/branch is complete, restore thread and report in parallel.
-6. Hydrate chat and remediation state from the thread response.
+3. Check LLM configuration: if `session.userKeysRequired && !session.llmConfigured`, display the mandatory, unclosable `LlmOnboardingModal` prompting the user to configure credentials before starting AI operations.
+4. When authenticated, fetch repositories.
+5. When repository changes, fetch branches and prefer the default.
+6. When repository/branch is complete, restore thread and report in parallel.
+7. Hydrate chat and remediation state from the thread response.
 
 ### Selection race control
 
@@ -193,6 +194,20 @@ The most security-sensitive UI:
 - `FIXED`: states that GitHub merge fixed it.
 
 The approve button is not rendered until the preview is loaded. The drawer uses a full-screen mobile layout, focuses its close control when opened, and supports Escape dismissal without changing any decision callback or value.
+
+### `Profile & LLM Configuration Components`
+
+Located in `frontend/src/features/profile/`:
+
+- **`LlmConfigForm`**: Reusable configuration form used across both onboarding and profile settings. Supports:
+  - Switching between **OpenRouter (Default)** and **OpenAI-Compatible** providers.
+  - Custom **API Base URL** input when OpenAI-compatible mode is active.
+  - API key input with show/hide password toggle and "Replace existing key" mode when an encrypted key is already stored.
+  - Curated model presets (`anthropic/claude-3.5-sonnet`, `openai/gpt-4o`, `google/gemini-2.5-flash`, `glm-5.3-flash`, `deepseek-chat`) plus custom model input.
+  - Advanced settings toggle for optional supervisor model customization.
+  - Live connection testing with real-time status banners and error diagnostics via `POST /api/user/llm-config/test`.
+- **`LlmOnboardingModal`**: A non-closable modal displayed immediately upon login if user keys are required but not yet configured, preventing users from attempting AI workflows with missing credentials.
+- **`UserProfileModal`**: Accessible from the user avatar dropdown menu in `AppHeader` ("Profile & LLM Keys"). Allows users to inspect their active GitHub identity, review their masked API key (`sk-or-••••••••3a8f`), update configurations, test connections, and save updates with automatic cache refresh.
 
 ### `TokenUsageView`
 

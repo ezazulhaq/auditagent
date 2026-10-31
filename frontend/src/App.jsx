@@ -26,6 +26,8 @@ import { useTheme } from './utils/useTheme';
 import { useKeyboardShortcuts } from './utils/useKeyboardShortcuts';
 import { DocsView } from './features/docs/DocsView';
 import { TokenUsageLayout } from './features/observability/TokenUsageLayout';
+import { LlmOnboardingModal } from './features/profile/LlmOnboardingModal';
+import { UserProfileModal } from './features/profile/UserProfileModal';
 
 const initialConfig = { repositoryId: '', branch: '', scannerName: 'semgrep', forceRescan: false };
 
@@ -50,7 +52,14 @@ export default function App({ api = auditApi }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isViewingDocs, setIsViewingDocs] = useState(false);
   const [isViewingTokenUsage, setIsViewingTokenUsage] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const { addMessage, resetMessages, restoreMessages } = chat;
+
+  const needsLlmOnboarding = Boolean(authSession?.authenticated && authSession?.userKeysRequired && !authSession?.llmConfigured);
+  const handleLlmOnboardingComplete = useCallback(() => {
+    setAuthSession(prev => prev ? ({ ...prev, llmConfigured: true }) : prev);
+    toast.success('AI credentials configured successfully!');
+  }, [toast]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -76,7 +85,16 @@ export default function App({ api = auditApi }) {
     replaceResult(nextResult);
     if (!silent) setActiveTab('report');
   }, [replaceResult]);
-  const remediation = useRemediationController({ api, toast, onMessage: addMessage, onReport: handleRemediationReport, onFindings: handleFindings, repositoryId: config.repositoryId, branch: config.branch });
+  const remediation = useRemediationController({
+    api,
+    toast,
+    onMessage: addMessage,
+    onReport: handleRemediationReport,
+    onFindings: handleFindings,
+    repositoryId: config.repositoryId,
+    branch: config.branch,
+    onOpenProfileSettings: () => setIsProfileModalOpen(true)
+  });
   const { activeRun, runs, analyze, approvalPreview, awaitingApproval, decide, discard, hydrate, isAnalyzing,
     isPublishing, loadApprovalPreview, publication, resetForScan, resume, retryPublish,
     selectedFinding, setSelectedFinding, graphSteps,
@@ -134,10 +152,8 @@ export default function App({ api = auditApi }) {
 
   const loadIssues = useCallback((signal) => {
     if (!config.repositoryId || typeof api?.issues !== 'function') {
-      setIssues([]);
       return Promise.resolve();
     }
-    setLoadingIssues(true);
     return api.issues(config.repositoryId, signal)
       .then(items => {
         setIssues(Array.isArray(items) ? items : []);
@@ -152,12 +168,14 @@ export default function App({ api = auditApi }) {
 
   useEffect(() => {
     if (!config.repositoryId) {
-      setIssues([]);
       return undefined;
     }
     const controller = new AbortController();
     loadIssues(controller.signal);
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      setIssues([]);
+    };
   }, [config.repositoryId, loadIssues]);
 
   useEffect(() => {
@@ -302,7 +320,7 @@ export default function App({ api = auditApi }) {
   if (!authSession.authenticated) return <LoginPage configured={authSession.configured} error={authError} onLogin={() => window.location.assign(api.loginUrl())} />;
 
   return <div className="app-shell flex min-h-dvh flex-col text-slate-200 lg:h-dvh lg:overflow-hidden relative">
-    <AppHeader api={api} metadata={metadata} counts={counts} user={authSession.user} onLogout={logout} findings={findings} onShowObservability={() => setIsViewingTokenUsage(true)} onShowFindings={(title, modalFindings) => setActiveModal({ title, findings: modalFindings })} theme={theme} onToggleTheme={toggleTheme} onTourClick={() => setIsTourOpen(true)} onShowDocs={() => setIsViewingDocs(true)} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} isSidebarOpen={isSidebarOpen} />
+    <AppHeader api={api} metadata={metadata} counts={counts} user={authSession.user} onLogout={logout} findings={findings} onShowObservability={() => setIsViewingTokenUsage(true)} onShowFindings={(title, modalFindings) => setActiveModal({ title, findings: modalFindings })} theme={theme} onToggleTheme={toggleTheme} onTourClick={() => setIsTourOpen(true)} onShowDocs={() => setIsViewingDocs(true)} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} isSidebarOpen={isSidebarOpen} onOpenProfileSettings={() => setIsProfileModalOpen(true)} />
     <div className="relative mx-auto flex w-full max-w-450 flex-1 flex-col lg:min-h-0 lg:flex-row">
       {/* Mobile overlay */}
       {isSidebarOpen && (
@@ -320,7 +338,10 @@ export default function App({ api = auditApi }) {
         <div className="min-h-0 flex-1 overflow-auto scroll-smooth">
           {activeTab === 'dashboard' && <DashboardView metadata={metadata} findings={findings} counts={counts} scanHistory={scanHistory} repositoryLabel={isUploadScan ? `${result?.projectName || 'Project'} (Manual Upload)` : (result?.repository || selectedRepository?.fullName || '')} onSelect={setSelectedFinding} onShowFindings={(title, modalFindings) => setActiveModal({ title, findings: modalFindings })} onClearHistory={clearScanHistory} />}
           {activeTab === 'findings' && <FindingsView findings={findings} runs={runs} onSelect={setSelectedFinding} onBulkAction={handleBulkAction} onRefresh={refreshReport} batchState={batchState} onCancelBatch={cancelBatch} isAnalyzingMap={isAnalyzingMap} isUploadScan={isUploadScan} />}
-          {activeTab === 'issues' && <IssuesView issues={issues} loading={loadingIssues} onRefresh={() => loadIssues()} onSelectFinding={id => {
+          {activeTab === 'issues' && <IssuesView issues={issues} loading={loadingIssues} onRefresh={() => {
+            setLoadingIssues(true);
+            loadIssues();
+          }} onSelectFinding={id => {
             const f = findings.find(x => x.id === id);
             if (f) setSelectedFinding(f);
           }} repository={selectedRepository} />}
@@ -351,5 +372,19 @@ export default function App({ api = auditApi }) {
       confirmStyle={confirmAction?.style}
     />
     <OnboardingTour isOpen={isTourOpen} onClose={() => setIsTourOpen(false)} />
+    <UserProfileModal
+      isOpen={isProfileModalOpen}
+      onClose={() => setIsProfileModalOpen(false)}
+      user={authSession?.user}
+      api={api}
+      toast={toast}
+    />
+    {needsLlmOnboarding && (
+      <LlmOnboardingModal
+        api={api}
+        onComplete={handleLlmOnboardingComplete}
+        onLogout={logout}
+      />
+    )}
   </div>;
 }

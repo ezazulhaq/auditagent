@@ -54,6 +54,16 @@ npm test
 - GitHub authorization, repository, and publication checkpoint updates execute against the supported PostgreSQL version.
 - Token encryption is randomized authenticated encryption.
 
+### User LLM configuration and client factory
+
+- Saving configuration encrypts the API key with AES-GCM via `TokenCipher` (`UserLlmConfigServiceTest`).
+- Retrieving configuration returns a masked key (`sk-or-••••••••3a8f`) and does not expose ciphertext (`UserLlmConfigServiceTest`).
+- Updating configuration retains existing key when a blank/placeholder key is supplied (`UserLlmConfigServiceTest`).
+- Live connection test validates provider reachability and returns actionable diagnostics on failure (`UserLlmConfigServiceTest`).
+- Dynamic client factory constructs OpenRouter and OpenAI-compatible models with proper headers (`UserLlmClientFactoryTest`).
+- Client caching stores instances per user, and `evictUser(userId)` invalidates stale instances immediately (`UserLlmClientFactoryTest`).
+- Controller enforces authentication, CSRF on mutations, input validation, and maps `UserLlmConfigurationException` to HTTP 422 (`UserLlmConfigControllerTest`).
+
 ### GitHub publication and webhook
 
 - One bot commit is published and an existing PR is reused.
@@ -131,6 +141,9 @@ npm test
 - Scan timing uses wall-clock timestamps, remains correct after a two-hour throttling gap, and is not reset by heartbeats.
 - PDF Blob loading and iframe rendering.
 - PDF and Markdown download actions, server filenames, and repository/branch export query encoding.
+- `LlmConfigForm`: tests provider toggle between OpenRouter and OpenAI-compatible, model presets selection, custom model input, key visibility toggle, live connection testing states, and form validation.
+- `LlmOnboardingModal`: verifies mandatory non-closable onboarding modal rendering when user keys are missing, saving credentials, and completing onboarding.
+- `UserProfileModal`: tests opening from user dropdown, viewing masked credentials, updating configuration, and dismissing modal.
 
 ## Test design patterns
 

@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-export function useRemediationController({ api, toast, onMessage, onReport, onFindings, repositoryId, branch }) {
+export function useRemediationController({ api, toast, onMessage, onReport, repositoryId, branch, onOpenProfileSettings }) {
   const [selectedFinding, setSelectedFinding] = useState(null);
 
   // Maps of vulnId -> run data
@@ -24,7 +24,6 @@ export function useRemediationController({ api, toast, onMessage, onReport, onFi
   const hydrate = useCallback((data) => {
     const newRuns = {};
     const newPubs = {};
-    const newPreviews = {};
 
     if (data.activeRuns) {
       data.activeRuns.forEach(run => {
@@ -68,10 +67,10 @@ export function useRemediationController({ api, toast, onMessage, onReport, onFi
       if (result) {
         if (onReport) onReport(result, silent);
       }
-    } catch (e) {
+    } catch {
       if (!silent) toast?.error("Failed to refresh scan results.");
     }
-  }, [api, onReport, onFindings, toast]);
+  }, [api, onReport, toast]);
 
   const updateRun = useCallback((vulnId, updater) => {
     setRuns(prev => ({ ...prev, [vulnId]: typeof updater === 'function' ? updater(prev[vulnId]) : updater }));
@@ -135,6 +134,13 @@ export function useRemediationController({ api, toast, onMessage, onReport, onFi
           } else {
             onMessage('agent', event.message);
           }
+        } else if (event.type === 'error') {
+          const msg = event.message || `Analysis failed for ${vulnId}.`;
+          toast?.error?.(msg);
+          notify('error', msg);
+          if (event.requiresLlmConfig && onOpenProfileSettings) {
+            onOpenProfileSettings();
+          }
         } else if (event.type === 'approval_ready') {
           setPreviews(prev => ({ ...prev, [vulnId]: event.preview }));
           updateRun(vulnId, prev => ({ ...(prev || {}), runId: event.runId, status: 'AWAITING_APPROVAL' }));
@@ -175,11 +181,14 @@ export function useRemediationController({ api, toast, onMessage, onReport, onFi
         toast?.error?.(`Analysis failed: ${error.message}`);
         onMessage('agent', `Analysis failed: ${error.message}`);
         notify('error', `Analysis failed for ${vulnId}: ${error.message}`);
+        if (error.message?.includes('Profile & LLM Settings') && onOpenProfileSettings) {
+          onOpenProfileSettings();
+        }
       }
     } finally {
       setIsAnalyzingMap(prev => ({ ...prev, [vulnId]: false }));
     }
-  }, [api, onMessage, toast, refreshReport, repositoryId, branch, updateRun, notify]);
+  }, [api, onMessage, toast, refreshReport, repositoryId, branch, updateRun, notify, onOpenProfileSettings]);
 
   const cancelBatch = useCallback(() => {
     if (batchAbortRef.current) {
@@ -334,7 +343,9 @@ export function useRemediationController({ api, toast, onMessage, onReport, onFi
       intervalId = setInterval(async () => {
         try {
           await refreshReport(repositoryId, branch, true);
-        } catch { }
+        } catch {
+          // ignore background polling refresh error
+        }
       }, 5000);
     }
     return () => { if (intervalId) clearInterval(intervalId); };
