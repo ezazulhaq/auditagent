@@ -162,6 +162,14 @@ The application-level controls are not enough for arbitrary untrusted build scri
 - keep Semgrep, Java, Maven/Gradle, Node, and dependencies patched;
 - monitor repeated conflicts, authentication failures, webhook failures, and abnormal process output.
 
+## Developer and repository integrity controls
+
+- **Protected Branch Guardrail**: The core branches `dev`, `master`, and `main` are protected against direct commits. `.githooks/pre-commit` enforces that all developer and AI assistant work is isolated on dedicated feature branches (`feat/*`, `fix/*`, `chore/*`, `refactor/*`).
+- **Mandatory Step 0 Pre-Flight Reflex**: Before authoring or editing workspace files, agents must inspect the active branch (`git branch --show-current`) and isolate changes off `dev`.
+- **Pull Request Integrity**: All Pull Requests must strictly target `dev` (`--base dev`). Production and tracking branches (`master`, `main`) only receive updates via verified fast-forward merges from `dev`.
+- **Documentation Enforcement Guard**: Commits touching implementation, configuration, rules, skills, or scripts are blocked unless accompanying `doc/*.md` updates are staged.
+- **Push and Commit Consent**: Commits and pushes require explicit human confirmation; agents are forbidden from committing or pushing autonomously.
+
 ## Security limitations and review targets
 
 - Legacy standalone HTML remains in persisted reports and compatibility JSON payloads. The current UI does not execute it. Any future feature that renders this HTML must first address its public Chart.js dependency and apply a restrictive iframe sandbox/CSP while preserving escaping.

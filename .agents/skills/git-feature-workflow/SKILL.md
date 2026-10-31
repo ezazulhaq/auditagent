@@ -9,29 +9,32 @@ This skill guides the standard Git workflow whenever you are asked to make code 
 
 ---
 
-## 1. Branch Detection & Isolation (Pre-Flight)
+## 0. Mandatory "Step 0" Pre-Flight Branch Reflex (Non-Negotiable)
 
-Before writing or editing code files:
+**CRITICAL OPERATIONAL REFLEX**: Before creating, editing, deleting, or modifying ANY workspace file (code, test, configuration, skill, rule, or script) and before executing implementation commands, every AI assistant MUST execute the Step 0 Pre-Flight Reflex:
 
 1. **Inspect current branch**:
    ```bash
    git branch --show-current
    ```
-2. **If currently on `dev` (or `master` / `main`)**:
-   - Do **NOT** modify or commit files directly on `dev`, `master`, or `main`.
+2. **If currently on `dev`, `master`, or `main`**:
+   - **STOP IMMEDIATELY**. Under no circumstances should code be written, edited, staged, or committed directly on `dev`, `master`, or `main`.
    - If currently on `master` or `main`, check out `dev` first and pull latest (`git checkout dev && git pull origin dev`).
    - Determine the nature of the change:
      - New feature / capability: `feat/<kebab-case-name>`
      - Bug fix / defect resolution: `fix/<kebab-case-name>`
      - Performance / refactor: `refactor/<kebab-case-name>`
-     - Maintenance / chores / tooling: `chore/<kebab-case-name>`
+     - Maintenance / chores / tooling / governance: `chore/<kebab-case-name>`
    - Create and check out the new branch off `dev`:
      ```bash
      git checkout -b <branch-name>
      ```
-   - Inform the user that a dedicated feature branch has been created.
+   - **Inform the user explicitly**:
+     > *"Step 0 Pre-Flight Check: Currently on `dev`. Isolated dedicated feature branch `<branch-name>` created before making any changes."*
 3. **If already on a dedicated feature branch**:
-   - Continue working on the current branch (unless the user explicitly requests starting a separate branch).
+   - Verify that the active feature branch matches the current task, and continue working on the branch.
+4. **Automated Enforcement**:
+   - `.githooks/pre-commit` enforces this rule mechanically. Any direct commit attempt on `dev`, `master`, or `main` will be hard-blocked with an exit code 1.
 
 ---
 
