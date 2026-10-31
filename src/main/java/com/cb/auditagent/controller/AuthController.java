@@ -12,7 +12,9 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ServerWebExchange;
 
 import com.cb.auditagent.config.GitHubAppConfig;
+import com.cb.auditagent.config.LlmProperties;
 import com.cb.auditagent.service.GitHubAuthService;
+import com.cb.auditagent.service.UserLlmConfigService;
 
 import java.net.URI;
 import java.time.Duration;
@@ -25,10 +27,21 @@ import java.util.Map;
 public class AuthController {
     private final GitHubAuthService auth;
     private final GitHubAppConfig config;
+    private final UserLlmConfigService llmConfigService;
+    private final LlmProperties llmProperties;
 
     public AuthController(GitHubAuthService auth, GitHubAppConfig config) {
+        this(auth, config, null, new LlmProperties());
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public AuthController(GitHubAuthService auth, GitHubAppConfig config,
+                          @org.springframework.beans.factory.annotation.Autowired(required = false) UserLlmConfigService llmConfigService,
+                          @org.springframework.beans.factory.annotation.Autowired(required = false) LlmProperties llmProperties) {
         this.auth = auth;
         this.config = config;
+        this.llmConfigService = llmConfigService;
+        this.llmProperties = llmProperties != null ? llmProperties : new LlmProperties();
     }
 
     @GetMapping("/session")
@@ -36,13 +49,18 @@ public class AuthController {
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("configured", auth.isConfigured());
         response.put("installationUrl", config.getInstallationUrl());
+        response.put("userKeysRequired", llmProperties.isUserKeysRequired());
         auth.authenticate(exchange).ifPresentOrElse(user -> {
             response.put("authenticated", true);
             response.put("user", Map.of("id", user.userId(), "login", user.login(),
                     "name", user.displayName() == null ? user.login() : user.displayName(),
                     "avatarUrl", user.avatarUrl() == null ? "" : user.avatarUrl()));
             response.put("csrfToken", user.csrfToken());
-        }, () -> response.put("authenticated", false));
+            response.put("llmConfigured", llmConfigService != null && llmConfigService.isConfigured(user.userId()));
+        }, () -> {
+            response.put("authenticated", false);
+            response.put("llmConfigured", false);
+        });
         return ResponseEntity.ok()
                 .header(HttpHeaders.CACHE_CONTROL, "no-store, no-cache, must-revalidate, max-age=0")
                 .body(response);

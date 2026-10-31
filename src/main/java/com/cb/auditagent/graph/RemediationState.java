@@ -20,6 +20,15 @@ public class RemediationState extends AgentState {
         return this.<String>value("runId").orElse(null);
     }
 
+    public String getUserId() {
+        Object u = data().get("userId");
+        if (u instanceof String str && !str.isBlank()) return str;
+        Object authUser = data().get("authenticatedUser");
+        if (authUser instanceof com.cb.auditagent.domain.AuthenticatedUser user) return user.userId();
+        if (authUser instanceof Map map && map.get("userId") != null) return map.get("userId").toString();
+        return null;
+    }
+
     public String getThreadId() {
         return this.<String>value("threadId").orElse(null);
     }

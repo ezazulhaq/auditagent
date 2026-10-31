@@ -21,7 +21,34 @@ Open AuditAgent. The sign-in page explains that repository work is performed thr
 
 The browser receives the user's display information and a CSRF token, but never GitHub access, refresh, or installation tokens.
 
-## 2. Choose a repository or upload a ZIP archive
+## 2. Configure your AI & LLM credentials (BYOK)
+
+AuditAgent uses a Bring-Your-Own-Key (BYOK) architecture to power conversational triage and autonomous remediation agents.
+
+### Mandatory Onboarding Modal
+Upon signing in for the first time (when `auditagent.llm.user-keys-required` is enabled on the server), an unclosable onboarding modal appears prompting you to configure your credentials:
+
+1. **Select Provider**:
+   - **OpenRouter (Default)**: Offers access to unified frontier and open models (`anthropic/claude-3.5-sonnet`, `openai/gpt-4o`, `google/gemini-2.5-flash`, etc.).
+   - **OpenAI-Compatible**: Use custom endpoints, self-hosted gateways, or direct OpenAI endpoints. When selected, you can specify a custom **API Base URL** (e.g. `https://api.openai.com/v1`).
+2. **Enter API Key**:
+   - Paste your provider API key. The key input includes a visibility toggle (`Show/Hide`) and is never displayed unmasked once saved.
+3. **Choose Primary & Supervisor Models**:
+   - Select from curated presets (Claude 3.5 Sonnet, GPT-4o, Gemini 2.5 Flash, GLM 5.3 Flash, DeepSeek Chat) or enter a custom model identifier.
+   - Optionally expand advanced settings to specify a separate **Supervisor Model** for multi-agent routing.
+4. **Test Connection**:
+   - Click **Test Connection** to send a live validation request against the selected provider before saving. A success badge confirms your credentials are valid.
+5. **Save**:
+   - Click **Save & Continue** to persist your encrypted credentials. The onboarding modal closes, and all AI features become accessible.
+
+### Managing Credentials via Profile
+You can review, modify, or test your credentials at any time:
+1. Click your user avatar / name in the top-right header of the application.
+2. Select **Profile & LLM Keys** from the dropdown menu.
+3. The modal displays your current masked API key (`sk-or-••••••••3a8f`), active provider, and model configurations.
+4. You can update your key, change models, test the connection, and save updates. Updating credentials automatically invalidates and refreshes the server-side model client cache.
+
+## 3. Choose a repository or upload a ZIP archive
 
 The responsive **Scan configuration** panel supports two audit modes: **GitHub repository scan** and **Manual project upload**. Use the toggle button next to the collapse chevron at the top of the panel to switch between modes.
 
@@ -53,7 +80,7 @@ Click the mode toggle button (Upload icon) beside the collapse button in the Sca
 > [!NOTE]
 > Uploaded ZIP projects support full vulnerability inspection, metrics dashboards, and exportable PDF and Markdown security assessments. Autonomous GitHub PR creation is disabled for manual uploads; scanning a connected GitHub repository is required to create remediation PRs.
 
-## 3. Run a security scan
+## 4. Run a security scan
 
 The only scanner option currently shown is Semgrep.
 
@@ -71,7 +98,7 @@ The panel shows wall-clock elapsed time, progress percentage, and these stages. 
 
 The scan can be cancelled by changing repository state or leaving the component, but the backend process may already have reached a durable point. A successful result opens the **Audit Report** tab. A scan that exceeds the configured server deadline stops Semgrep and its child processes, shows the backend failure in the panel, preserves the last valid report, and does not save an empty replacement report.
 
-## 4. Read the results
+## 5. Read the results
 
 ### Dashboard
 
@@ -125,7 +152,7 @@ The Documentation tab allows you to read AuditAgent's official guides and refere
 - The side panel updates to list all available documentation files.
 - Selecting a document renders its beautifully formatted markdown content in the main viewing area.
 
-## 5. Inspect a finding
+## 6. Inspect a finding
 
 Select a finding to open the review drawer. It slides in from the right on larger screens and uses the full viewport on mobile. It shows:
 
@@ -139,7 +166,7 @@ Select a finding to open the review drawer. It slides in from the right on large
 
 For a `DETECTED` finding, choose **Analyze in isolated workspace**.
 
-## 6. Ask the security agent
+## 7. Ask the security agent
 
 Open **Ask AuditAgent** in the lower-right corner. The assistant opens as a floating panel on larger screens and a full-width bottom sheet on mobile.
 
@@ -156,7 +183,7 @@ Important: text such as "yes," "approve," or a model-generated tag cannot publis
 
 The chat shows unread message counts when closed and automatically scrolls to new messages. General chat messages are durable and are restored for the selected repository and branch. Press **Escape** to close an open chat panel or finding drawer.
 
-## 7. Let the remediation agent work
+## 8. Let the remediation agent work
 
 When analysis starts:
 
@@ -168,7 +195,7 @@ When analysis starts:
 
 No GitHub branch exists yet. If verification fails, the finding becomes `PATCH_FAILED`, the workspace is cleaned, and no PR is created.
 
-## 8. Review a verified fix
+## 9. Review a verified fix
 
 When the AI agent succeeds, the finding becomes `AWAITING_APPROVAL` (or transitions automatically to `PR_OPEN` depending on autonomy settings).
 
@@ -177,7 +204,7 @@ If manual approval is enabled, you can review the proposed diff in the finding d
 - **Approve**: Click "Approve & create PR" to merge the fix into a new branch and open a PR.
 - **Reject**: Click "Reject" to discard the fix. You can optionally provide a reason for the rejection (e.g., "Breaks formatting" or "Uses deprecated API"). This reason is securely stored in PostgreSQL and used as negative context by the Memory Review agent on subsequent attempts.
 
-## 9. Webhook synchronization
+## 10. Webhook synchronization
 
 Immediately before writing, AuditAgent rechecks:
 
@@ -198,7 +225,7 @@ It then creates or reuses:
 
 The drawer links to the open pull request. The finding becomes `PR_OPEN`, not `FIXED`.
 
-## 10. Wait for merge or closure
+## 11. Wait for merge or closure
 
 GitHub sends a signed pull-request webhook when the PR closes.
 
@@ -207,7 +234,7 @@ GitHub sends a signed pull-request webhook when the PR closes.
 
 When restoring a still-open run, AuditAgent also asks GitHub for the current PR state as a reconciliation fallback.
 
-## 11. Recover interrupted work
+## 12. Recover interrupted work
 
 The chat can show a recovered run.
 
@@ -217,13 +244,13 @@ The chat can show a recovered run.
 - A changed workspace becomes `CONFLICTED` and is not overwritten automatically.
 - Once publication or a remote push exists, discard is blocked; retry or manage the GitHub branch/PR.
 
-## 12. Forget data
+## 13. Forget data
 
 The chat header has two separate controls:
 
 - **Forget conversation** removes the selected thread and its run detail after safely discarding unpublished recoverable work. A confirmation dialog is shown.
 - **Forget repository remediation memory** removes approved memory for the selected repository and branch and rebuilds the search index. It does not delete the GitHub repository or pull requests.
 
-## 13. Sign out
+## 14. Sign out
 
 Choose the sign-out icon in the header. AuditAgent invalidates the server session and expires the browser cookie. This does not revoke GitHub authorization at GitHub; that is managed through GitHub account/app settings.

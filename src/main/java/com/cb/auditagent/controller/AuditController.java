@@ -144,6 +144,6 @@ public class AuditController {
                 .orElse("github:" + request.getRepositoryId() + ":" + request.getBranch());
         var findings = database.getReport(reportKey).map(com.cb.auditagent.domain.Report::getFindings)
                 .orElseGet(java.util.List::of);
-        return llm.chatStream(request.getThreadId(), reportKey, request.getMessage(), findings);
+        return llm.chatStream(user.userId(), request.getThreadId(), reportKey, request.getMessage(), findings);
     }
 }

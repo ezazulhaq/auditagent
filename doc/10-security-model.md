@@ -46,6 +46,10 @@ AuditAgent must:
 - Installation tokens remain in memory.
 - Tokens are not placed in clone URLs; JGit credentials provider supplies them.
 - App private key can be supplied as PEM text, escaped newlines, or a server-side file path. PKCS#1 is wrapped for PKCS#8 parsing.
+- User-provided LLM API keys (BYOK) are encrypted at rest using AES-GCM (12-byte random IV) via `TokenCipher`. Plaintext keys are never stored in database columns, written to disk, or output in application logs.
+- API responses never return plaintext user API keys; keys are masked (e.g. `sk-or-••••••••3a8f`) via `UserLlmConfigDto`.
+- User model client instances (`ChatModel` and `OpenAiChatModel`) are cached in memory per user by `UserLlmClientFactory` and strictly isolated by user ID; cached instances are evicted immediately when user configuration is updated or sessions expire.
+- Process environments (`ManagedProcessEnvironment`) sanitize and strip user API keys and LLM provider credentials so they are never leaked into scanner, compilation, test, or tool subprocesses.
 - The tracked profile example contains empty secret defaults. Populated `application-local.yaml`, `application-dev.yaml`, and `application-prod.yaml` files are ignored; production should still inject secrets from its secret manager rather than depend on a repository-adjacent file.
 - Process environments remove provider credentials, generic token/secret/password/key variables, and common injection variables.
 - AOP logging records no argument values.

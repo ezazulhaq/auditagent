@@ -291,5 +291,15 @@
     "name": "auditagent.llm.openai.supervisor-model-name",
     "type": "java.lang.String",
     "description": "A description for 'auditagent.llm.openai.supervisor-model-name'"
+  },
+  {
+    "name": "auditagent.llm.mode",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.llm.mode'"
+  },
+  {
+    "name": "auditagent.llm.user-keys-required",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.llm.user-keys-required'"
   }
 ]}

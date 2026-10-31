@@ -27,6 +27,7 @@
 | `GitHubAppConfig.java` | GitHub endpoints, secrets, cookies, workspace settings. |
 | `Jackson2Config.java` | Jackson compatibility bean. |
 | `LangChainModelConfig.java` | Tool-calling OpenAI model. |
+| `LlmProperties.java` | Binds `auditagent.llm` properties (user keys requirement flag, execution mode, provider, and fallback OpenAI settings). |
 | `MemoryConfig.java` | Retention, context, retrieval, content limits, and context summarization settings. |
 | `ScannerConfig.java` | Validated Semgrep timeout and heartbeat settings. |
 | `WebFluxConfig.java` | WebFlux multipart and codec in-memory size configuration. |
@@ -35,7 +36,7 @@
 
 | File | Purpose |
 |---|---|
-| `ApiExceptionHandler.java` | Safe 400/403/409 JSON errors. |
+| `ApiExceptionHandler.java` | Safe 400/403/409/422 JSON errors. |
 | `AuditController.java` | Scan, analyze, report, skill, and chat APIs. |
 | `AuthController.java` | Session, OAuth start/callback, logout. |
 | `GitHubRepositoryController.java` | Installed repositories, branches, and tracked GitHub issues. |
@@ -45,6 +46,7 @@
 | `NotificationController.java` | User notification retrieval, creation, and mark-read endpoints. |
 | `ProjectUploadController.java` | Multipart upload scan, upload report restore, and export APIs. |
 | `RunPublicationController.java` | Preview, structured decision, publication retry. |
+| `UserLlmConfigController.java` | User Bring-Your-Own-Key LLM configuration endpoints (fetch, save, live test). |
 
 ### `dto`
 
@@ -57,6 +59,10 @@
 | `MemoryThreadRequest.java` | optional repository ID and branch. |
 | `RunDecisionRequest.java` | finding ID, publication digest. |
 | `ScanRequest.java` | repository ID, branch, scanner, force flag, thread ID. |
+| `TestConnectionRequest.java` | provider, API key, base URL, model name. |
+| `TestConnectionResponse.java` | success flag, message, tested model. |
+| `UserLlmConfigDto.java` | user ID, provider, base URL, model names, masked API key, timestamps. |
+| `UserLlmConfigRequest.java` | provider, API key, base URL, model name, supervisor model name. |
 
 ### `domain`
 
@@ -86,6 +92,19 @@
 | `TrackedIssueRecord.java` | Durable tracked GitHub issue record. |
 | `Vulnerability.java` | Finding evidence, identity, fix, and status. |
 | `VulnerabilityStatus.java` | Finding lifecycle enum. |
+
+### `entity`
+
+| File | Purpose |
+|---|---|
+| `AppUser.java` | JPA aggregate root for authenticated users. |
+| `UserLlmConfig.java` | JPA entity mapping `user_llm_configs` table with encrypted API keys and model preferences. |
+
+### `repository`
+
+| File | Purpose |
+|---|---|
+| `UserLlmConfigRepository.java` | Spring Data JPA repository for `UserLlmConfig`. |
 
 ### `graph`
 
@@ -138,6 +157,9 @@
 | `SkillManagerService.java` | Dynamic skill discovery/parsing. |
 | `SourceControlProvider.java` | Repository/workspace abstraction. |
 | `TokenCipher.java` | AES-GCM OAuth encryption. |
+| `UserLlmClientFactory.java` | Factory dynamically instantiating and caching user-scoped `ChatModel` (Spring AI) and `OpenAiChatModel` (LangChain4j) clients. |
+| `UserLlmConfigService.java` | Service managing user LLM configurations, AES-GCM encryption, key masking, and connectivity testing. |
+| `UserLlmConfigurationException.java` | Domain exception thrown when required user LLM configuration is missing (HTTP 422 `LLM_KEY_REQUIRED`). |
 | `ZipArchiveExtractor.java` | Safe archive validation, extraction, ZipSlip protection, and directory cleanup. |
 
 ### `service/data`
@@ -180,6 +202,9 @@
 | `src/features/dashboard/DashboardView.jsx` | Scan summary/empty state. |
 | `src/features/findings/FindingsView.jsx` | Responsive severity-prioritized inventory, count-aware filters, search/reset controls, and finding selection. |
 | `src/features/issues/IssuesView.jsx` | Tracked GitHub issues view displaying webhook/label-triggered issues, remediation status, finding links, PR links, and search/filtering. |
+| `src/features/profile/LlmConfigForm.jsx` | Reusable form for configuring LLM provider (OpenRouter/OpenAI-compatible), API key, models, and live connection testing. |
+| `src/features/profile/LlmOnboardingModal.jsx` | Unclosable onboarding modal displayed on login when user credentials are required and unconfigured. |
+| `src/features/profile/UserProfileModal.jsx` | User profile modal accessible from header menu for inspecting identity and updating LLM credentials. |
 | `src/features/remediation/FindingDrawer.jsx` | Evidence, diff, decisions, retry, PR state. |
 | `src/features/remediation/useRemediationController.js` | Run/publication browser state. |
 | `src/features/report/ReportView.jsx` | Authenticated PDF viewer plus PDF/Markdown downloads, loading, retry, and Blob URL cleanup. |
@@ -228,17 +253,17 @@
 | `scripts/install-git-hooks.ps1`                 | Enables versioned hooks for PowerShell/Windows users. |
 | `scripts/install-git-hooks.sh`                  | Enables versioned hooks and executable bit on Unix-like systems. |
 | `.devcontainer/devcontainer.json`               | Temurin Java 21, Node.js 24 & Python 3.12 development container. |
-| `release_notes/*.md`                            | Versioned release notes tracking product, tooling, and infrastructure updates (v2.0.0, v2.0.1, v2.1.0, v2.1.1, v2.2.0, v2.2.1). |
+| `release_notes/*.md`                            | Versioned release notes tracking product, tooling, and infrastructure updates (v2.0.0, v2.0.1, v2.1.0, v2.1.1, v2.2.0, v2.2.1, v2.3.0). |
 
 ## Test file map
 
 ### Backend
 
-`AuditagentApplicationTests`, `ApiSecurityFilterTest`, `AuditControllerReportExportTest`, `GitHubWebhookControllerTest`, `GitHubRepositoryControllerTest`, `IssueLifecycleServiceTest`, `AgentToolServiceSecurityTest`, `ConversationMemoryServiceTest`, `DatabaseMemoryServiceTest`, `GitHubAuthServiceTest`, `GitHubProviderIntegrationTest`, `LlmServiceAgentLoopTest`, `ManagedProcessRunnerTest`, `ProjectUploadControllerTest`, `ProjectUploadServiceTest`, `RemediationWorkflowPreparationTest`, `ScanOrchestratorReportExportTest`, `ScanOrchestratorServiceTest`, `ReporterServiceTest`, `ScannerServiceTest`, `TokenCipherTest`, and `ZipArchiveExtractorTest`.
+`AuditagentApplicationTests`, `ApiSecurityFilterTest`, `AuditControllerReportExportTest`, `GitHubWebhookControllerTest`, `GitHubRepositoryControllerTest`, `IssueLifecycleServiceTest`, `AgentToolServiceSecurityTest`, `ConversationMemoryServiceTest`, `DatabaseMemoryServiceTest`, `GitHubAuthServiceTest`, `GitHubProviderIntegrationTest`, `LlmServiceAgentLoopTest`, `ManagedProcessRunnerTest`, `ProjectUploadControllerTest`, `ProjectUploadServiceTest`, `RemediationWorkflowPreparationTest`, `ScanOrchestratorReportExportTest`, `ScanOrchestratorServiceTest`, `ReporterServiceTest`, `ScannerServiceTest`, `TokenCipherTest`, `UserLlmClientFactoryTest`, `UserLlmConfigControllerTest`, `UserLlmConfigServiceTest`, and `ZipArchiveExtractorTest`.
 
 ### Frontend
 
-Tests cover App, API, SSE, scan state/panel/wall-clock timing, thread restore, remediation controller/drawer, findings, tracked issues, and report.
+Tests cover App, API, SSE, scan state/panel/wall-clock timing, thread restore, remediation controller/drawer, findings, tracked issues, report, and user LLM configuration dialogs (`LlmConfigForm.test.jsx`, `LlmOnboardingModal.test.jsx`, `UserProfileModal.test.jsx`).
 
 ## Rule inventory
 
@@ -269,11 +294,11 @@ Get-ChildItem rules -Directory | ForEach-Object {
 
 **Agent run** — one durable attempt to remediate one finding.
 
-**Publication digest** — SHA-256 binding of run/finding/base/branch/file hashes/verification evidence.
+**BM25** — lexical ranking algorithm used by DuckDB FTS.
+
+**BYOK (Bring Your Own Key)** — architecture where each user provides their own LLM API credentials and selects their preferred provider/model, stored encrypted at rest via AES-GCM and scoped to their server identity.
 
 **Base SHA** — exact Git commit scanned and used to prepare a remediation.
-
-**BM25** — lexical ranking algorithm used by DuckDB FTS.
 
 **CSRF** — attack that causes a signed-in browser to send an unwanted mutation; prevented with a session-bound header token.
 
@@ -297,9 +322,13 @@ Get-ChildItem rules -Directory | ForEach-Object {
 
 **OAuth user token** — GitHub credential used for repository discovery and user permission checks.
 
+**OpenRouter** — unified LLM gateway providing standardized API access to diverse frontier and open-weight models, configured as the default provider for AuditAgent.
+
 **Positive repository memory** — merged, approved remediation pattern eligible for future prompt retrieval.
 
 **PR_OPEN** — remediation was published, but merge is not yet confirmed.
+
+**Publication digest** — SHA-256 binding of run/finding/base/branch/file hashes/verification evidence.
 
 **Recovery checkpoint** — persisted phase/status/iteration/Git hashes enabling safe retry or resume.
 

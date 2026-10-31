@@ -16,6 +16,9 @@ const errorFor = async (response) => {
   if (message && typeof message === 'string') {
     return new Error(message);
   }
+  if (devDetail && typeof devDetail === 'string' && devDetail.trim()) {
+    return new Error(devDetail);
+  }
 
   // Friendly fallbacks based on status code
   switch (response.status) {
@@ -319,6 +322,34 @@ export function createAuditApi({ baseUrl = API_BASE_URL, fetchImpl = fetch } = {
       const response = await request(`/docs/${encodeURIComponent(filename)}`, { signal });
       if (!response.ok) throw await errorFor(response);
       return response.text();
+    },
+
+    async getUserLlmConfig(signal) {
+      const response = await request('/user/llm-config', { signal });
+      if (!response.ok) throw await errorFor(response);
+      return response.json();
+    },
+
+    async saveUserLlmConfig(payload, signal) {
+      const response = await request('/user/llm-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal,
+      });
+      if (!response.ok) throw await errorFor(response);
+      return response.json();
+    },
+
+    async testUserLlmConfig(payload, signal) {
+      const response = await request('/user/llm-config/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal,
+      });
+      if (!response.ok) throw await errorFor(response);
+      return response.json();
     },
   };
 }

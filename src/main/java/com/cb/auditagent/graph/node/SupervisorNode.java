@@ -31,16 +31,19 @@ public class SupervisorNode implements NodeAction<MultiAgentState> {
     private final ConversationMemoryService memoryService;
     private final AgentConfig config;
     private final LlmService llmService;
+    private final com.cb.auditagent.service.UserLlmClientFactory clientFactory;
 
     public SupervisorNode(
             ChatModel chatModel,
             ConversationMemoryService memoryService,
             AgentConfig config,
-            @Lazy LlmService llmService) {
+            @Lazy LlmService llmService,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) @Lazy com.cb.auditagent.service.UserLlmClientFactory clientFactory) {
         this.chatModel = chatModel;
         this.memoryService = memoryService;
         this.config = config;
         this.llmService = llmService;
+        this.clientFactory = clientFactory;
     }
 
     @Override
@@ -113,11 +116,13 @@ public class SupervisorNode implements NodeAction<MultiAgentState> {
                 .messages(systemMessage, userMessage)
                 .build();
 
-        ChatResponse response = chatModel.chat(request);
+        ChatModel activeModel = clientFactory != null ? clientFactory.getSupervisorModel(state.getUserId()) : this.chatModel;
+        String modelName = clientFactory != null ? clientFactory.getSupervisorModelName(state.getUserId()) : llmService.getAgentModelName();
+        ChatResponse response = activeModel.chat(request);
 
         if (response.tokenUsage() != null && response.tokenUsage().totalTokenCount() != null) {
             String vulnId = state.getVulnerability() != null ? state.getVulnerability().getId() : null;
-            llmService.recordTokens(llmService.getAgentModelName(), response.tokenUsage().totalTokenCount(),
+            llmService.recordTokens(modelName, response.tokenUsage().totalTokenCount(),
                     state.getThreadId(), state.getRunId(), vulnId);
         }
 

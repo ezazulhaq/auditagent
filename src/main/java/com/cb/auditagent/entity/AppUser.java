@@ -43,6 +43,9 @@ public class AppUser {
     @OneToOne(mappedBy = "user", fetch = FetchType.LAZY)
     private GithubAuthorization authorization;
 
+    @OneToOne(mappedBy = "user", fetch = FetchType.LAZY)
+    private UserLlmConfig llmConfig;
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
     private java.util.List<UserNotification> notifications = new java.util.ArrayList<>();

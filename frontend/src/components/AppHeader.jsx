@@ -1,8 +1,8 @@
-import { Activity, LogOut, Moon, ShieldCheck, Sun, PlayCircle, BookOpen, ChevronDown, Menu, X } from 'lucide-react';
+import { Activity, LogOut, Moon, ShieldCheck, Sun, PlayCircle, BookOpen, ChevronDown, Menu, X, KeyRound } from 'lucide-react';
 import { NotificationDropdown } from './NotificationDropdown';
 import { useState, useRef, useEffect } from 'react';
 
-export function AppHeader({ metadata, counts, user, onLogout, findings = [], onShowFindings, onShowObservability, theme = 'dark', onToggleTheme, onTourClick, onShowDocs, onToggleSidebar, isSidebarOpen, api }) {
+export function AppHeader({ metadata, counts, user, onLogout, findings = [], onShowFindings, onShowObservability, theme = 'dark', onToggleTheme, onTourClick, onShowDocs, onToggleSidebar, isSidebarOpen, onOpenProfileSettings, api }) {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = useRef(null);
 
@@ -102,6 +102,15 @@ export function AppHeader({ metadata, counts, user, onLogout, findings = [], onS
                   </div>
 
                   <div className="space-y-0.5">
+                    <button
+                      type="button"
+                      onClick={() => { setIsUserMenuOpen(false); onOpenProfileSettings && onOpenProfileSettings(); }}
+                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-medium text-[var(--text-secondary)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
+                    >
+                      <KeyRound size={15} className="text-amber-500 dark:text-amber-400 shrink-0" />
+                      <span>Profile & LLM Keys</span>
+                    </button>
+
                     <button
                       type="button"
                       onClick={() => { setIsUserMenuOpen(false); onShowDocs(); }}
