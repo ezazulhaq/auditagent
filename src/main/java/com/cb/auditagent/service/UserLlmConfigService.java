@@ -7,8 +7,10 @@ import com.cb.auditagent.dto.UserLlmConfigDto;
 import com.cb.auditagent.dto.UserLlmConfigRequest;
 import com.cb.auditagent.entity.UserLlmConfig;
 import com.cb.auditagent.repository.UserLlmConfigRepository;
+import dev.langchain4j.http.client.okhttp.OkHttpClientBuilder;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
+import okhttp3.OkHttpClient.Builder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Lazy;
@@ -18,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class UserLlmConfigService {
@@ -207,6 +210,15 @@ public class UserLlmConfigService {
 
         try {
             logger.info("Testing connection to {} with model {}", baseUrl, modelName);
+            Builder okBuilder = new Builder()
+                    .readTimeout(15, TimeUnit.SECONDS)
+                    .connectTimeout(15, TimeUnit.SECONDS)
+                    .writeTimeout(15, TimeUnit.SECONDS)
+                    .callTimeout(15, TimeUnit.SECONDS);
+
+            OkHttpClientBuilder httpClientBuilder = new OkHttpClientBuilder()
+                    .okHttpClientBuilder(okBuilder);
+
             ChatModel testModel = OpenAiChatModel.builder()
                     .baseUrl(baseUrl)
                     .apiKey(apiKey)
@@ -214,6 +226,7 @@ public class UserLlmConfigService {
                     .maxTokens(5)
                     .timeout(Duration.ofSeconds(15))
                     .maxRetries(1)
+                    .httpClientBuilder(httpClientBuilder)
                     .build();
 
             testModel.chat("ping");
