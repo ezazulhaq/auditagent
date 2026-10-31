@@ -4,12 +4,18 @@
 
 Change the smallest coherent boundary, preserve durable/security invariants, add tests, and update documentation. Do not use historical local-path or chat-publication code as the basis for new shared behavior.
 
-The versioned `.githooks/pre-commit` guard requires a staged `doc/*.md` update when implementation, configuration, rules, skills, build, or runtime files are staged. Enable it after cloning with `scripts/install-git-hooks.ps1` or `scripts/install-git-hooks.sh`. The hook checks presence only; the author remains responsible for updating every affected guide.
+The versioned `.githooks/pre-commit` guard enforces two automated checks:
+1. **Protected Branch Guard**: Prevents direct commits to `dev`, `master`, and `main`.
+2. **Documentation Guard**: Requires a staged `doc/*.md` update when implementation, configuration, rules, skills, scripts, build, or runtime files are staged.
+
+Enable hooks after cloning with `scripts/install-git-hooks.ps1` or `scripts/install-git-hooks.sh`. The hook checks presence only; the author remains responsible for updating every affected guide.
 
 ## Git workflow and Pull Request rules
 
+- **Mandatory "Step 0" Pre-Flight Reflex**: Before creating, editing, or deleting any workspace files, inspect the active branch (`git branch --show-current`). If on `dev`, `master`, or `main`, stop immediately and check out an isolated feature branch off `dev` (`git checkout -b <type>/<kebab-name>`). Never author or stage changes on protected branches.
 - **Branch Isolation**: Never modify or commit code directly to `dev` (or `master`/`main`). All changes must be developed in dedicated feature branches (`feat/`, `fix/`, `refactor/`, `chore/`) branching from `dev`.
-- **Target `dev` ONLY**: Any Pull Request must strictly target and be merged into the `dev` branch. Never target or merge directly into `master` or `main`, feature branches, or any other branch.
+- **Target `dev` ONLY**: Any Pull Request must strictly target and be merged into the `dev` branch (`gh pr create --base dev`). Never target or merge directly into `master` or `main`, feature branches, or any other branch.
+- **Push & Commit Consent**: Always present proposed changes and test results to the user and obtain explicit permission before executing `git commit` or `git push`.
 - **Base Flag & Merge**: Always specify `--base dev` when creating a PR. Verify the base branch before running `gh pr merge`.
 - **Tracking Branch Synchronization**: Parallel tracking branches (`master` or `main`) must only receive updates via fast-forward merge from `dev` after PR merge.
 

@@ -11,7 +11,9 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw 'Could not configure the repository hook path.'
     }
-    Write-Host 'AuditAgent Git hooks enabled from .githooks.'
+    Write-Host 'AuditAgent Git hooks enabled from .githooks:'
+    Write-Host '  1. Protected Branch Guard (dev, master, main)'
+    Write-Host '  2. Documentation Guard (doc/*.md)'
 } finally {
     Pop-Location
 }

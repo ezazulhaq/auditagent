@@ -58,7 +58,7 @@ matching ignored/mounted profile file or environment variables. A production art
 local profile file being present. Keep shared, non-secret defaults in the base file or tracked example; keep actual
 AWS and GitHub credentials in environment/secret management.
 
-Enable the versioned documentation pre-commit hook after cloning:
+Enable the versioned Git pre-commit guardrails after cloning:
 
 PowerShell:
 
@@ -72,7 +72,9 @@ Git Bash, Linux, or macOS:
 ./scripts/install-git-hooks.sh
 ```
 
-The hook blocks staged implementation/configuration/rule changes that have no staged documentation update. It does not generate documentation or determine which guides are affected.
+The pre-commit hook (`.githooks/pre-commit`) enforces two automated guardrails:
+1. **Protected Branch Guard**: Blocks direct commits to protected long-lived branches (`dev`, `master`, `main`). All work must be authored on isolated feature branches (`feat/*`, `fix/*`, `chore/*`, `refactor/*`) and submitted via Pull Requests targeting `dev`. (Emergency override: `AUDITAGENT_ALLOW_PROTECTED_COMMIT=1 git commit ...`).
+2. **Documentation Guard**: Blocks commits containing staged implementation, configuration, rule, skill, script, or build changes when no Markdown file under `doc/` is staged. (Documentation-neutral override: `AUDITAGENT_SKIP_DOCS_CHECK=1 git commit ...`). It does not generate documentation or determine which guides are affected.
 
 ## GitHub App setup
 

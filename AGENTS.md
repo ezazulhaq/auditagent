@@ -12,6 +12,17 @@ This document provides comprehensive context for AI assistants working on the **
 - Before completing a change, validate local documentation links and run `.githooks/pre-commit` (or allow the installed Git hook to run). The hook is an enforcement check; it does not replace thoughtful documentation updates.
 - Use `AUDITAGENT_SKIP_DOCS_CHECK=1` only for a demonstrably documentation-neutral staged change, and state the reason in the change handoff.
 
+## Mandatory "Step 0" Pre-Flight Reflex & Branch Guardrails (Strict & Non-Negotiable)
+
+- **Mandatory "Step 0" Pre-Flight Reflex**: Before creating, editing, deleting, or staging ANY workspace files, and before running implementation tasks, the AI assistant MUST inspect the active branch (`git branch --show-current`).
+- **Protected Base & Production Branches**: The branches `dev`, `master`, and `main` are strictly protected. Never write code, stage files, or commit directly on these branches.
+- **Immediate Branch Isolation**: If currently on `dev`, `master`, or `main`, STOP IMMEDIATELY. Determine the change type (`feat/`, `fix/`, `chore/`, `refactor/`), create and check out an isolated feature branch off `dev` (`git checkout -b <branch-name>`), and explicitly announce this to the user before making any workspace changes.
+- **Automated Git Pre-Commit Hook**: `.githooks/pre-commit` enforces an automated two-tier guardrail:
+  1. *Protected Branch Guard*: Hard-blocks any direct commit attempt to `dev`, `master`, or `main` (exit code 1).
+  2. *Documentation Guard*: Hard-blocks any commit modifying implementation, configuration, rules, skills, scripts, or build files without an accompanying staged `doc/*.md` update.
+- **Commit & Push Policy**: Always present proposed changes, diffs, and test results to the user. Never run `git commit` or `git push` without receiving explicit user confirmation.
+- **Strict Pull Request Target**: All Pull Requests MUST target `--base dev`. Never open PRs directly against `master` or `main`.
+
 ---
 
 ## 🎯 Project Overview
@@ -469,9 +480,12 @@ if (fixMatch) {
 ## 🛠️ Development Guidelines for AI Assistants
 
 ### Git Branching and Pull Request Rules
+- **Mandatory "Step 0" Pre-Flight Reflex**: Before touching code or executing workspace edits, always verify the active branch with `git branch --show-current`. If on `dev`, `master`, or `main`, stop immediately and check out an isolated feature branch (`git checkout -b <type>/<name>`).
+- **Automated Pre-Commit Guardrail**: Direct commits to `dev`, `master`, or `main` are rejected by `.githooks/pre-commit` (exit code 1). All changes must be authored and committed on isolated feature branches.
 - **Strict `dev` Target**: Any Pull Request (PR) must ONLY target and be merged into the `dev` branch.
 - **No Direct PRs to Secondary / Production Branches**: Never open a PR against or merge a PR directly into `master`, `main`, feature branches, or any other branch.
 - **Base Flag Verification**: When opening a PR (`gh pr create`), the base flag must strictly be `--base dev`.
+- **Explicit User Confirmation**: Never execute `git commit` or `git push` autonomously. Always present changes and obtain explicit user permission before committing and pushing.
 - **Merge Verification**: Before executing `gh pr merge`, always verify that the PR base branch is `dev`.
 - **Tracking Branch Synchronization**: Parallel tracking branches (such as `master` or `main`) must only receive updates via fast-forward merge from `dev` after the PR has been merged into `dev`.
 

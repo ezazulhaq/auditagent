@@ -230,10 +230,10 @@
 | .auditagent/skills/db-manager/SKILL.md | Discoverable historical database/reporting playbook; its named tools are not registered in the current runtime. |
 | .auditagent/skills/github-pr-manager/SKILL.md | Discoverable historical PR playbook; current publication instead uses automated publication and managed services. |
 | `.agents/skills/doc-navigator/SKILL.md` | Developer assistant skill for navigating and searching `@doc`. |
-| `.agents/skills/git-feature-workflow/SKILL.md` | Developer assistant skill for branch isolation and grouped commits. |
+| `.agents/skills/git-feature-workflow/SKILL.md` | Developer assistant skill for Mandatory Step 0 Pre-Flight Reflex, branch isolation, grouped commits, and release workflow. |
 | `.agents/skills/systematic-debugging/SKILL.md` | Developer assistant skill for structured root-cause debugging. |
 | `.agents/skills/frontend-design/SKILL.md` | Developer assistant skill for distinctive UI design. |
-| `.agents/rules/git-commit-policy.md` | Developer workspace rule: user approval required prior to git commit. |
+| `.agents/rules/git-commit-policy.md` | Developer workspace rule: Mandatory Step 0 Pre-Flight Reflex, branch protection, and explicit user approval prior to git commit and push. |
 | `.agents/rules/pr-merge-policy.md` | Developer workspace rule: Pull Requests must strictly target and merge into dev only. |
 | `pom.xml` | Java dependencies, versions, build plugin. |
 | `frontend/package.json` | Frontend dependencies and scripts. |
@@ -249,9 +249,9 @@
 | `run-dev.sh` | parallel development startup/logs. |
 | `run.sh` | frontend build then backend startup. |
 
-| `.githooks/pre-commit`                          | Blocks relevant staged changes when no `doc/*.md` update is staged. |
-| `scripts/install-git-hooks.ps1`                 | Enables versioned hooks for PowerShell/Windows users. |
-| `scripts/install-git-hooks.sh`                  | Enables versioned hooks and executable bit on Unix-like systems. |
+| `.githooks/pre-commit`                          | Automated pre-commit hook enforcing Protected Branch Guard ('dev', 'master', 'main') and Documentation Guard ('doc/*.md'). |
+| `scripts/install-git-hooks.ps1`                 | Configures repository hooks path to `.githooks` for PowerShell/Windows users. |
+| `scripts/install-git-hooks.sh`                  | Configures repository hooks path to `.githooks` and executable bit on Unix-like systems. |
 | `.devcontainer/devcontainer.json`               | Temurin Java 21, Node.js 24 & Python 3.12 development container. |
 | `release_notes/*.md`                            | Versioned release notes tracking product, tooling, and infrastructure updates (v2.0.0, v2.0.1, v2.1.0, v2.1.1, v2.2.0, v2.2.1, v2.3.0, v2.3.1). |
 
