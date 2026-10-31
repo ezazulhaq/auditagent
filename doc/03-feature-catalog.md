@@ -23,6 +23,19 @@ This catalog connects each feature to its user/business outcome and main impleme
 | Secure cookie auto-enable | HTTPS callback or frontend URLs force Secure cookies. | `GitHubAppConfig.useSecureCookies()` |
 | Logout | Session row and cookie are removed. | `POST /api/auth/logout` |
 
+## User LLM credentials and inference configuration (BYOK)
+
+| Feature | User or business behavior | Implementation |
+|---|---|---|
+| User-provided LLM credentials (BYOK) | Each authenticated user supplies their own API key and selects their model, preventing centralized key exhaustion and supporting custom LLM endpoints. | `UserLlmConfigService`, `UserLlmConfigController`, `user_llm_configs` |
+| OpenRouter default provider | OpenRouter is the default provider, giving users access to frontier models (Claude 3.5 Sonnet, GPT-4o, Gemini 2.5 Flash, GLM 5.3 Flash, DeepSeek Chat) alongside custom OpenAI-compatible endpoints. | `LlmProperties`, `UserLlmConfig`, `LlmConfigForm.jsx` |
+| Live connection testing | Users can test their API key, endpoint, and model connectivity in real time before persisting credentials. | `POST /api/user/llm-config/test`, `UserLlmConfigService.testConnection()`, LangChain4j ephemeral ping |
+| Mandatory onboarding gate | First-time authenticated users without saved LLM credentials are automatically presented with an unclosable onboarding dialog before accessing AI features. | `LlmOnboardingModal.jsx`, `GET /api/auth/session` (`llmConfigured`, `userKeysRequired`), `App.jsx` |
+| User Profile & LLM Settings modal | Users can view their masked API key, update credentials, change models, or switch between OpenRouter and OpenAI-compatible providers at any time. | `UserProfileModal.jsx`, `LlmConfigForm.jsx`, `AppHeader.jsx` user dropdown |
+| AES-GCM credential encryption | User API keys are stored encrypted at rest using AES-GCM authenticated encryption and never returned unmasked to the frontend or written to logs. | `TokenCipher`, `user_llm_configs.api_key_ciphertext`, `UserLlmConfigDto` masking |
+| User-scoped dynamic client caching | Caches ephemeral `ChatModel` instances per user, automatically evicting and recreating instances upon configuration updates or session termination. | `UserLlmClientFactory`, concurrent cache |
+| Strict key requirement enforcement | When `auditagent.llm.user-keys-required` is active, chat and multi-agent remediation attempts without configured credentials fail fast with structured 422 error codes and prompt the user to configure keys. | `UserLlmConfigurationException`, `ApiExceptionHandler`, `RemediationWorkflowService`, `LlmService` |
+
 ## Scanning and findings
 
 | Feature | Behavior | Implementation |

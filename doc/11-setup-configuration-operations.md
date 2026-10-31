@@ -342,16 +342,18 @@ Semgrep also requires a short, writable JVM OS-temp root (`java.io.tmpdir`), esp
 | Max uncompressed size | 250MB | Cumulative uncompressed bytes limit to guard against zip bomb attacks. |
 | Max entry count | 10,000 | Maximum number of files permitted within an uploaded archive. |
 
-### Agent
+### Agent and LLM Provider Configuration
 
 | Property | Default | Meaning |
 |---|---:|---|
 | `auditagent.agent.max-iterations` | 15 | Model/tool rounds. |
 | `auditagent.agent.batch-concurrency` | 2 | Maximum concurrent remediation tasks executed in batch analysis. |
-| `auditagent.llm.provider` | openai-compatible | Configures the LLM provider (e.g. OpenRouter/Gemini or direct OpenAI). |
-| `auditagent.llm.openai.base-url` | empty | API Base URL for OpenAI-compatible endpoints. |
-| `auditagent.llm.openai.api-key` | empty | API key for the OpenAI-compatible endpoint. |
-| `auditagent.llm.openai.model-name` | empty | Model name (e.g. `anthropic/claude-3.5-sonnet`). |
+| `auditagent.llm.user-keys-required` | `true` | When true (default), authenticated users must supply their own LLM API key and model (BYOK). Chat and multi-agent remediation fail fast with HTTP 422 (`LLM_KEY_REQUIRED`) if not configured. Controlled via `AUDITAGENT_LLM_USER_KEYS_REQUIRED`. |
+| `auditagent.llm.mode` | `user` | Execution mode (`user` for user-provided credentials, `system` for global system credentials). |
+| `auditagent.llm.provider` | `openrouter` | Default LLM provider (`openrouter` or `openai-compatible`). |
+| `auditagent.llm.openai.base-url` | empty | Fallback system API Base URL when `user-keys-required` is disabled. |
+| `auditagent.llm.openai.api-key` | empty | Fallback system API key when `user-keys-required` is disabled. |
+| `auditagent.llm.openai.model-name` | `gpt-4o` | Fallback system model name when `user-keys-required` is disabled. |
 | `compile-timeout-seconds` | 120 | Build and target-rescan process timeout. |
 | `test-timeout-seconds` | 180 | Test timeout. |
 | `backup-dir` | `.auditagent/backups` | Workspace-relative backups. |

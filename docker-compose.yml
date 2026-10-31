@@ -39,6 +39,8 @@ services:
       SPRING_AI_OPENAI_CHAT_MODEL: ${PROVIDER_MODEL:-anthropic/claude-3.5-sonnet}
 
       # Supervisor Model for LLM Agentic Remediation Loop
+      AUDITAGENT_LLM_MODE: ${AUDITAGENT_LLM_MODE:-user}
+      AUDITAGENT_LLM_USER_KEYS_REQUIRED: ${AUDITAGENT_LLM_USER_KEYS_REQUIRED:-true}
       AUDITAGENT_LLM_PROVIDER: ${AUDITAGENT_LLM_PROVIDER:-openai-compatible}
       AUDITAGENT_LLM_OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       AUDITAGENT_LLM_OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://openrouter.ai/api/v1}
