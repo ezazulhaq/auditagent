@@ -36,6 +36,25 @@ describe('filterFindings', () => {
 
     expect(filterFindings([incompleteFinding], { query: 'detected', severity: 'ALL', status: 'DETECTED' })).toEqual([incompleteFinding]);
   });
+
+  it('preserves FIXED status without being overridden by runs map', () => {
+    const fixedFinding = { id: 'FIXED-1', severity: 'HIGH', status: 'FIXED', vulnType: 'Injection', filePath: 'src/App.java' };
+    const runs = { 'FIXED-1': { status: 'PR_OPEN' } };
+
+    const resultFixed = filterFindings([fixedFinding], { query: '', severity: 'ALL', status: 'FIXED', runs });
+    expect(resultFixed).toEqual([fixedFinding]);
+
+    const resultPrOpen = filterFindings([fixedFinding], { query: '', severity: 'ALL', status: 'PR_OPEN', runs });
+    expect(resultPrOpen).toEqual([]);
+  });
+
+  it('respects active run status for non-terminal findings when filtering by status', () => {
+    const finding = { id: 'OPEN-1', severity: 'HIGH', status: 'DETECTED', vulnType: 'Injection', filePath: 'src/App.java' };
+    const runs = { 'OPEN-1': { status: 'PR_OPEN' } };
+
+    const resultPrOpen = filterFindings([finding], { query: '', severity: 'ALL', status: 'PR_OPEN', runs });
+    expect(resultPrOpen).toEqual([finding]);
+  });
 });
 
 describe('severityCounts', () => {

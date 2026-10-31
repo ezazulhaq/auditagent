@@ -94,5 +94,18 @@ describe('FindingsView', () => {
 
     expect(onBulkAction).toHaveBeenCalledWith('analyze', expect.arrayContaining(['VULN-HIGH01', 'VULN-HIGH02']));
   });
+
+  it('displays FIXED status even if runs map contains stale PR_OPEN run', () => {
+    const fixedFindings = [
+      { id: 'VULN-001', filePath: 'src/App.java', vulnType: 'SQL Injection', severity: 'HIGH', status: 'FIXED', lineNumber: 10 },
+    ];
+    const staleRuns = {
+      'VULN-001': { runId: 'run-1', status: 'PR_OPEN' }
+    };
+    render(<FindingsView findings={fixedFindings} runs={staleRuns} onSelect={vi.fn()} />);
+
+    expect(screen.getAllByText('Fixed').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Pr Open')).not.toBeInTheDocument();
+  });
 });
 

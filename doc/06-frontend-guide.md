@@ -161,9 +161,9 @@ Provide the in-app documentation viewing experience. `DocsSidebar` fetches the l
 
 Performs local sorting and filtering, then reports the original selected finding object to the parent so drawer and remediation actions remain unchanged. `filterFindings()` creates a new array, preserves scanner order within each severity, and applies the fixed priority `HIGH`, `MEDIUM`, `LOW`, `INFO`.
 
-Search is null-safe, case-insensitive, whitespace-trimmed, and uses AND semantics for multiple terms across ID, type, path, description, rule ID, language, severity, and status. Severity buttons show counts for all four levels. The lifecycle-status selector is derived from statuses present in the current audit and ordered through the remediation lifecycle, including intermediate and failure states. Search, severity, and status compose; Reset and the no-match recovery action clear all three.
+Search is null-safe, case-insensitive, whitespace-trimmed, and uses AND semantics for multiple terms across ID, type, path, description, rule ID, language, severity, and status. Severity buttons show counts for all four levels. The lifecycle-status selector is derived from statuses present in the current audit and ordered through the remediation lifecycle, including intermediate and failure states. Terminal finding statuses (`FIXED`, `IGNORED`) are strictly preserved and never masked by stale in-flight run states. Search, severity, and status compose; Reset and the no-match recovery action clear all three.
 
-The responsive inventory presents severity, type, ID, filename/line, directory, and lifecycle status with horizontally scrollable severity controls, stacked mobile filters, mobile card rows, and a desktop table layout. Result-count changes are announced through a polite live region.
+The responsive inventory presents severity, type, ID, filename/line, directory, and lifecycle status with horizontally scrollable severity controls, stacked mobile filters, mobile card rows, and a desktop table layout. Result-count changes are announced through a polite live region. A manual refresh button on the top right triggers a silent report and thread synchronization, ensuring that merged PR findings transition to `FIXED` immediately without redirecting away from the findings tab.
 
 It features checkbox multi-selection with header select-all and per-file grouping controls. When items are selected, a floating action bar allows triggering bulk "Analyze" (invoking `analyzeBatch`) and deferred "Ignore". During batch execution, the floating bar morphs into a live progress indicator (`Analyzing X of Y vulnerabilities...`) with a percentage bar, failed counter, and a "Cancel Batch" button that aborts the pipeline. Finding rows actively being remediated display an inline spinning `LoaderCircle` next to their status badge.
 
@@ -187,11 +187,11 @@ The most security-sensitive UI:
 
 - `UPLOAD_SCAN`: when the active finding originates from a manual ZIP upload (`isUploadScan = true`), autonomous PR creation is disabled and an informational banner is displayed explaining that PR remediation requires a connected GitHub repository.
 - `DETECTED`: allows analysis for connected GitHub repositories.
-- `PUBLISHED` / `PR_OPEN`: The drawer polls the backend API `/api/reports` every 5 seconds to catch GitHub webhook state changes (e.g., `FIXED` upon merge) without needing a page refresh.
+- `PUBLISHED` / `PR_OPEN`: The UI polls the backend API `/api/reports` and `/api/memory/threads/{threadId}` every 5 seconds to catch GitHub webhook state changes (e.g., `FIXED` upon merge) without needing a page refresh, or updates immediately via the FindingsView refresh control.
 - `AWAITING_APPROVAL`: Automatically overridden by autonomous PR creation, though structurally preserved for legacy compatibility.
 - `PUBLISH_FAILED`: shows retry.
 - `PR_OPEN`: links the PR and explains merge is pending.
-- `FIXED`: states that GitHub merge fixed it.
+- `FIXED`: states that GitHub merge fixed it, displaying the "Fix merged" step in the remediation timeline and the "Merged on GitHub · finding fixed" action banner.
 
 The approve button is not rendered until the preview is loaded. The drawer uses a full-screen mobile layout, focuses its close control when opened, and supports Escape dismissal without changing any decision callback or value.
 

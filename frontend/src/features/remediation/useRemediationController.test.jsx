@@ -130,4 +130,40 @@ describe('useRemediationController', () => {
     expect(api.saveNotification).toHaveBeenCalledWith('error', expect.stringContaining('VULN-002'));
     expect(api.saveNotification).toHaveBeenCalledWith('warning', expect.stringContaining('1 of 2 vulnerabilities analyzed (1 failed)'));
   });
+
+  it('synchronizes and clears runs map and updates selectedFinding when refreshReport returns FIXED status', async () => {
+    const api = {
+      getReport: vi.fn().mockResolvedValue({
+        findings: [
+          { id: 'VULN-000001', vulnType: 'SQL Injection', status: 'FIXED' }
+        ],
+        metadata: null
+      }),
+      saveNotification: vi.fn().mockResolvedValue({}),
+    };
+    const onReport = vi.fn();
+    const onMessage = vi.fn();
+    const { result } = renderHook(() => useRemediationController({
+      api, onMessage, onReport, onFindings: vi.fn(), toast: { error: vi.fn() }
+    }));
+
+    act(() => {
+      result.current.hydrate({
+        activeRuns: [{ runId: 'run-1', status: 'PR_OPEN', vulnerabilityId: 'VULN-000001' }],
+        publications: { 'run-1': { pullRequestNumber: 42, pullRequestUrl: 'https://github.com/org/repo/pull/42' } },
+        activeFinding: { id: 'VULN-000001', vulnType: 'SQL Injection', status: 'PR_OPEN' }
+      });
+    });
+
+    expect(result.current.runs['VULN-000001'].status).toBe('PR_OPEN');
+    expect(result.current.selectedFinding.status).toBe('PR_OPEN');
+
+    await act(() => result.current.refreshReport(42, 'main', true));
+
+    expect(result.current.runs['VULN-000001']).toBeUndefined();
+    expect(result.current.selectedFinding.status).toBe('FIXED');
+    expect(onReport).toHaveBeenCalledWith(expect.objectContaining({
+      findings: [expect.objectContaining({ id: 'VULN-000001', status: 'FIXED' })]
+    }), true);
+  });
 });

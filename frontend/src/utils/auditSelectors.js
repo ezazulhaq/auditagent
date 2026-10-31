@@ -6,7 +6,7 @@ export const FINDING_SEVERITY_ORDER = ['HIGH', 'MEDIUM', 'LOW', 'INFO'];
 const severityPriority = new Map(FINDING_SEVERITY_ORDER.map((severity, index) => [severity, index]));
 const normalizeValue = (value) => String(value ?? '').toLowerCase();
 
-export const filterFindings = (findings, { query, severity, status, activeRun }) => {
+export const filterFindings = (findings, { query, severity, status, activeRun, runs }) => {
   const queryTerms = normalizeValue(query).trim().split(/\s+/).filter(Boolean);
   const selectedSeverity = String(severity || 'ALL').toUpperCase();
   const selectedStatus = String(status || 'ALL').toUpperCase();
@@ -19,9 +19,11 @@ export const filterFindings = (findings, { query, severity, status, activeRun })
     .filter(({ finding }) => {
       const findingSeverity = String(finding.severity || 'INFO').toUpperCase();
       
-      const isActiveGroup = activeFilePath && finding.filePath === activeFilePath 
-                            && finding.status !== 'FIXED' && finding.status !== 'IGNORED';
-      const findingStatus = String((isActiveGroup ? activeRun.status : finding.status) || 'DETECTED').toUpperCase();
+      const isTerminal = finding.status === 'FIXED' || finding.status === 'IGNORED';
+      const runStatus = runs?.[finding.id]?.status;
+      const isActiveGroup = activeFilePath && finding.filePath === activeFilePath && !isTerminal;
+      const effectiveRunStatus = runStatus || (isActiveGroup ? activeRun?.status : null);
+      const findingStatus = String((isTerminal ? finding.status : (effectiveRunStatus || finding.status)) || 'DETECTED').toUpperCase();
 
       const searchableText = [
         finding.id,
