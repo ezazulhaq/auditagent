@@ -128,5 +128,16 @@ class UserLlmConfigServiceTest {
         assertNull(UserLlmConfigService.maskKey(null));
         assertNull(UserLlmConfigService.maskKey("   "));
     }
+
+    @Test
+    void testTestConnectionFailsGracefullyWithoutHttpClientConflict() {
+        TestConnectionRequest request = new TestConnectionRequest(
+                "OPENROUTER", "https://openrouter.ai/api/v1", "invalid-key", "anthropic/claude-3.5-sonnet"
+        );
+        TestConnectionResponse response = service.testConfig("user-1", request);
+        assertNotNull(response);
+        assertFalse(response.success());
+        assertFalse(response.message().contains("multiple HTTP clients have been found"));
+    }
 }
 
