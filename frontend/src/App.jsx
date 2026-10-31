@@ -93,6 +93,7 @@ export default function App({ api = auditApi }) {
     onFindings: handleFindings,
     repositoryId: config.repositoryId,
     branch: config.branch,
+    threadId,
     onOpenProfileSettings: () => setIsProfileModalOpen(true)
   });
   const { activeRun, runs, analyze, approvalPreview, awaitingApproval, decide, discard, hydrate, isAnalyzing,
@@ -144,11 +145,16 @@ export default function App({ api = auditApi }) {
 
   const refreshReport = useCallback(() => {
     if (config.repositoryId && config.branch && remediation.refreshReport) {
-      remediation.refreshReport(config.repositoryId, config.branch).catch(error => {
+      if (threadId && api.getThread) {
+        api.getThread(threadId).then(threadData => {
+          if (threadData) hydrate(threadData);
+        }).catch(() => {});
+      }
+      remediation.refreshReport(config.repositoryId, config.branch, true).catch(error => {
         if (!error?.message?.includes('404')) toast.error(`Report restore failed: ${error.message}`);
       });
     }
-  }, [config.repositoryId, config.branch, remediation, toast]);
+  }, [config.repositoryId, config.branch, remediation, toast, threadId, api, hydrate]);
 
   const loadIssues = useCallback((signal) => {
     if (!config.repositoryId || typeof api?.issues !== 'function') {

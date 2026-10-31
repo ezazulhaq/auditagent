@@ -42,4 +42,13 @@ describe('FindingDrawer structured approval', () => {
     expect(onLoadPreview).toHaveBeenCalledOnce();
     expect(screen.queryByRole('button', { name: /Approve & create PR/i })).not.toBeInTheDocument();
   });
+
+  it('displays fixed and merged status when finding is FIXED even if publication prUrl is present', () => {
+    const fixedFinding = { ...finding, status: 'FIXED' };
+    const pub = { pullRequestNumber: 42, pullRequestUrl: 'https://github.com/org/repo/pull/42' };
+    render(<FindingDrawer finding={fixedFinding} publication={pub} activeRun={{ runId: 'run-1', status: 'PR_OPEN' }} onClose={vi.fn()} />);
+
+    expect(screen.getByText(/Merged on GitHub · finding fixed/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Fix is in pull request/i)).not.toBeInTheDocument();
+  });
 });

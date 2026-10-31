@@ -115,7 +115,8 @@ export function FindingDrawer({ finding, isAnalyzing, isPublishing, awaitingAppr
   const prUrl = publication?.pullRequestUrl;
   const prNumber = publication?.pullRequestNumber;
   const publishFailed = activeRun?.status === 'PUBLISH_FAILED';
-  const openPr = finding.status === 'PR_OPEN' || finding.status === 'PUBLISHED' || activeRun?.status === 'PR_OPEN' || activeRun?.status === 'PUBLISHED' || Boolean(prUrl);
+  const isFixedOrIgnored = finding.status === 'FIXED' || finding.status === 'IGNORED';
+  const openPr = !isFixedOrIgnored && (finding.status === 'PR_OPEN' || finding.status === 'PUBLISHED' || activeRun?.status === 'PR_OPEN' || activeRun?.status === 'PUBLISHED' || Boolean(prUrl));
   const severityTone = `badge-${(finding.severity || 'info').toLowerCase()}`;
 
   return <div className={`fixed inset-0 z-40 flex justify-end backdrop-blur-sm ${theme === 'light' ? 'bg-slate-900/40' : 'bg-black/60'}`} onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
@@ -148,7 +149,7 @@ export function FindingDrawer({ finding, isAnalyzing, isPublishing, awaitingAppr
           <div><span className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-600">Source location</span><p className="mt-1.5 text-slate-300">Line {finding.lineNumber} <span className="text-slate-600">·</span> {finding.language || 'unknown'}</p></div>
         </section>
 
-        <RemediationTimeline currentStatus={activeRun?.status || finding.status || 'DETECTED'} />
+        <RemediationTimeline currentStatus={isFixedOrIgnored ? finding.status : (activeRun?.status || finding.status || 'DETECTED')} />
         <GraphTimeline steps={graphSteps} />
 
         <section>

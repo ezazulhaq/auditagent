@@ -25,7 +25,8 @@ const statusOrder = ['DETECTED', 'ANALYZING', 'GENERATING_FIX', 'VERIFYING', 'PA
 const formatStatus = (value) => value.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, character => character.toUpperCase());
 
 function FindingRow({ finding, runs, onSelect, hideLocation = false, isSelected, onToggleSelect, isAnalyzing = false }) {
-  const findingStatus = (runs?.[finding.id] ? runs[finding.id].status : finding.status) || 'DETECTED';
+  const isTerminal = finding.status === 'FIXED' || finding.status === 'IGNORED';
+  const findingStatus = (isTerminal ? finding.status : (runs?.[finding.id]?.status || finding.status)) || 'DETECTED';
   return (
     <div className="group flex w-full items-start md:items-stretch border-b border-slate-700/20 transition last:border-0 hover:bg-cyan-400/[0.035]">
       <div className="flex shrink-0 items-start md:items-center justify-center pl-4 pr-3 py-4 md:pl-5">
@@ -163,7 +164,8 @@ export function FindingsView({ findings, runs, onSelect, onBulkAction, onRefresh
 
   const statusOptions = useMemo(() => {
     const counts = findings.reduce((result, finding) => {
-      const value = (runs?.[finding.id] ? runs[finding.id].status : finding.status) || 'DETECTED';
+      const isTerminal = finding.status === 'FIXED' || finding.status === 'IGNORED';
+      const value = (isTerminal ? finding.status : (runs?.[finding.id]?.status || finding.status)) || 'DETECTED';
       result.set(value, (result.get(value) || 0) + 1);
       return result;
     }, new Map());

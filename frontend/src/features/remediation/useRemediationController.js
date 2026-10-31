@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-export function useRemediationController({ api, toast, onMessage, onReport, repositoryId, branch, onOpenProfileSettings }) {
+export function useRemediationController({ api, toast, onMessage, onReport, repositoryId, branch, onOpenProfileSettings, threadId }) {
   const [selectedFinding, setSelectedFinding] = useState(null);
 
   // Maps of vulnId -> run data
@@ -61,21 +61,6 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
     setIsAnalyzingMap({}); setIsPublishingMap({}); setGraphStepsMap({});
   }, []);
 
-  const refreshReport = useCallback(async (repoId, br, silent = false) => {
-    try {
-      const result = await api.getReport(repoId, br);
-      if (result) {
-        if (onReport) onReport(result, silent);
-      }
-    } catch {
-      if (!silent) toast?.error("Failed to refresh scan results.");
-    }
-  }, [api, onReport, toast]);
-
-  const updateRun = useCallback((vulnId, updater) => {
-    setRuns(prev => ({ ...prev, [vulnId]: typeof updater === 'function' ? updater(prev[vulnId]) : updater }));
-  }, []);
-
   const notify = useCallback((type, message) => {
     if (!message) return;
     try {
@@ -93,6 +78,71 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
       console.warn('Failed to dispatch notification:', e);
     }
   }, [api]);
+
+  const refreshReport = useCallback(async (repoId, br, silent = false) => {
+    try {
+      const result = await api.getReport(repoId, br);
+      if (result) {
+        if (Array.isArray(result.findings)) {
+          // Synchronize runs, publications, and previews with latest finding statuses
+          setRuns(prev => {
+            const next = { ...prev };
+            let changed = false;
+            result.findings.forEach(f => {
+              if (f.status === 'FIXED' || f.status === 'IGNORED') {
+                if (next[f.id]) {
+                  if (next[f.id].status === 'PR_OPEN' && f.status === 'FIXED') {
+                    notify('success', `Pull request merged: ${f.id} (${f.vulnType}) is now fixed.`);
+                    onMessage?.('agent', `Pull request merged on GitHub. Finding ${f.id} (${f.vulnType}) has been marked as fixed.`);
+                  }
+                  delete next[f.id];
+                  changed = true;
+                }
+              }
+            });
+            return changed ? next : prev;
+          });
+
+          setPublications(prev => {
+            const next = { ...prev };
+            let changed = false;
+            result.findings.forEach(f => {
+              if ((f.status === 'FIXED' || f.status === 'IGNORED') && next[f.id]) {
+                delete next[f.id];
+                changed = true;
+              }
+            });
+            return changed ? next : prev;
+          });
+
+          setPreviews(prev => {
+            const next = { ...prev };
+            let changed = false;
+            result.findings.forEach(f => {
+              if ((f.status === 'FIXED' || f.status === 'IGNORED') && next[f.id]) {
+                delete next[f.id];
+                changed = true;
+              }
+            });
+            return changed ? next : prev;
+          });
+
+          setSelectedFinding(prev => {
+            if (!prev) return prev;
+            const updated = result.findings.find(f => f.id === prev.id);
+            return updated ?? prev;
+          });
+        }
+        if (onReport) onReport(result, silent);
+      }
+    } catch {
+      if (!silent) toast?.error("Failed to refresh scan results.");
+    }
+  }, [api, onReport, toast, notify, onMessage]);
+
+  const updateRun = useCallback((vulnId, updater) => {
+    setRuns(prev => ({ ...prev, [vulnId]: typeof updater === 'function' ? updater(prev[vulnId]) : updater }));
+  }, []);
 
   const analyze = useCallback(async (finding, repoId, br, threadId) => {
     const vulnId = finding?.id;
@@ -342,6 +392,14 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
     if (hasOpenPr && repositoryId && branch) {
       intervalId = setInterval(async () => {
         try {
+          if (threadId && api?.getThread) {
+            try {
+              const threadData = await api.getThread(threadId);
+              if (threadData) hydrate(threadData);
+            } catch {
+              // ignore thread reconcile error during polling
+            }
+          }
           await refreshReport(repositoryId, branch, true);
         } catch {
           // ignore background polling refresh error
@@ -349,7 +407,7 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
       }, 5000);
     }
     return () => { if (intervalId) clearInterval(intervalId); };
-  }, [runs, repositoryId, branch, refreshReport]);
+  }, [runs, repositoryId, branch, refreshReport, threadId, api, hydrate]);
 
   const decide = useCallback(async (vulnId, decision, repoId, br, reason = null) => {
     const run = runs[vulnId];
