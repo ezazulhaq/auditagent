@@ -263,7 +263,7 @@
 
 ### Frontend
 
-Tests cover App, API, SSE, scan state/panel/wall-clock timing, thread restore, remediation controller/drawer, findings, tracked issues, report, and user LLM configuration dialogs (`LlmConfigForm.test.jsx`, `LlmOnboardingModal.test.jsx`, `UserProfileModal.test.jsx`).
+Tests cover App, API, SSE, scan state/panel/wall-clock timing, thread restore, remediation controller/drawer, findings, dashboard (`DashboardView.test.jsx`), tracked issues, report, and user LLM configuration dialogs (`LlmConfigForm.test.jsx`, `LlmOnboardingModal.test.jsx`, `UserProfileModal.test.jsx`).
 
 ## Rule inventory
 

@@ -151,7 +151,7 @@ Supports two scan modes: **GitHub repository scan** and **Manual project upload*
 
 ### `DashboardView`
 
-Shows guided empty-state steps or executive metric cards, severity distribution, action-oriented risk posture, repository context, and scan-execution metadata. All values are derived from the existing report and findings state.
+Shows guided empty-state steps or executive metric cards, severity distribution, action-oriented risk posture, repository context, and scan-execution metadata. All values are derived from the existing report and findings state. All memoization hooks (`fileVulnerabilityCounts`, `cards`) are called unconditionally at the top of the component prior to `metadata` null-checks, ensuring invariant React hook execution across repository selection state transitions.
 
 ### `DocsSidebar` and `DocsMainPanel`
 
