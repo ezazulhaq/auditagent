@@ -1,14 +1,20 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 export function useKeyboardShortcuts({ onSearch, onClose, onTabChange, onChatToggle }) {
+  const handlersRef = useRef({ onSearch, onClose, onTabChange, onChatToggle });
+  handlersRef.current = { onSearch, onClose, onTabChange, onChatToggle };
+
   useEffect(() => {
     const handleKeyDown = (event) => {
+      const { onSearch, onClose, onTabChange, onChatToggle } = handlersRef.current;
       // Don't trigger shortcuts if user is typing in an input or textarea
       const activeElement = document.activeElement;
       const isInput =
-        activeElement.tagName === 'INPUT' ||
-        activeElement.tagName === 'TEXTAREA' ||
-        activeElement.isContentEditable;
+        activeElement && (
+          activeElement.tagName === 'INPUT' ||
+          activeElement.tagName === 'TEXTAREA' ||
+          activeElement.isContentEditable
+        );
 
       // Escape allows closing modals/drawers even if in an input
       if (event.key === 'Escape') {
@@ -51,5 +57,5 @@ export function useKeyboardShortcuts({ onSearch, onClose, onTabChange, onChatTog
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onSearch, onClose, onTabChange, onChatToggle]);
+  }, []);
 }

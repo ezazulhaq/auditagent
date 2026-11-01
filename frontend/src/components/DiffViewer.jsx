@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { Columns, Rows, FileDiff } from 'lucide-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -87,7 +87,7 @@ export function parseDiffToSideBySide(diffText) {
   return files;
 }
 
-export function DiffViewer({ diffText, initialMode = 'side-by-side' }) {
+export const DiffViewer = memo(function DiffViewer({ diffText, initialMode = 'side-by-side' }) {
   const [viewMode, setViewMode] = useState(initialMode);
 
   const parsedFiles = useMemo(() => {
@@ -257,4 +257,4 @@ export function DiffViewer({ diffText, initialMode = 'side-by-side' }) {
       )}
     </div>
   );
-}
+});

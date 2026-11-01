@@ -1,5 +1,5 @@
 import { ChevronRight, ChevronDown, ChevronUp, FileCode2, Filter, LoaderCircle, RotateCcw, Search, ShieldAlert, X, List, FolderTree, Folder } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback, memo } from 'react';
 import { FINDING_SEVERITY_ORDER, filterFindings, getDirectoryPath, getFileName } from '../../utils/auditSelectors';
 
 const severityClass = {
@@ -24,11 +24,12 @@ const statusClass = {
 const statusOrder = ['DETECTED', 'ANALYZING', 'GENERATING_FIX', 'VERIFYING', 'PATCH_FAILED', 'AWAITING_APPROVAL', 'PR_OPEN', 'FIXED', 'IGNORED'];
 const formatStatus = (value) => value.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, character => character.toUpperCase());
 
-function FindingRow({ finding, runs, onSelect, hideLocation = false, isSelected, onToggleSelect, isAnalyzing = false }) {
+const FindingRow = memo(function FindingRow({ finding, runs, runStatus: explicitRunStatus, onSelect, hideLocation = false, isSelected, onToggleSelect, isAnalyzing = false }) {
   const isTerminal = finding.status === 'FIXED' || finding.status === 'IGNORED';
-  const findingStatus = (isTerminal ? finding.status : (runs?.[finding.id]?.status || finding.status)) || 'DETECTED';
+  const effectiveStatus = explicitRunStatus !== undefined ? explicitRunStatus : runs?.[finding.id]?.status;
+  const findingStatus = (isTerminal ? finding.status : (effectiveStatus || finding.status)) || 'DETECTED';
   return (
-    <div className="group flex w-full items-start md:items-stretch border-b border-slate-700/20 transition last:border-0 hover:bg-cyan-400/[0.035]">
+    <div className="group flex w-full items-start md:items-stretch border-b border-slate-700/20 transition last:border-0 hover:bg-cyan-400/[0.035] finding-row-contained">
       <div className="flex shrink-0 items-start md:items-center justify-center pl-4 pr-3 py-4 md:pl-5">
         <input
           type="checkbox"
@@ -77,9 +78,9 @@ function FindingRow({ finding, runs, onSelect, hideLocation = false, isSelected,
       </div>
     </div>
   );
-}
+});
 
-function FileGroup({ filePath, findings, runs, onSelect, selectedIds, onToggleSelect, onToggleGroup, isAnalyzingMap }) {
+const FileGroup = memo(function FileGroup({ filePath, findings, runs, onSelect, selectedIds, onToggleSelect, onToggleGroup, isAnalyzingMap }) {
   const [expanded, setExpanded] = useState(true);
   const groupSelectedCount = findings.filter(f => selectedIds.has(f.id)).length;
   const isAllSelected = groupSelectedCount === findings.length && findings.length > 0;
@@ -120,7 +121,7 @@ function FileGroup({ filePath, findings, runs, onSelect, selectedIds, onToggleSe
             <FindingRow
               key={finding.id}
               finding={finding}
-              runs={runs}
+              runStatus={runs?.[finding.id]?.status}
               onSelect={onSelect}
               hideLocation={true}
               isSelected={selectedIds.has(finding.id)}
@@ -132,9 +133,9 @@ function FileGroup({ filePath, findings, runs, onSelect, selectedIds, onToggleSe
       )}
     </div>
   );
-}
+});
 
-export function FindingsView({ findings, runs, onSelect, onBulkAction, onRefresh, batchState, onCancelBatch, isAnalyzingMap, isUploadScan = false }) {
+export const FindingsView = memo(function FindingsView({ findings, runs, onSelect, onBulkAction, onRefresh, batchState, onCancelBatch, isAnalyzingMap, isUploadScan = false }) {
   const [query, setQuery] = useState('');
   const [severity, setSeverity] = useState('ALL');
   const [status, setStatus] = useState('ALL');
@@ -186,16 +187,16 @@ export function FindingsView({ findings, runs, onSelect, onBulkAction, onRefresh
     setStatus('ALL');
   };
 
-  const handleToggleSelect = (id, isSelected) => {
+  const handleToggleSelect = useCallback((id, isSelected) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
       if (isSelected) next.add(id);
       else next.delete(id);
       return next;
     });
-  };
+  }, []);
 
-  const handleToggleGroup = (ids, isSelected) => {
+  const handleToggleGroup = useCallback((ids, isSelected) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
       ids.forEach(id => {
@@ -204,11 +205,18 @@ export function FindingsView({ findings, runs, onSelect, onBulkAction, onRefresh
       });
       return next;
     });
-  };
+  }, []);
 
-  const handleSelectAllFiltered = (isSelected) => {
-    handleToggleGroup(filtered.map(f => f.id), isSelected);
-  };
+  const handleSelectAllFiltered = useCallback((isSelected) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      filtered.forEach(f => {
+        if (isSelected) next.add(f.id);
+        else next.delete(f.id);
+      });
+      return next;
+    });
+  }, [filtered]);
 
   const filteredSelectedCount = filtered.filter(f => selectedIds.has(f.id)).length;
   const isAllFilteredSelected = filteredSelectedCount === filtered.length && filtered.length > 0;
@@ -292,7 +300,7 @@ export function FindingsView({ findings, runs, onSelect, onBulkAction, onRefresh
               <FindingRow
                 key={finding.id}
                 finding={finding}
-                runs={runs}
+                runStatus={runs?.[finding.id]?.status}
                 onSelect={onSelect}
                 isSelected={selectedIds.has(finding.id)}
                 onToggleSelect={handleToggleSelect}
@@ -389,4 +397,4 @@ export function FindingsView({ findings, runs, onSelect, onBulkAction, onRefresh
       </div>
     ) : null}
   </div>;
-}
+});

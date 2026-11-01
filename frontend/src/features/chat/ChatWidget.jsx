@@ -1,5 +1,5 @@
 import { Sparkles } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, memo } from 'react';
 import { ChatFab } from './components/ChatFab';
 import { ChatHeader } from './components/ChatHeader';
 import { ChatInput } from './components/ChatInput';
@@ -14,7 +14,7 @@ import { ThinkingIndicator } from './components/ThinkingIndicator';
  * Handles smart scroll anchoring — auto-scrolls only when the user is near
  * the bottom, and shows a "New messages" pill otherwise.
  */
-export function ChatWidget({ chat, onSubmit, onCancel, activeRun, publication, onResume, onDiscard, onRetryPublish,
+export const ChatWidget = memo(function ChatWidget({ chat, onSubmit, onCancel, activeRun, publication, onResume, onDiscard, onRetryPublish,
   onForgetConversation, onForgetRepository }) {
   const scrollRef = useRef(null);
   const endRef = useRef(null);
@@ -113,4 +113,4 @@ export function ChatWidget({ chat, onSubmit, onCancel, activeRun, publication, o
       <ChatFab isOpen={chat.isOpen} onToggle={chat.toggle} unreadCount={chat.unreadCount} />
     </div>
   </div>;
-}
+});

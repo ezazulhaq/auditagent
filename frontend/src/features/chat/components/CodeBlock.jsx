@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { Check, Copy } from 'lucide-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 const LINE_THRESHOLD = 12;
 
-export function CodeBlock({ language, inline, children }) {
+export const CodeBlock = memo(function CodeBlock({ language, inline, children }) {
   const [copied, setCopied] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
@@ -83,4 +83,4 @@ export function CodeBlock({ language, inline, children }) {
       )}
     </div>
   );
-}
+});

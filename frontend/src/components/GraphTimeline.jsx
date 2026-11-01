@@ -1,7 +1,7 @@
-import React from 'react';
+import { memo } from 'react';
 import { CheckCircle, Circle, Play, AlertCircle } from 'lucide-react';
 
-export function GraphTimeline({ steps = [] }) {
+export const GraphTimeline = memo(function GraphTimeline({ steps = [] }) {
   if (!steps || steps.length === 0) return null;
 
   return (
@@ -55,4 +55,4 @@ export function GraphTimeline({ steps = [] }) {
       </div>
     </div>
   );
-}
+});

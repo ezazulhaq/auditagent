@@ -1,8 +1,8 @@
 import { AlertTriangle, ArrowRight, CheckCircle2, Clock3, Code2, FileSearch, GitBranch, ShieldCheck, Sparkles, Shield, Info, Flame, Activity } from 'lucide-react';
-import { useMemo } from 'react';
+import { useMemo, memo } from 'react';
 import { getFileName } from '../../utils/auditSelectors';
 
-export function DashboardView({ metadata, findings, counts, scanHistory = [], repositoryLabel, onSelect: _onSelect, onShowFindings, onClearHistory }) {
+export const DashboardView = memo(function DashboardView({ metadata, findings, counts, scanHistory = [], repositoryLabel, onSelect: _onSelect, onShowFindings, onClearHistory }) {
   const fileVulnerabilityCounts = useMemo(() => {
     if (!findings) return [];
     const fileCounts = new Map();
@@ -18,14 +18,14 @@ export function DashboardView({ metadata, findings, counts, scanHistory = [], re
 
   if (!metadata) return <EmptyWorkspace />;
 
-  const cards = [
+  const cards = useMemo(() => [
     { id: 'total', label: 'Total findings', value: findings.length, Icon: FileSearch, tone: 'text-cyan-300', detail: 'Across the pinned scan commit', modalFindings: findings, title: 'Total Findings' },
     { id: 'high', label: 'High severity', value: counts.high, Icon: AlertTriangle, tone: 'text-rose-400', detail: counts.high ? 'Prioritize remediation review' : 'No high-severity exposure', modalFindings: findings.filter(f => f.severity === 'HIGH'), title: 'High Severity Findings' },
     { id: 'medium', label: 'Medium severity', value: counts.medium, Icon: ShieldCheck, tone: 'text-amber-300', detail: counts.medium ? 'Validate in planned work' : 'No medium-severity exposure', modalFindings: findings.filter(f => f.severity === 'MEDIUM'), title: 'Medium Severity Findings' },
     { id: 'low', label: 'Low severity', value: counts.low, Icon: Shield, tone: 'text-sky-400', detail: counts.low ? 'Consider for future sprints' : 'No low-severity exposure', modalFindings: findings.filter(f => f.severity === 'LOW'), title: 'Low Severity Findings' },
     { id: 'info', label: 'Info / Best practice', value: counts.info, Icon: Info, tone: 'text-slate-400', detail: counts.info ? 'Informational guidance only' : 'No informational findings', modalFindings: findings.filter(f => f.severity === 'INFO'), title: 'Informational Findings' },
     { id: 'files', label: 'Files analyzed', value: metadata.totalFilesScanned ?? 0, Icon: Code2, tone: 'text-emerald-400', detail: `${(metadata.totalLocScanned ?? 0).toLocaleString()} lines inspected`, modalFindings: findings, title: 'All Findings for Analyzed Files' },
-  ];
+  ], [findings, counts, metadata]);
   const lowAndInfo = Math.max(0, findings.length - counts.high - counts.medium);
   const total = Math.max(findings.length, 1);
   const highEnd = (counts.high / total) * 100;
@@ -147,7 +147,7 @@ export function DashboardView({ metadata, findings, counts, scanHistory = [], re
       )}
     </section>
   </div>;
-}
+});
 
 function EmptyWorkspace() {
   return <div className="flex min-h-140 items-center justify-center p-6 text-center sm:p-10">

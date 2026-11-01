@@ -1,8 +1,8 @@
 import { Activity, LogOut, Moon, ShieldCheck, Sun, PlayCircle, BookOpen, ChevronDown, Menu, X, KeyRound } from 'lucide-react';
 import { NotificationDropdown } from './NotificationDropdown';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, memo } from 'react';
 
-export function AppHeader({ metadata, counts, user, onLogout, findings = [], onShowFindings, onShowObservability, theme = 'dark', onToggleTheme, onTourClick, onShowDocs, onToggleSidebar, isSidebarOpen, onOpenProfileSettings, api }) {
+export const AppHeader = memo(function AppHeader({ metadata, counts, user, onLogout, findings = [], onShowFindings, onShowObservability, theme = 'dark', onToggleTheme, onTourClick, onShowDocs, onToggleSidebar, isSidebarOpen, onOpenProfileSettings, api }) {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = useRef(null);
 
@@ -162,4 +162,4 @@ export function AppHeader({ metadata, counts, user, onLogout, findings = [], onS
       </div>
     </header>
   );
-}
+});

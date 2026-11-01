@@ -1,9 +1,10 @@
 import { AlertTriangle, Check, Code2, ExternalLink, FileDiff, GitPullRequest, LoaderCircle, MapPin, RotateCcw, ShieldCheck, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { CopyButton } from '../../components/CopyButton';
 import { DiffViewer } from '../../components/DiffViewer';
+import { GraphTimeline } from '../../components/GraphTimeline';
 
 const timelineSteps = [
   { label: 'Detected', states: ['DETECTED'] },
@@ -13,7 +14,7 @@ const timelineSteps = [
   { label: 'Fix merged', states: ['FIXED'] }
 ];
 
-function RemediationTimeline({ currentStatus }) {
+const RemediationTimeline = memo(function RemediationTimeline({ currentStatus }) {
   if (currentStatus === 'IGNORED') return null;
 
   let activeIndex = 0;
@@ -55,9 +56,46 @@ function RemediationTimeline({ currentStatus }) {
       </div>
     </section>
   );
-}
+});
 
-import { GraphTimeline } from '../../components/GraphTimeline';
+const VulnerableCodeViewer = memo(function VulnerableCodeViewer({ snippet, language, lineNumber }) {
+  const [highlighted, setHighlighted] = useState(false);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      setHighlighted(true);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [snippet, language]);
+
+  return (
+    <div className="relative group overflow-hidden rounded-2xl border border-slate-700/35 shadow-inner bg-[#050d18]">
+      <CopyButton text={snippet} className="absolute right-2 top-2 z-10 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100" />
+      {highlighted ? (
+        <SyntaxHighlighter
+          language={language?.toLowerCase() || 'javascript'}
+          style={vscDarkPlus}
+          showLineNumbers={true}
+          startingLineNumber={Math.max(1, lineNumber - 10)}
+          wrapLines={true}
+          lineProps={lineNum => ({
+            style: {
+              display: 'block',
+              backgroundColor: lineNum === lineNumber ? 'rgba(239, 68, 68, 0.2)' : 'transparent',
+            }
+          })}
+          customStyle={{ margin: 0, padding: '1rem', paddingTop: '2rem', background: '#050d18', fontSize: '0.75rem', lineHeight: '1.25rem' }}
+        >
+          {snippet}
+        </SyntaxHighlighter>
+      ) : (
+        <pre className="m-0 p-4 pt-8 text-xs leading-5 font-mono text-slate-300 overflow-x-auto whitespace-pre bg-[#050d18]">
+          <code>{snippet}</code>
+        </pre>
+      )}
+    </div>
+  );
+});
 
 const statusTone = (status) => status === 'FIXED'
   ? 'border-emerald-400/20 bg-emerald-400/8 text-emerald-200'
@@ -65,7 +103,7 @@ const statusTone = (status) => status === 'FIXED'
     ? 'border-cyan-400/20 bg-cyan-400/8 text-cyan-100'
     : 'border-slate-700/60 bg-slate-800/45 text-slate-300';
 
-export function FindingDrawer({ finding, isAnalyzing, isPublishing, awaitingApproval, approvalPreview,
+export const FindingDrawer = memo(function FindingDrawer({ finding, isAnalyzing, isPublishing, awaitingApproval, approvalPreview,
   publication, activeRun, graphSteps, onClose, onAnalyze, onLoadPreview, onDecision, onRetryPublish, theme, isUploadScan = false }) {
   const closeButtonRef = useRef(null);
   const [rejectMode, setRejectMode] = useState(false);
@@ -159,25 +197,7 @@ export function FindingDrawer({ finding, isAnalyzing, isPublishing, awaitingAppr
 
         {finding.codeSnippet && <section>
           <h3 className="mb-2.5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500"><Code2 size={14} className="text-cyan-300" /> Vulnerable code</h3>
-          <div className="relative group overflow-hidden rounded-2xl border border-slate-700/35 shadow-inner">
-            <CopyButton text={finding.codeSnippet} className="absolute right-2 top-2 z-10 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100" />
-            <SyntaxHighlighter
-              language={finding.language?.toLowerCase() || 'javascript'}
-              style={vscDarkPlus}
-              showLineNumbers={true}
-              startingLineNumber={Math.max(1, finding.lineNumber - 10)}
-              wrapLines={true}
-              lineProps={lineNumber => ({
-                style: {
-                  display: 'block',
-                  backgroundColor: lineNumber === finding.lineNumber ? 'rgba(239, 68, 68, 0.2)' : 'transparent',
-                }
-              })}
-              customStyle={{ margin: 0, padding: '1rem', paddingTop: '2rem', background: '#050d18', fontSize: '0.75rem', lineHeight: '1.25rem' }}
-            >
-              {finding.codeSnippet}
-            </SyntaxHighlighter>
-          </div>
+          <VulnerableCodeViewer snippet={finding.codeSnippet} language={finding.language} lineNumber={finding.lineNumber} />
         </section>}
 
         {approvalPreview && <section className="overflow-hidden rounded-2xl border border-cyan-400/22 bg-cyan-400/[0.035]">
@@ -237,4 +257,4 @@ export function FindingDrawer({ finding, isAnalyzing, isPublishing, awaitingAppr
       </footer>
     </section>
   </div>;
-}
+});
