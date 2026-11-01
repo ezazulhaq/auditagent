@@ -233,7 +233,7 @@ export const ScanPanel = memo(function ScanPanel({
             {scan.isScanning ? (
               <div className="flex gap-2">
                 <div className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-bold text-slate-400">
-                  <RefreshCw size={16} className="animate-spin" /> Scanning <span className="font-mono">{formatTime(scan.scanTime)}</span>
+                  <RefreshCw size={16} className="animate-spin" /> Scanning <span className="font-mono">{formatTime(scanTime)}</span>
                 </div>
                 <button type="button" onClick={scan.cancel} className="flex shrink-0 items-center justify-center rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-sm font-bold text-rose-300 transition hover:border-rose-500/30 hover:bg-rose-500/20">
                   Cancel
@@ -295,7 +295,7 @@ export const ScanPanel = memo(function ScanPanel({
             {scan.isScanning ? (
               <div className="flex gap-2">
                 <div className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-bold text-slate-400">
-                  <RefreshCw size={16} className="animate-spin" /> Scanning <span className="font-mono">{formatTime(scan.scanTime)}</span>
+                  <RefreshCw size={16} className="animate-spin" /> Scanning <span className="font-mono">{formatTime(scanTime)}</span>
                 </div>
                 <button type="button" onClick={scan.cancel} className="flex shrink-0 items-center justify-center rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-sm font-bold text-rose-300 transition hover:border-rose-500/30 hover:bg-rose-500/20">
                   Cancel
@@ -319,7 +319,7 @@ export const ScanPanel = memo(function ScanPanel({
 
         {(scan.isScanning || scan.progress) && <section className="surface-card-muted mt-6 rounded-2xl p-4" aria-label="Scan progress">
           <div className="mb-3 flex items-center justify-between">
-            <div><p className="text-xs font-semibold text-slate-200">Scan in progress</p><p className="mt-0.5 text-[10px] text-slate-500">{formatTime(scan.scanTime)} elapsed</p></div>
+            <div><p className="text-xs font-semibold text-slate-200">Scan in progress</p><p className="mt-0.5 text-[10px] text-slate-500">{formatTime(scanTime)} elapsed</p></div>
             <span className="font-mono text-sm font-bold text-cyan-300">{scan.progress?.progress ?? 0}%</span>
           </div>
           <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-slate-800" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={scan.progress?.progress ?? 0}>

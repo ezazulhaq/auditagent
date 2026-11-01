@@ -2,7 +2,9 @@ import { useEffect, useRef } from 'react';
 
 export function useKeyboardShortcuts({ onSearch, onClose, onTabChange, onChatToggle }) {
   const handlersRef = useRef({ onSearch, onClose, onTabChange, onChatToggle });
-  handlersRef.current = { onSearch, onClose, onTabChange, onChatToggle };
+  useEffect(() => {
+    handlersRef.current = { onSearch, onClose, onTabChange, onChatToggle };
+  });
 
   useEffect(() => {
     const handleKeyDown = (event) => {
