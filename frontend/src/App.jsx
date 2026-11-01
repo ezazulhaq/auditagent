@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, startTransition } from 'react';
 import { auditApi } from './api/auditApi';
 import { AppHeader } from './components/AppHeader';
 import { Modal } from './components/Modal';
@@ -19,7 +19,6 @@ import { ReportView } from './features/report/ReportView';
 import { WorkspaceTabs } from './features/report/WorkspaceTabs';
 import { ScanPanel } from './features/scan/ScanPanel';
 import { useScanController } from './features/scan/useScanController';
-import { useScanElapsedSeconds } from './features/scan/useScanElapsedSeconds';
 import { useMemoryThread } from './features/session/useMemoryThread';
 import { severityCounts } from './utils/auditSelectors';
 import { useTheme } from './utils/useTheme';
@@ -53,6 +52,8 @@ export default function App({ api = auditApi }) {
   const [isViewingDocs, setIsViewingDocs] = useState(false);
   const [isViewingTokenUsage, setIsViewingTokenUsage] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const handleOpenProfileSettings = useCallback(() => setIsProfileModalOpen(true), []);
+  const handleCloseProfileSettings = useCallback(() => setIsProfileModalOpen(false), []);
   const { addMessage, resetMessages, restoreMessages } = chat;
 
   const needsLlmOnboarding = Boolean(authSession?.authenticated && authSession?.userKeysRequired && !authSession?.llmConfigured);
@@ -75,7 +76,6 @@ export default function App({ api = auditApi }) {
   const handleScanSuccess = useCallback(() => setActiveTab('report'), []);
   const scan = useScanController({ api, ensureThread, onMessage: addMessage, onSuccess: handleScanSuccess });
   const { cancel: cancelScan, replaceResult, result, startScan: runScan, startUploadScan: runUploadScan } = scan;
-  const scanTime = useScanElapsedSeconds(scan.startedAt, scan.finishedAt);
   const isUploadScan = result?.source === 'upload';
 
   const handleFindings = useCallback((findings) => {
@@ -94,7 +94,7 @@ export default function App({ api = auditApi }) {
     repositoryId: config.repositoryId,
     branch: config.branch,
     threadId,
-    onOpenProfileSettings: () => setIsProfileModalOpen(true)
+    onOpenProfileSettings: handleOpenProfileSettings
   });
   const { activeRun, runs, analyze, approvalPreview, awaitingApproval, decide, discard, hydrate, isAnalyzing,
     isPublishing, loadApprovalPreview, publication, resetForScan, resume, retryPublish,
@@ -304,6 +304,28 @@ export default function App({ api = auditApi }) {
 
   const [activeModal, setActiveModal] = useState(null);
 
+  const handleShowObservability = useCallback(() => setIsViewingTokenUsage(true), []);
+  const handleCloseObservability = useCallback(() => setIsViewingTokenUsage(false), []);
+  const handleTourClick = useCallback(() => setIsTourOpen(true), []);
+  const handleTourClose = useCallback(() => setIsTourOpen(false), []);
+  const handleShowDocs = useCallback(() => setIsViewingDocs(true), []);
+  const handleCloseDocs = useCallback(() => setIsViewingDocs(false), []);
+  const handleToggleSidebar = useCallback(() => setIsSidebarOpen(prev => !prev), []);
+  const handleCloseSidebar = useCallback(() => setIsSidebarOpen(false), []);
+  const handleShowFindings = useCallback((title, modalFindings) => setActiveModal({ title, findings: modalFindings }), []);
+  const handleCloseModal = useCallback(() => setActiveModal(null), []);
+  const handleSelectFinding = useCallback((finding) => {
+    startTransition(() => {
+      setSelectedFinding(finding);
+    });
+  }, [setSelectedFinding]);
+  const handleCloseFindingDrawer = useCallback(() => setSelectedFinding(null), [setSelectedFinding]);
+  const handleTabChange = useCallback((tab) => {
+    startTransition(() => {
+      setActiveTab(tab);
+    });
+  }, []);
+
   const handleClose = useCallback(() => {
     if (confirmAction !== null) { setConfirmAction(null); return; }
     if (activeModal !== null) { setActiveModal(null); return; }
@@ -318,7 +340,7 @@ export default function App({ api = auditApi }) {
       if (select) select.focus();
     },
     onClose: handleClose,
-    onTabChange: setActiveTab,
+    onTabChange: handleTabChange,
     onChatToggle: chat.toggle
   });
 
@@ -326,47 +348,73 @@ export default function App({ api = auditApi }) {
   if (!authSession.authenticated) return <LoginPage configured={authSession.configured} error={authError} onLogin={() => window.location.assign(api.loginUrl())} />;
 
   return <div className="app-shell flex min-h-dvh flex-col text-slate-200 lg:h-dvh lg:overflow-hidden relative">
-    <AppHeader api={api} metadata={metadata} counts={counts} user={authSession.user} onLogout={logout} findings={findings} onShowObservability={() => setIsViewingTokenUsage(true)} onShowFindings={(title, modalFindings) => setActiveModal({ title, findings: modalFindings })} theme={theme} onToggleTheme={toggleTheme} onTourClick={() => setIsTourOpen(true)} onShowDocs={() => setIsViewingDocs(true)} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} isSidebarOpen={isSidebarOpen} onOpenProfileSettings={() => setIsProfileModalOpen(true)} />
+    <AppHeader
+      api={api}
+      metadata={metadata}
+      counts={counts}
+      user={authSession.user}
+      onLogout={logout}
+      findings={findings}
+      onShowObservability={handleShowObservability}
+      onShowFindings={handleShowFindings}
+      theme={theme}
+      onToggleTheme={toggleTheme}
+      onTourClick={handleTourClick}
+      onShowDocs={handleShowDocs}
+      onToggleSidebar={handleToggleSidebar}
+      isSidebarOpen={isSidebarOpen}
+      onOpenProfileSettings={handleOpenProfileSettings}
+    />
     <div className="relative mx-auto flex w-full max-w-450 flex-1 flex-col lg:min-h-0 lg:flex-row">
       {/* Mobile overlay */}
       {isSidebarOpen && (
         <div
           className="fixed inset-0 z-30 bg-slate-900/60 backdrop-blur-sm lg:hidden"
-          onClick={() => setIsSidebarOpen(false)}
+          onClick={handleCloseSidebar}
           aria-hidden="true"
         />
       )}
-      <ScanPanel config={config} onConfigChange={updateConfig} onScan={startScan} onUploadScan={startUploadScan} scan={{ ...scan, scanTime }}
-        repositories={repositories} branches={branches} loadingRepositories={loadingRepositories}
-        installationUrl={authSession.installationUrl} isOpen={isSidebarOpen} onToggle={() => setIsSidebarOpen(!isSidebarOpen)} />
+      <ScanPanel
+        config={config}
+        onConfigChange={updateConfig}
+        onScan={startScan}
+        onUploadScan={startUploadScan}
+        scan={scan}
+        repositories={repositories}
+        branches={branches}
+        loadingRepositories={loadingRepositories}
+        installationUrl={authSession.installationUrl}
+        isOpen={isSidebarOpen}
+        onToggle={handleToggleSidebar}
+      />
       <main className="workspace-surface min-w-0 flex-1 lg:flex lg:min-h-0 lg:flex-col">
-        <WorkspaceTabs activeTab={activeTab} onChange={setActiveTab} findingCount={findings.length} issueCount={issues.length} />
+        <WorkspaceTabs activeTab={activeTab} onChange={handleTabChange} findingCount={findings.length} issueCount={issues.length} />
         <div className="min-h-0 flex-1 overflow-auto scroll-smooth">
-          {activeTab === 'dashboard' && <DashboardView metadata={metadata} findings={findings} counts={counts} scanHistory={scanHistory} repositoryLabel={isUploadScan ? `${result?.projectName || 'Project'} (Manual Upload)` : (result?.repository || selectedRepository?.fullName || '')} onSelect={setSelectedFinding} onShowFindings={(title, modalFindings) => setActiveModal({ title, findings: modalFindings })} onClearHistory={clearScanHistory} />}
-          {activeTab === 'findings' && <FindingsView findings={findings} runs={runs} onSelect={setSelectedFinding} onBulkAction={handleBulkAction} onRefresh={refreshReport} batchState={batchState} onCancelBatch={cancelBatch} isAnalyzingMap={isAnalyzingMap} isUploadScan={isUploadScan} />}
+          {activeTab === 'dashboard' && <DashboardView metadata={metadata} findings={findings} counts={counts} scanHistory={scanHistory} repositoryLabel={isUploadScan ? `${result?.projectName || 'Project'} (Manual Upload)` : (result?.repository || selectedRepository?.fullName || '')} onSelect={handleSelectFinding} onShowFindings={handleShowFindings} onClearHistory={clearScanHistory} />}
+          {activeTab === 'findings' && <FindingsView findings={findings} runs={runs} onSelect={handleSelectFinding} onBulkAction={handleBulkAction} onRefresh={refreshReport} batchState={batchState} onCancelBatch={cancelBatch} isAnalyzingMap={isAnalyzingMap} isUploadScan={isUploadScan} />}
           {activeTab === 'issues' && <IssuesView issues={issues} loading={loadingIssues} onRefresh={() => {
             setLoadingIssues(true);
             loadIssues();
           }} onSelectFinding={id => {
             const f = findings.find(x => x.id === id);
-            if (f) setSelectedFinding(f);
+            if (f) handleSelectFinding(f);
           }} repository={selectedRepository} />}
           {activeTab === 'report' && <ReportView key={isUploadScan ? `upload:${result?.uploadId}` : `${config.repositoryId}:${config.branch}`} api={api} repositoryId={config.repositoryId} branch={config.branch} uploadId={isUploadScan ? result?.uploadId : null}
             reportAvailable={result?.reportAvailable ?? Boolean(result?.htmlReport)} projectName={metadata?.projectName || result?.projectName || selectedRepository?.name} />}
         </div>
       </main>
     </div>
-    {isViewingDocs && <DocsView api={api} theme={theme} onClose={() => setIsViewingDocs(false)} />}
+    {isViewingDocs && <DocsView api={api} theme={theme} onClose={handleCloseDocs} />}
     <FindingDrawer finding={selectedFinding} isAnalyzing={isAnalyzing} isPublishing={isPublishing}
       awaitingApproval={awaitingApproval} approvalPreview={approvalPreview} publication={publication}
-      activeRun={activeRun} graphSteps={graphSteps} onClose={() => setSelectedFinding(null)} onAnalyze={() => analyzeFinding(selectedFinding)}
+      activeRun={activeRun} graphSteps={graphSteps} onClose={handleCloseFindingDrawer} onAnalyze={() => analyzeFinding(selectedFinding)}
       onLoadPreview={loadApprovalPreview} onDecision={submitDecision} onRetryPublish={retry} theme={theme} isUploadScan={isUploadScan} />
     <ChatWidget chat={chat} onSubmit={submitChat} onCancel={cancelStream} activeRun={activeRun} publication={publication}
       onResume={() => publication?.approvedAt ? retry() : resume(threadId)} onDiscard={discard} onRetryPublish={retry}
       onForgetConversation={forgetConversation} onForgetRepository={forgetRepository} />
-    {isViewingTokenUsage && <TokenUsageLayout api={api} theme={theme} onClose={() => setIsViewingTokenUsage(false)} />}
-    <Modal isOpen={activeModal !== null} onClose={() => setActiveModal(null)} title={activeModal?.title || 'Findings'}>
-      {activeModal && <FindingsView findings={activeModal.findings} runs={runs} onSelect={(finding) => { setActiveModal(null); setSelectedFinding(finding); }} onBulkAction={(action, ids) => { setActiveModal(null); handleBulkAction(action, ids); }} onRefresh={refreshReport} batchState={batchState} onCancelBatch={cancelBatch} isAnalyzingMap={isAnalyzingMap} />}
+    {isViewingTokenUsage && <TokenUsageLayout api={api} theme={theme} onClose={handleCloseObservability} />}
+    <Modal isOpen={activeModal !== null} onClose={handleCloseModal} title={activeModal?.title || 'Findings'}>
+      {activeModal && <FindingsView findings={activeModal.findings} runs={runs} onSelect={(finding) => { handleCloseModal(); handleSelectFinding(finding); }} onBulkAction={(action, ids) => { handleCloseModal(); handleBulkAction(action, ids); }} onRefresh={refreshReport} batchState={batchState} onCancelBatch={cancelBatch} isAnalyzingMap={isAnalyzingMap} />}
     </Modal>
     <ConfirmDialog
       isOpen={confirmAction !== null}
@@ -377,10 +425,10 @@ export default function App({ api = auditApi }) {
       confirmText={confirmAction?.confirmText}
       confirmStyle={confirmAction?.style}
     />
-    <OnboardingTour isOpen={isTourOpen} onClose={() => setIsTourOpen(false)} />
+    <OnboardingTour isOpen={isTourOpen} onClose={handleTourClose} />
     <UserProfileModal
       isOpen={isProfileModalOpen}
-      onClose={() => setIsProfileModalOpen(false)}
+      onClose={handleCloseProfileSettings}
       user={authSession?.user}
       api={api}
       toast={toast}

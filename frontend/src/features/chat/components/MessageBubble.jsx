@@ -1,5 +1,5 @@
 import { Bot } from 'lucide-react';
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { CodeBlock } from './CodeBlock';
@@ -7,11 +7,22 @@ import { CollapsibleText } from './CollapsibleText';
 
 const PROSE_THRESHOLD = 300;
 
+const markdownComponents = {
+  code({ inline, className, children, ...props }) {
+    const match = /language-(\w+)/.exec(className || '');
+    return (
+      <CodeBlock language={match?.[1]} inline={inline} {...props}>
+        {children}
+      </CodeBlock>
+    );
+  },
+};
+
 /**
  * Renders a single chat message with role-based styling, entrance animation,
  * syntax-highlighted code blocks, collapsible long content, and hover timestamps.
  */
-export function MessageBubble({ message }) {
+export const MessageBubble = memo(function MessageBubble({ message }) {
   const { role, text, timestamp } = message;
   const [hovered, setHovered] = useState(false);
   const isUser = role === 'user';
@@ -22,17 +33,6 @@ export function MessageBubble({ message }) {
     : isSystem
       ? 'rounded-bl-md border-l-2 border-l-amber-400/40 border border-[var(--border-subtle)] bg-[var(--surface-inset)]/60 text-slate-400 text-[11px]'
       : 'rounded-bl-md border border-[var(--border-subtle)] bg-[var(--surface-card)] text-slate-200 shadow-sm';
-
-  const markdownComponents = {
-    code({ inline, className, children, ...props }) {
-      const match = /language-(\w+)/.exec(className || '');
-      return (
-        <CodeBlock language={match?.[1]} inline={inline} {...props}>
-          {children}
-        </CodeBlock>
-      );
-    },
-  };
 
   const content = (
     <div className="space-y-1.5 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_a]:underline [&_p]:whitespace-pre-wrap">
@@ -69,5 +69,5 @@ export function MessageBubble({ message }) {
       </div>
     </div>
   );
-}
+});
 

@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { BarChart3, CircleDot, FileText, ShieldAlert } from 'lucide-react';
 
 const tabs = [
@@ -7,7 +8,7 @@ const tabs = [
   { id: 'report', label: 'Audit Report', icon: FileText },
 ];
 
-export function WorkspaceTabs({ activeTab, onChange, findingCount, issueCount }) {
+export const WorkspaceTabs = memo(function WorkspaceTabs({ activeTab, onChange, findingCount, issueCount }) {
   return <div className="sticky top-0 z-20 shrink-0 border-b border-[var(--surface-panel-border)] bg-[var(--surface-canvas)]/90 px-3 py-2.5 backdrop-blur-xl sm:px-5 xl:px-7">
     <nav aria-label="Workspace views" className="scrollbar-none flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-inset)]/60 p-1 sm:w-fit">
       {tabs.map(tab => {
@@ -22,4 +23,4 @@ export function WorkspaceTabs({ activeTab, onChange, findingCount, issueCount })
       })}
     </nav>
   </div>;
-}
+});

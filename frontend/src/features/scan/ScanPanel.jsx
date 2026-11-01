@@ -1,7 +1,8 @@
 import { Check, ChevronLeft, ChevronRight, CircleDot, FileArchive, GitBranch, GitFork, Layers3, Play, RefreshCw, ScanLine, Terminal, Upload, UploadCloud, X } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { memo, useRef, useState } from 'react';
 import { formatTime, SCAN_STEPS } from '../../utils/auditSelectors';
 import { CustomSelect } from '../../components/CustomSelect';
+import { useScanElapsedSeconds } from './useScanElapsedSeconds';
 
 function formatFileSize(bytes) {
   if (!bytes) return '0 B';
@@ -11,11 +12,13 @@ function formatFileSize(bytes) {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
-export function ScanPanel({
+export const ScanPanel = memo(function ScanPanel({
   config, onConfigChange, onScan, onUploadScan, scan, repositories = [], branches = [],
   loadingRepositories, installationUrl, isOpen = true, onToggle,
   scanMode: externalScanMode, onScanModeChange
 }) {
+  const internalElapsed = useScanElapsedSeconds(scan?.startedAt, scan?.finishedAt);
+  const scanTime = scan?.scanTime !== undefined ? scan.scanTime : internalElapsed;
   const [internalScanMode, setInternalScanMode] = useState('github');
   const scanMode = externalScanMode !== undefined ? externalScanMode : internalScanMode;
 
@@ -337,4 +340,4 @@ export function ScanPanel({
       </div>
     </aside>
   );
-}
+});
