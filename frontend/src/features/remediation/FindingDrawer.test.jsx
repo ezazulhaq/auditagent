@@ -51,4 +51,20 @@ describe('FindingDrawer structured approval', () => {
     expect(screen.getByText(/Merged on GitHub · finding fixed/i)).toBeInTheDocument();
     expect(screen.queryByText(/Fix is in pull request/i)).not.toBeInTheDocument();
   });
+
+  it('renders a copy button beside the finding ID and copies the ID to clipboard when clicked', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    render(<FindingDrawer finding={finding} onClose={vi.fn()} />);
+
+    expect(screen.getByText(finding.id)).toBeInTheDocument();
+    const copyButton = screen.getByRole('button', { name: /Copy finding ID to clipboard/i });
+    expect(copyButton).toBeInTheDocument();
+
+    fireEvent.click(copyButton);
+
+    expect(writeText).toHaveBeenCalledWith(finding.id);
+    expect(await screen.findByRole('button', { name: /Copied to clipboard/i })).toBeInTheDocument();
+  });
 });
