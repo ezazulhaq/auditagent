@@ -171,7 +171,15 @@ export const FindingDrawer = memo(function FindingDrawer({ finding, isAnalyzing,
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <span className={`rounded-md px-2 py-0.5 font-mono text-[9px] font-bold tracking-widest ${severityTone}`}>{finding.severity}</span>
-              <span className="font-mono text-[10px] text-slate-500">{finding.id}</span>
+              <div className="inline-flex items-center gap-1.5">
+                <span className="font-mono text-[10px] text-slate-500">{finding.id}</span>
+                <CopyButton
+                  text={finding.id}
+                  size="xs"
+                  title="Copy finding ID to clipboard"
+                  ariaLabel="Copy finding ID to clipboard"
+                />
+              </div>
               <span className={`rounded-md px-2 py-0.5 text-[9px] font-bold tracking-wide ${statusTone(finding.status)}`}>{(finding.status || 'DETECTED').replaceAll('_', ' ')}</span>
             </div>
             <h2 className="mt-3 truncate text-xl font-bold tracking-tight text-white sm:text-2xl font-sans">{finding.vulnType}</h2>
