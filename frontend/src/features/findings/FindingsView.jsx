@@ -42,7 +42,14 @@ const FindingRow = memo(function FindingRow({ finding, runs, runStatus: explicit
         className={`flex flex-col md:grid flex-1 cursor-pointer gap-2 md:gap-4 py-4 pr-4 text-left items-start md:items-center md:pr-5 ${hideLocation ? 'md:grid-cols-[112px_minmax(260px,2fr)_120px_142px_28px]' : 'md:grid-cols-[112px_minmax(260px,1.5fr)_minmax(190px,0.8fr)_142px_28px]'}`}>
 
         <div className="flex w-full items-center justify-between md:contents">
-          <span><span className={`inline-flex min-w-18 items-center justify-center rounded-md px-2 py-1 font-mono text-[9px] font-bold tracking-[0.08em] ${severityClass[finding.severity] || severityClass.INFO}`}>{finding.severity}</span></span>
+          <span className="flex items-center gap-1.5 flex-wrap">
+            <span className={`inline-flex min-w-18 items-center justify-center rounded-md px-2 py-1 font-mono text-[9px] font-bold tracking-[0.08em] ${severityClass[finding.severity] || severityClass.INFO}`}>{finding.severity}</span>
+            {finding.triageActionable === false && (
+              <span className="inline-flex items-center rounded-md border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[8px] font-semibold text-amber-300" title={`Triaged as false positive (${Math.round((finding.triageConfidence || 0) * 100)}% confidence)`} data-testid="badge-likely-fp">
+                Likely FP
+              </span>
+            )}
+          </span>
           <span className="md:hidden">
             <span className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[9px] font-bold tracking-wide ${statusClass[findingStatus] || statusClass.DETECTED}`}>
               {isAnalyzing && <LoaderCircle size={10} className="animate-spin text-cyan-400" />}
@@ -211,16 +218,18 @@ export const FindingsView = memo(function FindingsView({ findings, runs, onSelec
     setSelectedIds(prev => {
       const next = new Set(prev);
       filtered.forEach(f => {
-        if (isSelected) next.add(f.id);
+        // Exclude findings triaged as false positive by default from bulk select-all
+        if (isSelected && f.triageActionable !== false) next.add(f.id);
         else next.delete(f.id);
       });
       return next;
     });
   }, [filtered]);
 
-  const filteredSelectedCount = filtered.filter(f => selectedIds.has(f.id)).length;
-  const isAllFilteredSelected = filteredSelectedCount === filtered.length && filtered.length > 0;
-  const isFilteredIndeterminate = filteredSelectedCount > 0 && filteredSelectedCount < filtered.length;
+  const selectableFiltered = useMemo(() => filtered.filter(f => f.triageActionable !== false), [filtered]);
+  const filteredSelectedCount = selectableFiltered.filter(f => selectedIds.has(f.id)).length;
+  const isAllFilteredSelected = filteredSelectedCount === selectableFiltered.length && selectableFiltered.length > 0;
+  const isFilteredIndeterminate = filteredSelectedCount > 0 && filteredSelectedCount < selectableFiltered.length;
 
   return <div className="animate-fade-in p-4 sm:p-6 xl:p-8 2xl:p-10 relative">
     <div className="mb-5 flex items-start justify-between">
