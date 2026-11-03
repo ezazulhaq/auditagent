@@ -117,7 +117,7 @@ public class UserLlmClientFactory {
         return getAgentModelName(userId);
     }
 
-    private UserLlmConfigService.DecryptedLlmConfig resolveConfig(String userId) {
+    public UserLlmConfigService.DecryptedLlmConfig resolveConfig(String userId) {
         UserLlmConfigService.DecryptedLlmConfig config = configService != null ? configService.getDecryptedConfig(userId) : null;
         if (config == null || config.apiKey() == null || config.apiKey().isBlank()) {
             if (llmProperties.isUserKeysRequired()) {

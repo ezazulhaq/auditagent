@@ -68,6 +68,7 @@ PDF bytes are not stored in PostgreSQL and no schema migration is required for P
 | `file`, `type`, `description`, `code_context`, `severity`, `line_number` | Finding evidence.                   |
 | `status`, `proposed_fix`                                                 | Remediation lifecycle.              |
 | `rule_id`, `language`, `finding_fingerprint`                             | Migrated identity/retrieval fields. |
+| `triage_actionable`, `triage_confidence`, `triage_classification`         | Pre-flight finding triage assessment from TypeSafe Jev (nullable). |
 
 No secondary fingerprint index is used because of a DuckDB/PostgreSQL update limitation; lookup remains bounded by repository.
 

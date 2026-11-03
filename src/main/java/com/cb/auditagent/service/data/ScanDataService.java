@@ -80,6 +80,9 @@ public class ScanDataService {
         d.setLanguage(e.getLanguage());
         d.setProposedFix(e.getProposedFix());
         d.setStatus(e.getStatus() != null ? VulnerabilityStatus.valueOf(e.getStatus()) : VulnerabilityStatus.DETECTED);
+        d.setTriageActionable(e.getTriageActionable());
+        d.setTriageConfidence(e.getTriageConfidence());
+        d.setTriageClassification(e.getTriageClassification());
         return d;
     }
 
@@ -149,6 +152,11 @@ public class ScanDataService {
                 v.setStatus(VulnerabilityStatus.valueOf(existing.getStatus()));
                 vulnEntity.setProposedFix(existing.getProposedFix());
                 v.setProposedFix(existing.getProposedFix());
+                if (v.getTriageActionable() == null) {
+                    v.setTriageActionable(existing.getTriageActionable());
+                    v.setTriageConfidence(existing.getTriageConfidence());
+                    v.setTriageClassification(existing.getTriageClassification());
+                }
             } else {
                 if (v.getId() == null)
                     v.setId(UUID.randomUUID().toString());
@@ -166,6 +174,9 @@ public class ScanDataService {
             vulnEntity.setRuleId(v.getRuleId());
             vulnEntity.setFindingFingerprint(fp);
             vulnEntity.setLanguage(v.getLanguage());
+            vulnEntity.setTriageActionable(v.getTriageActionable());
+            vulnEntity.setTriageConfidence(v.getTriageConfidence());
+            vulnEntity.setTriageClassification(v.getTriageClassification());
             vulnerabilityEntityRepository.save(vulnEntity);
         }
 
