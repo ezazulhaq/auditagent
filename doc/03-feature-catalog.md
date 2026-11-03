@@ -68,6 +68,8 @@ This catalog connects each feature to its user/business outcome and main impleme
 | Report restore | Latest repository/branch report loads on selection or reload. | `/api/reports`, frontend restore effect |
 | Dual-format report export | Authenticated users can download the latest authorized report as PDF or Markdown with a safe repository/branch filename. | `GET /api/reports/export`, `ReportArtifact`, `auditApi.reportArtifact()` |
 | PDF report viewing | The UI fetches the PDF as a protected Blob, embeds it for viewing, offers open/download actions, and revokes temporary object URLs on cleanup. | `ReportView` |
+| Pre-flight finding triage (TypeSafe Jev) | Automatically evaluates Semgrep findings immediately post-scan using Jev non-autoregressive decision model (`POST /api/v1/systemone`) to detect false positives, test mocks, and low-confidence detections, safeguarding token expenditure. | `FindingTriageService`, `JevClient`, `Vulnerability.triageActionable`, `ScanOrchestratorService`, `OrchestratorService`, `ProjectUploadService` |
+| Likely false positive safeguards | Findings classified as false positives display an amber `Likely FP` badge in the UI and are excluded from bulk remediation select-all by default while preserving manual individual remediation. | `FindingsView.jsx`, `FindingDrawer.jsx`, `VulnerabilityEntity` |
 
 ## User interface
 
@@ -122,6 +124,7 @@ This catalog connects each feature to its user/business outcome and main impleme
 |---|---|---|
 | State graph engine | Replaces `while` loops with a node-based state machine for agent execution. | `RemediationGraph` |
 | Multi-agent architecture | 16-stage Star Topology orchestrating specialized code review sub-agents via a Supervisor LLM. Mandatory PLANNING stage generates a remediation plan before execution begins. | `MultiAgentRemediationGraph`, `SupervisorNode`, `WorkerAgentGraphFactory` |
+| Supervisor routing acceleration (TypeSafe Jev) | Routes stage transitions within the multi-agent review workflow via Jev non-autoregressive multiple-choice queries (`POST /api/v1/systemone`) in <2s with ~98% token cost reduction, automatically falling back to standard `ChatModel` if Jev times out (3s) or encounters an error. | `SupervisorNode`, `JevClient`, `auditagent.jev.supervisor` |
 | Context summarization | When conversation turns are dropped due to context budget limits, an LLM-based summary preserves key context instead of silently discarding it. Tool outputs are aggressively truncated before persistence. | `ConversationMemoryService`, `MemoryConfig.summarizationEnabled` |
 | Docker sandbox | Optionally wraps agent shell commands (compile, test, lint) inside an isolated Docker container with no network access, read-only root filesystem, and configurable resource limits. | `AgentToolService.buildDockerCommand()`, `AgentConfig.sandboxEnabled` |
 | PostgreSQL checkpoints | Graph state is persisted to PostgreSQL after every step for durability and recovery. | `DatabaseCheckpointSaver (formerly DuckDbCheckpointSaver)` |

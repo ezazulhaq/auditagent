@@ -279,11 +279,33 @@ Terminal report payload fields:
   "baseSha": "40-char SHA",
   "report_available": true,
   "html_report": "<!doctype html>...",
-  "findings": [],
+  "findings": [
+    {
+      "id": "VULN-000042",
+      "filePath": "src/main/Database.java",
+      "lineNumber": 156,
+      "codeSnippet": "statement.execute(query);",
+      "severity": "HIGH",
+      "vulnType": "SQL Injection",
+      "description": "Unsanitized user input in query execution",
+      "ruleId": "java.lang.security.audit.sqli",
+      "findingFingerprint": "40-char SHA",
+      "language": "Java",
+      "status": "DETECTED",
+      "triageActionable": true,
+      "triageConfidence": 0.94,
+      "triageClassification": "ACTIONABLE_VULNERABILITY"
+    }
+  ],
   "metadata": {},
   "message": "Scan complete..."
 }
 ```
+
+Finding object triage attributes:
+- `triageActionable`: `true` if verified actionable by TypeSafe Jev model; `false` if classified as a likely false positive or test mock fixture; `null` if triage was skipped or disabled.
+- `triageConfidence`: Floating-point confidence score (0.0 to 1.0) returned by Jev.
+- `triageClassification`: Categorical assessment string (e.g., `ACTIONABLE_VULNERABILITY`, `FALSE_POSITIVE`, `TEST_MOCK_FIXTURE`, `TRIAGE_FALLBACK`).
 
 `report_available` tells current clients that authenticated artifacts can be loaded. `html_report` remains in scan and restore payloads for backward compatibility; the current frontend does not render or download it.
 

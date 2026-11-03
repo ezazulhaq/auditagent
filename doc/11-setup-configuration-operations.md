@@ -372,6 +372,22 @@ Semgrep also requires a short, writable JVM OS-temp root (`java.io.tmpdir`), esp
 | `sandbox-memory-limit` | 2g | Memory limit for sandbox containers. |
 | `sandbox-cpu-limit` | 2.0 | CPU limit for sandbox containers. |
 
+### TypeSafe Jev Model Configuration
+
+| Property | Environment Variable | Default | Meaning |
+|---|---|---|---|
+| `auditagent.jev.enabled` | `AUDITAGENT_JEV_ENABLED` | `true` | Master switch enabling TypeSafe Jev non-autoregressive decision model integration. |
+| `auditagent.jev.base-url` | `AUDITAGENT_JEV_BASE_URL` | `https://openrouter.ai/api/v1` | Jev endpoint base URL. Automatically resolves `/systemone` endpoint. |
+| `auditagent.jev.api-key` | `AUDITAGENT_JEV_API_KEY` | `${OPENAI_API_KEY}` | API key for Jev calls (defaults to OpenRouter/OpenAI API key). |
+| `auditagent.jev.model-name` | `AUDITAGENT_JEV_MODEL` | `typesafe/jev-1.13` | Jev model identifier on OpenRouter. |
+| `auditagent.jev.timeout-ms` | `AUDITAGENT_JEV_TIMEOUT_MS` | `3000` | HTTP client read timeout in milliseconds before triggering retry/fallback. |
+| `auditagent.jev.max-retries` | `AUDITAGENT_JEV_MAX_RETRIES` | `1` | Retry count for transient network or 5xx server errors. |
+| `auditagent.jev.triage.enabled` | `AUDITAGENT_JEV_TRIAGE_ENABLED` | `true` | Enables post-scan pre-flight finding triage to flag false positives and test mocks. |
+| `auditagent.jev.triage.confidence-threshold` | `AUDITAGENT_JEV_TRIAGE_CONFIDENCE` | `0.75` | Minimum confidence required to mark standard findings as false positives. |
+| `auditagent.jev.triage.critical-confidence-threshold` | `AUDITAGENT_JEV_TRIAGE_CRITICAL_CONFIDENCE` | `0.95` | Elevated confidence required to mark HIGH severity findings as false positives. |
+| `auditagent.jev.supervisor.enabled` | `AUDITAGENT_JEV_SUPERVISOR_ENABLED` | `true` | Enables fast-path multiple-choice stage routing in `SupervisorNode`. |
+| `auditagent.jev.supervisor.fallback-to-chat-model` | - | `true` | Automatically falls back to standard `ChatModel` if Jev call fails or times out. |
+
 ### Memory
 
 | Property | Default | Meaning |
@@ -471,7 +487,7 @@ The production `Dockerfile` builds a Debian-based container equipped with the fu
    ```bash
    cp .env.example .env
    ```
-   Edit `.env` to configure your PostgreSQL connection parameters (`POSTGRES_HOSTNAME`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` or `POSTGRES_URL`), OpenAI/OpenRouter credentials, and GitHub App keys.
+   Edit `.env` to configure your PostgreSQL connection parameters (`POSTGRES_HOSTNAME`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` or `POSTGRES_URL`), OpenAI/OpenRouter credentials, TypeSafe Jev triage/supervisor settings (`AUDITAGENT_JEV_*`), and GitHub App keys.
 
 2. **Start the application**:
    ```bash

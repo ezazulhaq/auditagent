@@ -21,6 +21,8 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 
 @Service
@@ -34,6 +36,7 @@ public class OrchestratorService {
     private final DatabaseService databaseService;
     private final ConversationMemoryService memoryService;
     private final AgentConfig agentConfig;
+    private final FindingTriageService findingTriageService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // In-memory state tracking for active user sessions/threads
@@ -57,6 +60,19 @@ public class OrchestratorService {
             DatabaseService databaseService,
             ConversationMemoryService memoryService,
             AgentConfig agentConfig) {
+        this(scannerService, llmService, filePatchService, reporterService, databaseService, memoryService, agentConfig, null);
+    }
+
+    @Autowired
+    public OrchestratorService(
+            ScannerService scannerService,
+            LlmService llmService,
+            FilePatchService filePatchService,
+            ReporterService reporterService,
+            DatabaseService databaseService,
+            ConversationMemoryService memoryService,
+            AgentConfig agentConfig,
+            @Autowired(required = false) FindingTriageService findingTriageService) {
         this.scannerService = scannerService;
         this.llmService = llmService;
         this.filePatchService = filePatchService;
@@ -64,6 +80,7 @@ public class OrchestratorService {
         this.databaseService = databaseService;
         this.memoryService = memoryService;
         this.agentConfig = agentConfig;
+        this.findingTriageService = findingTriageService;
     }
 
     private ThreadState getOrCreateThreadState(String threadId) {
@@ -190,7 +207,17 @@ public class OrchestratorService {
                 metadata.setTotalLocScanned(scanResult.getTotalLoc());
 
                 // Update Thread State
-                state.findings = scanResult.getFindings();
+                List<Vulnerability> findings = scanResult.getFindings();
+                if (findingTriageService != null) {
+                    Map<String, Object> tEvent = new HashMap<>();
+                    tEvent.put("type", "progress");
+                    tEvent.put("step", "triage");
+                    tEvent.put("progress", 85);
+                    tEvent.put("message", "Triaging security findings with TypeSafe Jev...");
+                    sink.tryEmitNext(formatSseData(tEvent));
+                    findings = findingTriageService.triageFindings(findings, targetRepo);
+                }
+                state.findings = findings;
                 state.metadata = metadata;
 
                 // Generate Reports

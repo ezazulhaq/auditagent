@@ -26,11 +26,23 @@
 | `DatabasePreflightCleanup.java` | Startup pre-flight bean purging legacy orphaned child records before Hibernate updates schema. |
 | `GitHubAppConfig.java` | GitHub endpoints, secrets, cookies, workspace settings. |
 | `Jackson2Config.java` | Jackson compatibility bean. |
+| `JevProperties.java` | Binds `auditagent.jev` properties (master toggle, model, timeouts, retries, triage, and supervisor routing). |
 | `LangChainModelConfig.java` | Tool-calling OpenAI model. |
 | `LlmProperties.java` | Binds `auditagent.llm` properties (user keys requirement flag, execution mode, provider, and fallback OpenAI settings). |
 | `MemoryConfig.java` | Retention, context, retrieval, content limits, and context summarization settings. |
 | `ScannerConfig.java` | Validated Semgrep timeout and heartbeat settings. |
 | `WebFluxConfig.java` | WebFlux multipart and codec in-memory size configuration. |
+
+### `client.jev`
+
+| File | Purpose |
+|---|---|
+| `JevClient.java` | REST client targeting OpenRouter `POST /api/v1/systemone` with timeout (3s), retry policy, and Micrometer metrics. |
+| `JevQuestion.java` | Structured question model supporting `choice`, `noul`, and `score` question types. |
+| `JevRequest.java` | Request payload binding model identifier, state string, and question definitions. |
+| `JevAnswer.java` | Deserialized answer value and confidence score. |
+| `JevResponse.java` | Response payload binding answers map and usage telemetry. |
+| `JevUsage.java` | Token accounting model for prompt, completion, and total tokens. |
 
 ### `controller`
 
@@ -132,6 +144,7 @@
 | `DatabaseService.java` | Unified persistence facade delegating to Conversation, Remediation, User, and Scan domain data services. |
 | `FilePatchService.java` | Backup, rollback, diff, and legacy patch helper. |
 | `FindingFingerprint.java` | Stable normalized SHA-256 finding identity. |
+| `FindingTriageService.java` | Evaluates Semgrep scan findings using TypeSafe Jev model via virtual threads to detect false positives, mocks, and low-confidence detections. |
 | `GitHubApiClient.java` | OAuth/App/installation/repository/PR HTTP APIs, issue comments (`createIssueComment`), and PR diff retrieval (`getPullRequestDiff`). |
 | `GitHubAuthService.java` | OAuth, tokens, sessions, CSRF, refresh. |
 | `GitHubProvider.java` | JGit clone/diff/hash/commit/push/PR/cleanup. |
@@ -254,13 +267,13 @@
 | `scripts/install-git-hooks.ps1`                 | Configures repository hooks path to `.githooks` for PowerShell/Windows users. |
 | `scripts/install-git-hooks.sh`                  | Configures repository hooks path to `.githooks` and executable bit on Unix-like systems. |
 | `.devcontainer/devcontainer.json`               | Temurin Java 21, Node.js 24 & Python 3.12 development container. |
-| `release_notes/*.md`                            | Versioned release notes tracking product, tooling, and infrastructure updates (v2.0.0, v2.0.1, v2.1.0, v2.1.1, v2.2.0, v2.2.1, v2.3.0, v2.3.1, v2.3.2, v2.3.3). |
+| `release_notes/*.md`                            | Versioned release notes tracking product, tooling, and infrastructure updates (v2.0.0, v2.0.1, v2.1.0, v2.1.1, v2.2.0, v2.2.1, v2.3.0, v2.3.1, v2.3.2, v2.3.3, v2.4.0). |
 
 ## Test file map
 
 ### Backend
 
-`AuditagentApplicationTests`, `ApiSecurityFilterTest`, `AuditControllerReportExportTest`, `GitHubWebhookControllerTest`, `GitHubRepositoryControllerTest`, `IssueLifecycleServiceTest`, `AgentToolServiceSecurityTest`, `ConversationMemoryServiceTest`, `DatabaseMemoryServiceTest`, `GitHubAuthServiceTest`, `GitHubProviderIntegrationTest`, `LlmServiceAgentLoopTest`, `ManagedProcessRunnerTest`, `ProjectUploadControllerTest`, `ProjectUploadServiceTest`, `RemediationWorkflowPreparationTest`, `ScanOrchestratorReportExportTest`, `ScanOrchestratorServiceTest`, `ReporterServiceTest`, `ScannerServiceTest`, `TokenCipherTest`, `UserLlmClientFactoryTest`, `UserLlmConfigControllerTest`, `UserLlmConfigServiceTest`, and `ZipArchiveExtractorTest`.
+`AuditagentApplicationTests`, `ApiSecurityFilterTest`, `AuditControllerReportExportTest`, `GitHubWebhookControllerTest`, `GitHubRepositoryControllerTest`, `IssueLifecycleServiceTest`, `AgentToolServiceSecurityTest`, `ConversationMemoryServiceTest`, `DatabaseMemoryServiceTest`, `FindingTriageServiceTest`, `GitHubAuthServiceTest`, `GitHubProviderIntegrationTest`, `JevClientTest`, `LlmServiceAgentLoopTest`, `ManagedProcessRunnerTest`, `ProjectUploadControllerTest`, `ProjectUploadServiceTest`, `RemediationWorkflowPreparationTest`, `ScanOrchestratorReportExportTest`, `ScanOrchestratorServiceTest`, `ReporterServiceTest`, `ScannerServiceTest`, `SupervisorNodeTest`, `TokenCipherTest`, `UserLlmClientFactoryTest`, `UserLlmConfigControllerTest`, `UserLlmConfigServiceTest`, and `ZipArchiveExtractorTest`.
 
 ### Frontend
 

@@ -29,6 +29,7 @@ public class ScanOrchestratorService {
     private final ScannerService scanner;
     private final ReporterService reporter;
     private final RepositoryAccessService repositoryAccess;
+    private final FindingTriageService findingTriageService;
 
     public ScanOrchestratorService(
             DatabaseService database,
@@ -37,12 +38,25 @@ public class ScanOrchestratorService {
             ScannerService scanner,
             ReporterService reporter,
             RepositoryAccessService repositoryAccess) {
+        this(database, sourceControl, github, scanner, reporter, repositoryAccess, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ScanOrchestratorService(
+            DatabaseService database,
+            SourceControlProvider sourceControl,
+            GitHubApiClient github,
+            ScannerService scanner,
+            ReporterService reporter,
+            RepositoryAccessService repositoryAccess,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) FindingTriageService findingTriageService) {
         this.database = database;
         this.sourceControl = sourceControl;
         this.github = github;
         this.scanner = scanner;
         this.reporter = reporter;
         this.repositoryAccess = repositoryAccess;
+        this.findingTriageService = findingTriageService;
     }
 
     public Flux<String> scan(AuthenticatedUser user, String threadId, long repositoryId, String branch,
@@ -90,6 +104,11 @@ public class ScanOrchestratorService {
                 metadata.setTotalFilesScanned(scanResult.getFilesScanned());
                 metadata.setTotalLocScanned(scanResult.getTotalLoc());
                 List<Vulnerability> findings = scanResult.getFindings();
+                if (findingTriageService != null) {
+                    emit(sink, Map.of("type", "progress", "step", "triage", "progress", 85,
+                            "message", "Triaging security findings with TypeSafe Jev..."));
+                    findings = findingTriageService.triageFindings(findings, workspace.toString());
+                }
                 String markdown = reporter.generateMarkdown(findings, metadata, repository.fullName());
                 String html = reporter.generateHtml(findings, metadata, repository.fullName());
                 database.saveReport(reportKey, markdown, html, findings, metadata);

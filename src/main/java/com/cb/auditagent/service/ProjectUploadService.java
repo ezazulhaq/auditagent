@@ -41,6 +41,7 @@ public class ProjectUploadService {
     private final DatabaseService database;
     private final UploadedProjectRepository uploadedProjectRepository;
     private final ObjectMapper objectMapper;
+    private final FindingTriageService findingTriageService;
 
     public ProjectUploadService(
             ZipArchiveExtractor extractor,
@@ -49,12 +50,25 @@ public class ProjectUploadService {
             DatabaseService database,
             UploadedProjectRepository uploadedProjectRepository,
             ObjectMapper objectMapper) {
+        this(extractor, scanner, reporter, database, uploadedProjectRepository, objectMapper, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ProjectUploadService(
+            ZipArchiveExtractor extractor,
+            ScannerService scanner,
+            ReporterService reporter,
+            DatabaseService database,
+            UploadedProjectRepository uploadedProjectRepository,
+            ObjectMapper objectMapper,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) FindingTriageService findingTriageService) {
         this.extractor = extractor;
         this.scanner = scanner;
         this.reporter = reporter;
         this.database = database;
         this.uploadedProjectRepository = uploadedProjectRepository;
         this.objectMapper = objectMapper;
+        this.findingTriageService = findingTriageService;
     }
 
     public Flux<String> scanUpload(AuthenticatedUser user, FilePart filePart, String rawProjectName, String scannerName) {
@@ -116,6 +130,11 @@ public class ProjectUploadService {
                 metadata.setTotalLocScanned(scanResult.getTotalLoc());
 
                 List<Vulnerability> findings = scanResult.getFindings();
+                if (findingTriageService != null) {
+                    emit(sink, Map.of("type", "progress", "step", "triage", "progress", 85,
+                            "message", "Triaging security findings with TypeSafe Jev..."));
+                    findings = findingTriageService.triageFindings(findings, tempExtractDir.toString());
+                }
                 String shortId = uploadId.length() >= 8 ? uploadId.substring(0, 8) : uploadId;
                 String markdown = reporter.generateMarkdown(findings, metadata, projectName, "manual-upload", shortId);
                 String html = reporter.generateHtml(findings, metadata, projectName);

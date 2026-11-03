@@ -12,14 +12,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import com.cb.auditagent.client.jev.JevClient;
+import com.cb.auditagent.client.jev.JevQuestion;
+import com.cb.auditagent.client.jev.JevRequest;
+import com.cb.auditagent.client.jev.JevResponse;
 import com.cb.auditagent.config.AgentConfig;
+import com.cb.auditagent.config.JevProperties;
 import com.cb.auditagent.graph.agent.AgentStage;
 import com.cb.auditagent.graph.state.MultiAgentState;
 import com.cb.auditagent.service.ConversationMemoryService;
 import com.cb.auditagent.service.LlmService;
+import com.cb.auditagent.service.UserLlmConfigService;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -32,6 +39,8 @@ public class SupervisorNode implements NodeAction<MultiAgentState> {
     private final AgentConfig config;
     private final LlmService llmService;
     private final com.cb.auditagent.service.UserLlmClientFactory clientFactory;
+    private final JevClient jevClient;
+    private final JevProperties jevProperties;
 
     public SupervisorNode(
             ChatModel chatModel,
@@ -39,11 +48,25 @@ public class SupervisorNode implements NodeAction<MultiAgentState> {
             AgentConfig config,
             @Lazy LlmService llmService,
             @org.springframework.beans.factory.annotation.Autowired(required = false) @Lazy com.cb.auditagent.service.UserLlmClientFactory clientFactory) {
+        this(chatModel, memoryService, config, llmService, clientFactory, null, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public SupervisorNode(
+            ChatModel chatModel,
+            ConversationMemoryService memoryService,
+            AgentConfig config,
+            @Lazy LlmService llmService,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) @Lazy com.cb.auditagent.service.UserLlmClientFactory clientFactory,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) JevClient jevClient,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) JevProperties jevProperties) {
         this.chatModel = chatModel;
         this.memoryService = memoryService;
         this.config = config;
         this.llmService = llmService;
         this.clientFactory = clientFactory;
+        this.jevClient = jevClient;
+        this.jevProperties = jevProperties;
     }
 
     @Override
@@ -64,6 +87,16 @@ public class SupervisorNode implements NodeAction<MultiAgentState> {
                     "Supervisor decided to route to: PLANNING (mandatory first stage)");
             Map<String, Object> updates = new HashMap<>();
             updates.put("nextAgent", "PLANNING");
+            updates.put("retries", iteration + 1);
+            return updates;
+        }
+
+        // Fast-path: Route with TypeSafe Jev Model if enabled
+        String jevDecision = routeWithJev(state);
+        if (jevDecision != null) {
+            memoryService.addUserMessage(threadId, runId, "Supervisor decided to route to: " + jevDecision);
+            Map<String, Object> updates = new HashMap<>();
+            updates.put("nextAgent", jevDecision);
             updates.put("retries", iteration + 1);
             return updates;
         }
@@ -149,5 +182,74 @@ public class SupervisorNode implements NodeAction<MultiAgentState> {
         updates.put("retries", iteration + 1);
 
         return updates;
+    }
+
+    private String routeWithJev(MultiAgentState state) {
+        if (jevClient == null || !jevClient.isEnabled() || jevProperties == null || !jevProperties.getSupervisor().isEnabled()) {
+            return null;
+        }
+
+        try {
+            StringBuilder stateBuilder = new StringBuilder();
+            stateBuilder.append("Workflow Context:\n");
+            String plan = state.getRemediationPlan();
+            if (plan != null && !plan.isBlank()) {
+                stateBuilder.append("=== REMEDIATION PLAN (follow this order) ===\n").append(plan).append("\n=== END PLAN ===\n\n");
+            }
+
+            Map<String, String> outputs = state.getAgentOutputs();
+            String contextStr = outputs.entrySet().stream()
+                    .map(e -> e.getKey() + " output: " + e.getValue())
+                    .collect(Collectors.joining("\n"));
+            stateBuilder.append("Current Context of Agent Execution:\n").append(contextStr).append("\n");
+
+            List<String> options = Arrays.stream(AgentStage.values())
+                    .filter(s -> s != AgentStage.PLANNING)
+                    .map(Enum::name)
+                    .collect(Collectors.toList());
+            options.add("COMPLETE");
+            options.add("FAIL");
+
+            JevQuestion question = JevQuestion.choice(
+                    "next_stage",
+                    "Based on the remediation plan and execution history, which agent stage must execute next? Options: " + String.join(", ", options),
+                    options
+            );
+
+            JevRequest request = new JevRequest(
+                    jevProperties.getModelName(),
+                    stateBuilder.toString(),
+                    List.of(question)
+            );
+
+            String userId = state.getUserId();
+            String apiKey = null;
+            String baseUrl = null;
+            if (clientFactory != null && userId != null) {
+                UserLlmConfigService.DecryptedLlmConfig userConfig = clientFactory.resolveConfig(userId);
+                if (userConfig != null) {
+                    apiKey = userConfig.apiKey();
+                    baseUrl = userConfig.baseUrl();
+                }
+            }
+
+            JevResponse response = jevClient.execute(request, "supervisor_routing", apiKey, baseUrl);
+            String selected = response.getAnswerValue("next_stage");
+            if (selected != null && options.contains(selected)) {
+                if (response.getUsage() != null && response.getUsage().getTotalTokens() != null) {
+                    String vulnId = state.getVulnerability() != null ? state.getVulnerability().getId() : null;
+                    llmService.recordTokens(jevProperties.getModelName(), response.getUsage().getTotalTokens(),
+                            state.getThreadId(), state.getRunId(), vulnId);
+                }
+                logger.info("Supervisor: Jev selected next stage '{}' (confidence: {})", selected, response.getAnswerConfidence("next_stage"));
+                return selected;
+            } else {
+                logger.warn("Supervisor: Jev returned unmapped stage '{}'", selected);
+                return null;
+            }
+        } catch (Exception e) {
+            logger.warn("Supervisor: Jev routing call failed: {}. Falling back to standard ChatModel.", e.getMessage());
+            return null;
+        }
     }
 }

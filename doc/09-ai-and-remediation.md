@@ -1,15 +1,20 @@
 # AI and remediation
 
-## Two AI paths
+## Two AI paths and fast-path decision reasoning
 
-AuditAgent deliberately uses two model integrations:
+AuditAgent employs specialized model integrations across different operational workloads:
 
-| Path                | Library                       | Purpose                                                                    |
+| Path                | Library / Client              | Purpose                                                                    |
 |---------------------|-------------------------------|----------------------------------------------------------------------------|
 | Conversational chat | Spring AI `ChatModel`         | Explain findings and emit scan/fix navigation tags.                        |
 | Remediation agent   | LangChain4j `OpenAiChatModel` | Multi-turn tool calling with durable checkpoints and verification.         |
+| Decision & triage   | `JevClient` (TypeSafe Jev)    | Non-autoregressive fast triage and Supervisor routing via `POST /api/v1/systemone`. |
 
-Both use the configured OpenAI-compatible model API, for example OpenRouter or Gemini.
+Both generative paths use the configured OpenAI-compatible model API (OpenRouter, OpenAI, Gemini), while the decision path targets TypeSafe AI's Jev model (`typesafe/jev-1.13`) on OpenRouter's System One endpoint ($0.042/1M input tokens, zero output tokens).
+
+### Pre-flight finding triage with TypeSafe Jev
+
+To avoid starting expensive multi-agent remediation runs (~50k–150k tokens per run) on non-actionable findings, Semgrep results are automatically evaluated by `FindingTriageService` using Jev immediately post-scan across all scan vectors (GitHub repository scans, legacy scans, and uploaded ZIP archives). Findings classified as false positives or test mocks are tagged `triageActionable: false` with high confidence (≥0.75 for standard findings, ≥0.95 for HIGH findings). These findings are surfaced in the UI with a `Likely FP` badge and excluded from bulk remediation by default.
 
 ### LLM provider compatibility and interception
 
@@ -158,7 +163,7 @@ Restores the latest timestamped backup for the relative file.
 
 The former `while` loop has been replaced by a state-machine implementation using `langgraph4j` (`RemediationGraph`). We have further implemented a **Multi-Agent Architecture** (`MultiAgentRemediationGraph`) that decomposes the remediation task into specialized agents:
 
-1. **SupervisorAgent**: Evaluates current state and dynamically delegates to the appropriate specialized sub-agent. Routes to the mandatory PLANNING stage first if no remediation plan exists.
+1. **SupervisorAgent**: Evaluates current state and dynamically delegates to the appropriate specialized sub-agent. Routes to the mandatory PLANNING stage first if no remediation plan exists. When `auditagent.jev.supervisor.enabled` is active, `SupervisorNode` queries the TypeSafe Jev model (`POST /api/v1/systemone`) using non-autoregressive multiple-choice queries. Jev evaluates the remediation plan and execution history, selecting the next stage in <2s with ~98% token cost reduction ($0.042/1M input tokens, zero output tokens). If Jev experiences a network timeout (3s) or error, `SupervisorNode` automatically falls back to the standard `ChatModel`, ensuring uninterrupted remediation.
 2. **16 Specialized Worker Agents**: Includes agents like Planning, Discovery, Syntax, Baseline, Memory Review, Security Review, Data-Flow, Root-Cause Analysis, etc.
 
 These specialized subgraphs are orchestrated by the parent `MultiAgentRemediationGraph` using a shared `MultiAgentState`. The parent routes control (e.g. if verification fails, the supervisor agent evaluates the state and routes back to the relevant code-modification agent). The PLANNING stage's output (`remediationPlan`) is included in the Supervisor's system prompt to guide routing order.
