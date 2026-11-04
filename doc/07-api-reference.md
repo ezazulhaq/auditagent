@@ -77,16 +77,23 @@ Response:
   "supervisorModelName": null,
   "hasApiKey": true,
   "maskedApiKey": "sk-or-••••••••3a8f",
+  "jevEnabled": true,
+  "jevModelName": "typesafe/jev-1.14",
+  "jevBaseUrl": null,
+  "hasJevApiKey": false,
+  "maskedJevApiKey": null,
+  "systemJevEnabled": true,
+  "systemJevModel": "typesafe/jev-1.14",
   "createdAt": "2026-10-31T07:00:00",
   "updatedAt": "2026-10-31T07:00:00"
 }
 ```
 
-If the user has not configured credentials yet, returns default provider and model values with `hasApiKey: false` and `maskedApiKey: null`.
+If the user has not configured credentials yet, returns default provider and model values with `hasApiKey: false`, `maskedApiKey: null`, and system Jev defaults.
 
 ### `POST /api/user/llm-config`
 
-Saves or updates the authenticated user's LLM configuration. Requires active session and `X-CSRF-Token`.
+Saves or updates the authenticated user's LLM configuration, including optional SystemOne (TypeSafe Jev) settings. Requires active session and `X-CSRF-Token`.
 
 Request:
 
@@ -96,11 +103,15 @@ Request:
   "apiKey": "sk-or-v1-abcdef123456...",
   "baseUrl": null,
   "modelName": "anthropic/claude-3.5-sonnet",
-  "supervisorModelName": null
+  "supervisorModelName": null,
+  "jevEnabled": true,
+  "jevModelName": "typesafe/jev-1.14",
+  "jevBaseUrl": null,
+  "jevApiKey": null
 }
 ```
 
-If an API key is already configured and the client sends an empty `apiKey` (or placeholder dots), the existing encrypted key is retained.
+If an API key is already configured and the client sends an empty `apiKey` or `jevApiKey` (or placeholder dots), the existing encrypted key is retained.
 
 Response:
 
@@ -138,6 +149,40 @@ Response (Failure):
   "success": false,
   "message": "Connection failed: 401 Unauthorized - Invalid API key",
   "modelTested": "anthropic/claude-3.5-sonnet"
+}
+```
+
+### `POST /api/user/llm-config/test-jev`
+
+Tests live connectivity against the target SystemOne (TypeSafe Jev) decision engine endpoint before saving. If `apiKey` is omitted, the test attempts to fall back to the user's primary API key or server-configured default. Requires active session and `X-CSRF-Token`.
+
+Request:
+
+```json
+{
+  "apiKey": "sk-or-v1-abcdef123456...",
+  "baseUrl": "https://openrouter.ai/api/v1",
+  "modelName": "typesafe/jev-1.14"
+}
+```
+
+Response (Success):
+
+```json
+{
+  "success": true,
+  "message": "SystemOne connection successful! Model typesafe/jev-1.14 responded.",
+  "modelTested": "typesafe/jev-1.14"
+}
+```
+
+Response (Failure):
+
+```json
+{
+  "success": false,
+  "message": "SystemOne connection failed: 401 Unauthorized - Invalid API key",
+  "modelTested": "typesafe/jev-1.14"
 }
 ```
 

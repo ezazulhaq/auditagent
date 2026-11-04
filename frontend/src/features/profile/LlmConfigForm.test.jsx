@@ -16,10 +16,18 @@ describe('LlmConfigForm', () => {
         modelName: 'anthropic/claude-3.5-sonnet',
         supervisorModelName: null,
         maskedApiKey: null,
+        jevEnabled: true,
+        jevModelName: 'typesafe/jev-1.14',
+        defaultJevModelName: 'typesafe/jev-1.14',
+        systemJevEnabled: true,
       }),
       testUserLlmConfig: vi.fn().mockResolvedValue({
         success: true,
         message: 'Connection successful! Model anthropic/claude-3.5-sonnet responded.',
+      }),
+      testUserJevConfig: vi.fn().mockResolvedValue({
+        success: true,
+        message: 'SystemOne connection successful! Model typesafe/jev-1.14 responded (PING, confidence: 0.99 in 120ms).',
       }),
       saveUserLlmConfig: vi.fn().mockResolvedValue({
         configured: true,
@@ -28,6 +36,8 @@ describe('LlmConfigForm', () => {
         baseUrl: 'https://openrouter.ai/api/v1',
         modelName: 'anthropic/claude-3.5-sonnet',
         maskedApiKey: 'sk-or-••••••••1234',
+        jevEnabled: true,
+        jevModelName: 'typesafe/jev-1.14',
       }),
     };
     onSuccess = vi.fn();
@@ -37,6 +47,7 @@ describe('LlmConfigForm', () => {
     render(<LlmConfigForm api={mockApi} onSuccess={onSuccess} />);
     await waitFor(() => expect(screen.getByText(/OpenRouter \(Default\)/i)).toBeInTheDocument());
     expect(screen.getByText(/OpenAI Compatible/i)).toBeInTheDocument();
+    expect(screen.getByText(/SystemOne Decision Engine/i)).toBeInTheDocument();
   });
 
   it('switches to OpenAI-compatible and displays base URL input', async () => {
@@ -57,7 +68,7 @@ describe('LlmConfigForm', () => {
     const keyInput = screen.getByPlaceholderText(/sk-or-v1-/i);
     fireEvent.change(keyInput, { target: { value: 'sk-or-v1-my-secret-key' } });
 
-    const testBtn = screen.getByRole('button', { name: /Test Connection/i });
+    const testBtn = screen.getByRole('button', { name: /^Test Connection$/i });
     fireEvent.click(testBtn);
 
     await waitFor(() => {
@@ -69,7 +80,22 @@ describe('LlmConfigForm', () => {
     });
   });
 
-  it('submits and saves configuration', async () => {
+  it('allows testing SystemOne connection independently', async () => {
+    render(<LlmConfigForm api={mockApi} onSuccess={onSuccess} />);
+    await waitFor(() => expect(screen.getByText(/SystemOne Decision Engine/i)).toBeInTheDocument());
+
+    const testJevBtn = screen.getByRole('button', { name: /Test SystemOne Connection/i });
+    fireEvent.click(testJevBtn);
+
+    await waitFor(() => {
+      expect(mockApi.testUserJevConfig).toHaveBeenCalledWith(expect.objectContaining({
+        modelName: 'typesafe/jev-1.14',
+      }));
+      expect(screen.getByText(/SystemOne connection successful!/i)).toBeInTheDocument();
+    });
+  });
+
+  it('submits and saves configuration with SystemOne settings', async () => {
     render(<LlmConfigForm api={mockApi} onSuccess={onSuccess} isOnboarding={true} />);
     await waitFor(() => expect(screen.getByText(/OpenRouter \(Default\)/i)).toBeInTheDocument());
 
@@ -84,6 +110,8 @@ describe('LlmConfigForm', () => {
         apiKey: 'sk-or-v1-valid-key-1234',
         modelName: 'anthropic/claude-3.5-sonnet',
         provider: 'OPENROUTER',
+        jevEnabled: true,
+        jevModelName: 'typesafe/jev-1.14',
       }));
       expect(onSuccess).toHaveBeenCalled();
     });
@@ -97,6 +125,8 @@ describe('LlmConfigForm', () => {
       baseUrl: 'https://openrouter.ai/api/v1',
       modelName: 'anthropic/claude-3.5-sonnet',
       maskedApiKey: 'sk-or-v1-••••••••3a8f',
+      jevEnabled: true,
+      jevModelName: 'typesafe/jev-1.14',
     });
 
     render(<LlmConfigForm api={mockApi} onSuccess={onSuccess} />);
@@ -106,4 +136,3 @@ describe('LlmConfigForm', () => {
     });
   });
 });
-

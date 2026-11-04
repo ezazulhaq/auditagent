@@ -388,6 +388,9 @@ Semgrep also requires a short, writable JVM OS-temp root (`java.io.tmpdir`), esp
 | `auditagent.jev.supervisor.enabled` | `AUDITAGENT_JEV_SUPERVISOR_ENABLED` | `true` | Enables fast-path multiple-choice stage routing in `SupervisorNode`. |
 | `auditagent.jev.supervisor.fallback-to-chat-model` | - | `true` | Automatically falls back to standard `ChatModel` if Jev call fails or times out. |
 
+> [!NOTE]
+> The server environment variables above (`AUDITAGENT_JEV_*`) establish the baseline defaults for the application. Individual authenticated users can override Jev activation (`jevEnabled`), model name (`jevModelName`), and provide custom SystemOne endpoints or API keys within their User Profile (`UserLlmConfig`). In multi-agent remediation and triage workflows, user-configured settings take precedence over server environment defaults.
+
 ### Memory
 
 | Property | Default | Meaning |

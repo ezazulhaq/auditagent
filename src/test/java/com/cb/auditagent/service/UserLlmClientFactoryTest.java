@@ -75,5 +75,19 @@ class UserLlmClientFactoryTest {
         assertNotNull(model3);
         assertNotSame(model1, model3);
     }
+
+    @Test
+    void testJevUserSettings() {
+        UserLlmConfigService.DecryptedLlmConfig userConfig = new UserLlmConfigService.DecryptedLlmConfig(
+                "OPENROUTER", "https://openrouter.ai/api/v1", "sk-primary-key", "anthropic/claude-3.5-sonnet",
+                null, true, "typesafe/jev-1.14", "https://custom.jev.ai/api/v1", "sk-custom-jev-key"
+        );
+        when(configService.getDecryptedConfig("user-1")).thenReturn(userConfig);
+
+        assertTrue(factory.isJevEnabled("user-1"));
+        assertEquals("typesafe/jev-1.14", factory.getJevModelName("user-1"));
+        assertEquals("https://custom.jev.ai/api/v1", factory.getJevBaseUrl("user-1"));
+        assertEquals("sk-custom-jev-key", factory.getJevApiKey("user-1"));
+    }
 }
 

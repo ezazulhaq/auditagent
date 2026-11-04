@@ -351,6 +351,17 @@ export function createAuditApi({ baseUrl = API_BASE_URL, fetchImpl = fetch } = {
       if (!response.ok) throw await errorFor(response);
       return response.json();
     },
+
+    async testUserJevConfig(payload, signal) {
+      const response = await request('/user/llm-config/test-jev', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal,
+      });
+      if (!response.ok) throw await errorFor(response);
+      return response.json();
+    },
   };
 }
 

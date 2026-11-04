@@ -236,6 +236,10 @@ Stores encrypted Bring-Your-Own-Key (BYOK) provider credentials and model choice
 | `base_url` | `VARCHAR(512)` | Optional custom API base URL for OpenAI-compatible endpoints. |
 | `model_name` | `VARCHAR(128)` | Selected primary model identifier (e.g. `anthropic/claude-3.5-sonnet`), non-null. |
 | `supervisor_model_name` | `VARCHAR(128)` | Optional separate model identifier for the multi-agent supervisor. |
+| `jev_enabled` | `BOOLEAN` | Whether SystemOne (TypeSafe Jev) decision engine is enabled for this user. When null, defaults to system default. |
+| `jev_model_name` | `VARCHAR(128)` | Model identifier for SystemOne decision engine (defaults to `typesafe/jev-1.14`). |
+| `jev_base_url` | `VARCHAR(512)` | Optional custom endpoint URL for SystemOne / Jev calls. |
+| `jev_api_key_ciphertext` | `TEXT` | Optional separate AES-GCM encrypted API key ciphertext for SystemOne / Jev. If null, inherits primary key. |
 | `created_at` | `TIMESTAMP` | Record creation timestamp. |
 | `updated_at` | `TIMESTAMP` | Record last modification timestamp. |
 

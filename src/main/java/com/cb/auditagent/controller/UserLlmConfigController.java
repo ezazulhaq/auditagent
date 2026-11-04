@@ -3,6 +3,7 @@ package com.cb.auditagent.controller;
 import com.cb.auditagent.domain.AuthenticatedUser;
 import com.cb.auditagent.dto.TestConnectionRequest;
 import com.cb.auditagent.dto.TestConnectionResponse;
+import com.cb.auditagent.dto.TestJevConnectionRequest;
 import com.cb.auditagent.dto.UserLlmConfigDto;
 import com.cb.auditagent.dto.UserLlmConfigRequest;
 import com.cb.auditagent.service.GitHubAuthService;
@@ -39,6 +40,12 @@ public class UserLlmConfigController {
     public ResponseEntity<TestConnectionResponse> testConfig(@RequestBody TestConnectionRequest request, ServerWebExchange exchange) {
         AuthenticatedUser user = auth.requireUser(exchange);
         return ResponseEntity.ok(configService.testConfig(user.userId(), request));
+    }
+
+    @PostMapping("/test-jev")
+    public ResponseEntity<TestConnectionResponse> testJevConfig(@RequestBody TestJevConnectionRequest request, ServerWebExchange exchange) {
+        AuthenticatedUser user = auth.requireUser(exchange);
+        return ResponseEntity.ok(configService.testJevConfig(user.userId(), request));
     }
 }
 

@@ -27,19 +27,35 @@ public class FindingTriageService {
     private final JevProperties jevProperties;
     private final MeterRegistry meterRegistry;
     private final LlmService llmService;
+    private final UserLlmClientFactory clientFactory;
 
+    @Autowired
     public FindingTriageService(
             @Autowired(required = false) JevClient jevClient,
             JevProperties jevProperties,
             @Autowired(required = false) MeterRegistry meterRegistry,
-            @Autowired(required = false) @Lazy LlmService llmService) {
+            @Autowired(required = false) @Lazy LlmService llmService,
+            @Autowired(required = false) @Lazy UserLlmClientFactory clientFactory) {
         this.jevClient = jevClient;
         this.jevProperties = jevProperties;
         this.meterRegistry = meterRegistry;
         this.llmService = llmService;
+        this.clientFactory = clientFactory;
+    }
+
+    public FindingTriageService(
+            JevClient jevClient,
+            JevProperties jevProperties,
+            MeterRegistry meterRegistry,
+            LlmService llmService) {
+        this(jevClient, jevProperties, meterRegistry, llmService, null);
     }
 
     public List<Vulnerability> triageFindings(List<Vulnerability> findings, String workspacePath) {
+        return triageFindings(findings, workspacePath, null);
+    }
+
+    public List<Vulnerability> triageFindings(List<Vulnerability> findings, String workspacePath, String userId) {
         if (findings == null || findings.isEmpty()) {
             return findings;
         }
@@ -49,12 +65,17 @@ public class FindingTriageService {
             return findings;
         }
 
+        if (clientFactory != null && userId != null && !clientFactory.isJevEnabled(userId)) {
+            logger.info("Jev finding triage is disabled by user {} profile settings; skipping triage.", userId);
+            return findings;
+        }
+
         logger.info("Starting Jev finding triage for {} findings...", findings.size());
         long startTime = System.currentTimeMillis();
 
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             List<CompletableFuture<Void>> futures = findings.stream()
-                    .map(v -> CompletableFuture.runAsync(() -> triageSingleFinding(v), executor))
+                    .map(v -> CompletableFuture.runAsync(() -> triageSingleFinding(v, userId), executor))
                     .toList();
 
             CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
@@ -78,6 +99,10 @@ public class FindingTriageService {
     }
 
     public void triageSingleFinding(Vulnerability v) {
+        triageSingleFinding(v, null);
+    }
+
+    public void triageSingleFinding(Vulnerability v, String userId) {
         try {
             StringBuilder prompt = new StringBuilder();
             prompt.append("Rule ID: ").append(v.getRuleId() != null ? v.getRuleId() : "N/A").append("\n");
@@ -98,13 +123,27 @@ public class FindingTriageService {
                     List.of("ACTIONABLE_VULNERABILITY", "FALSE_POSITIVE", "TEST_MOCK_FIXTURE")
             );
 
+            String modelName = jevProperties.getModelName();
+            String apiKey = null;
+            String baseUrl = null;
+            if (clientFactory != null && userId != null) {
+                String userModel = clientFactory.getJevModelName(userId);
+                if (userModel != null && !userModel.isBlank()) {
+                    modelName = userModel;
+                }
+                apiKey = clientFactory.getJevApiKey(userId);
+                baseUrl = clientFactory.getJevBaseUrl(userId);
+            }
+
             JevRequest request = new JevRequest(
-                    jevProperties.getModelName(),
+                    modelName,
                     prompt.toString(),
                     List.of(actionabilityQuestion)
             );
 
-            JevResponse response = jevClient.execute(request, "finding_triage");
+            JevResponse response = (apiKey != null || baseUrl != null)
+                    ? jevClient.execute(request, "finding_triage", apiKey, baseUrl)
+                    : jevClient.execute(request, "finding_triage");
             String result = response.getAnswerValue("actionability");
             Double confidence = response.getAnswerConfidence("actionability");
             if (confidence == null) {

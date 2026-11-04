@@ -73,8 +73,9 @@
 | `ScanRequest.java` | repository ID, branch, scanner, force flag, thread ID. |
 | `TestConnectionRequest.java` | provider, API key, base URL, model name. |
 | `TestConnectionResponse.java` | success flag, message, tested model. |
-| `UserLlmConfigDto.java` | user ID, provider, base URL, model names, masked API key, timestamps. |
-| `UserLlmConfigRequest.java` | provider, API key, base URL, model name, supervisor model name. |
+| `TestJevConnectionRequest.java` | API key, base URL, model name for SystemOne (TypeSafe Jev) connectivity test. |
+| `UserLlmConfigDto.java` | user ID, provider, base URL, model names, masked API key, SystemOne/Jev config & system defaults, timestamps. |
+| `UserLlmConfigRequest.java` | provider, API key, base URL, model name, supervisor model name, SystemOne/Jev preferences (enabled, model, URL, key). |
 
 ### `domain`
 
@@ -110,7 +111,7 @@
 | File | Purpose |
 |---|---|
 | `AppUser.java` | JPA aggregate root for authenticated users. |
-| `UserLlmConfig.java` | JPA entity mapping `user_llm_configs` table with encrypted API keys and model preferences. |
+| `UserLlmConfig.java` | JPA entity mapping `user_llm_configs` table with encrypted primary & SystemOne/Jev API keys and model preferences. |
 
 ### `repository`
 

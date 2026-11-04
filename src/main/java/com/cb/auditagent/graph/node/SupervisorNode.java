@@ -189,6 +189,12 @@ public class SupervisorNode implements NodeAction<MultiAgentState> {
             return null;
         }
 
+        String userId = state.getUserId();
+        if (clientFactory != null && userId != null && !clientFactory.isJevEnabled(userId)) {
+            logger.info("Supervisor: Jev is disabled by user {} profile settings. Skipping fast-path routing.", userId);
+            return null;
+        }
+
         try {
             StringBuilder stateBuilder = new StringBuilder();
             stateBuilder.append("Workflow Context:\n");
@@ -216,22 +222,23 @@ public class SupervisorNode implements NodeAction<MultiAgentState> {
                     options
             );
 
-            JevRequest request = new JevRequest(
-                    jevProperties.getModelName(),
-                    stateBuilder.toString(),
-                    List.of(question)
-            );
-
-            String userId = state.getUserId();
+            String modelName = jevProperties.getModelName();
             String apiKey = null;
             String baseUrl = null;
             if (clientFactory != null && userId != null) {
-                UserLlmConfigService.DecryptedLlmConfig userConfig = clientFactory.resolveConfig(userId);
-                if (userConfig != null) {
-                    apiKey = userConfig.apiKey();
-                    baseUrl = userConfig.baseUrl();
+                String userModel = clientFactory.getJevModelName(userId);
+                if (userModel != null && !userModel.isBlank()) {
+                    modelName = userModel;
                 }
+                apiKey = clientFactory.getJevApiKey(userId);
+                baseUrl = clientFactory.getJevBaseUrl(userId);
             }
+
+            JevRequest request = new JevRequest(
+                    modelName,
+                    stateBuilder.toString(),
+                    List.of(question)
+            );
 
             JevResponse response = jevClient.execute(request, "supervisor_routing", apiKey, baseUrl);
             String selected = response.getAnswerValue("next_stage");
