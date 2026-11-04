@@ -23,7 +23,7 @@
 | `AgentConfig.java` | Validated remediation/tool limits and Docker sandbox settings. |
 | `ApiSecurityFilter.java` | API session and CSRF enforcement. |
 | `CorsConfig.java` | Exact frontend-origin credentialed CORS. |
-| `DatabasePreflightCleanup.java` | Startup pre-flight bean purging legacy orphaned child records before Hibernate updates schema. |
+| `DatabasePreflightCleanup.java` | Startup pre-flight bean applying idempotent DDL schema migrations and purging legacy orphaned child records before Hibernate boots. |
 | `GitHubAppConfig.java` | GitHub endpoints, secrets, cookies, workspace settings. |
 | `Jackson2Config.java` | Jackson compatibility bean. |
 | `JevProperties.java` | Binds `auditagent.jev` properties (master toggle, model, timeouts, retries, triage, and supervisor routing). |

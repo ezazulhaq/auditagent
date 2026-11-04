@@ -213,7 +213,7 @@ This catalog connects each feature to its user/business outcome and main impleme
 | Forget scopes | Conversation/run detail and approved repository memory are separate operations. | memory DELETE endpoints |
 | DDD Aggregate Roots & Cascading | Domain-Driven Design aggregate roots (`MemoryThread`, `AgentRun`, `AppUser`, `ManagedRepository`) manage lifecycle with JPA mappings and dual cascading (JPA `CascadeType.ALL` + Hibernate `@OnDelete` for PostgreSQL native `ON DELETE CASCADE`). | JPA entity mappings, `entity/` package |
 | Modular Domain Data Services | Persistence partitioned into four focused domain data services (`ConversationDataService`, `RemediationDataService`, `UserDataService`, `ScanDataService`) behind the `DatabaseService` unified facade. | `com.cb.auditagent.service.data.*`, `DatabaseService` |
-| Startup Pre-flight Orphan Cleanup | Deletes legacy orphaned child records across messages, runs, steps, and checkpoints prior to Hibernate schema update to avoid foreign key constraint violations. | `DatabasePreflightCleanup` |
+| Startup Pre-flight Orphan Cleanup & Schema Migration | Applies idempotent DDL migrations (adding missing entity columns like `jev_*` and `triage_*`) and deletes legacy orphaned child records across messages, runs, steps, and checkpoints prior to Hibernate initialization. | `DatabasePreflightCleanup` |
 
 ## Observability and compatibility
 

@@ -467,9 +467,11 @@ To ensure zero breaking changes across existing domain mappers, record construct
 - `getRepositoryId()`, `setRepositoryId(Long)`
 - `getVulnerabilityId()`, `setVulnerabilityId(String)`
 
-### Startup Pre-flight Orphan Cleanup
+### Startup Pre-flight Orphan Cleanup & Schema Migration
 
-Before Hibernate applies schema updates (`ddl-auto: update`), existing databases might contain orphaned child rows (e.g. messages or steps with invalid foreign references). `DatabasePreflightCleanup` executes via `DataSource` prior to `LocalContainerEntityManagerFactoryBean` initialization to purge orphaned records from child tables (`memory_messages`, `agent_runs`, `agent_steps`, `verification_results`, `run_changes`, `graph_checkpoints`, `graph_node_events`, `subagent_states`, `user_sessions`, `user_notifications`, `user_llm_configs`, `scan_snapshots`, `scan_history_stats`), ensuring seamless foreign key constraint creation.
+Before Hibernate applies schema updates (`ddl-auto: update`), existing databases might contain orphaned child rows (e.g. messages or steps with invalid foreign references) or miss recently added columns when running under strict schema validation. `DatabasePreflightCleanup` executes via `DataSource` prior to `LocalContainerEntityManagerFactoryBean` initialization to:
+1. Apply idempotent DDL column additions (`ALTER TABLE ... ADD COLUMN IF NOT EXISTS`) for entities such as `user_llm_configs` (`jev_enabled`, `jev_model_name`, `jev_base_url`, `jev_api_key_encrypted`) and `vulnerabilities` (`triage_actionable`, `triage_confidence`, `triage_classification`).
+2. Purge orphaned records from child tables (`memory_messages`, `agent_runs`, `agent_steps`, `verification_results`, `run_changes`, `graph_checkpoints`, `graph_node_events`, `subagent_states`, `user_sessions`, `user_notifications`, `user_llm_configs`, `scan_snapshots`, `scan_history_stats`), ensuring seamless foreign key constraint creation.
 
 ### Domain Data Services
 
