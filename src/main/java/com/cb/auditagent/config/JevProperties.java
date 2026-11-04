@@ -9,7 +9,7 @@ public class JevProperties {
     private boolean enabled = true;
     private String baseUrl = "https://openrouter.ai/api/v1";
     private String apiKey = "";
-    private String modelName = "typesafe/jev-1.13";
+    private String modelName = "typesafe/jev-1.14";
     private int timeoutMs = 3000;
     private int maxRetries = 1;
     private TriageProperties triage = new TriageProperties();

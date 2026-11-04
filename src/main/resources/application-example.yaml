@@ -40,12 +40,12 @@ auditagent:
       base-url: ${OPENAI_BASE_URL:https://openrouter.ai/api/v1}
       api-key: ${OPENAI_API_KEY:}
       model-name: ${OPENAI_MODEL_NAME:anthropic/claude-3.5-sonnet}
-      supervisor-model-name: ${SUPERVISOR_MODEL_NAME:typesafe/jev-1.13}
+      supervisor-model-name: ${SUPERVISOR_MODEL_NAME:typesafe/jev-1.14}
   jev:
     enabled: ${AUDITAGENT_JEV_ENABLED:true}
     base-url: ${AUDITAGENT_JEV_BASE_URL:https://openrouter.ai/api/v1}
     api-key: ${AUDITAGENT_JEV_API_KEY:${OPENAI_API_KEY:}}
-    model-name: ${AUDITAGENT_JEV_MODEL:typesafe/jev-1.13}
+    model-name: ${AUDITAGENT_JEV_MODEL:typesafe/jev-1.14}
     timeout-ms: ${AUDITAGENT_JEV_TIMEOUT_MS:3000}
     max-retries: ${AUDITAGENT_JEV_MAX_RETRIES:1}
     triage:

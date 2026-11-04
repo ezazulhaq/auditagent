@@ -379,7 +379,7 @@ Semgrep also requires a short, writable JVM OS-temp root (`java.io.tmpdir`), esp
 | `auditagent.jev.enabled` | `AUDITAGENT_JEV_ENABLED` | `true` | Master switch enabling TypeSafe Jev non-autoregressive decision model integration. |
 | `auditagent.jev.base-url` | `AUDITAGENT_JEV_BASE_URL` | `https://openrouter.ai/api/v1` | Jev endpoint base URL. Automatically resolves `/systemone` endpoint. |
 | `auditagent.jev.api-key` | `AUDITAGENT_JEV_API_KEY` | `${OPENAI_API_KEY}` | API key for Jev calls (defaults to OpenRouter/OpenAI API key). |
-| `auditagent.jev.model-name` | `AUDITAGENT_JEV_MODEL` | `typesafe/jev-1.13` | Jev model identifier on OpenRouter. |
+| `auditagent.jev.model-name` | `AUDITAGENT_JEV_MODEL` | `typesafe/jev-1.14` | Jev model identifier on OpenRouter. |
 | `auditagent.jev.timeout-ms` | `AUDITAGENT_JEV_TIMEOUT_MS` | `3000` | HTTP client read timeout in milliseconds before triggering retry/fallback. |
 | `auditagent.jev.max-retries` | `AUDITAGENT_JEV_MAX_RETRIES` | `1` | Retry count for transient network or 5xx server errors. |
 | `auditagent.jev.triage.enabled` | `AUDITAGENT_JEV_TRIAGE_ENABLED` | `true` | Enables post-scan pre-flight finding triage to flag false positives and test mocks. |

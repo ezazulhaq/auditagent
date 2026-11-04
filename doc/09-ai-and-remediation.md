@@ -10,7 +10,7 @@ AuditAgent employs specialized model integrations across different operational w
 | Remediation agent   | LangChain4j `OpenAiChatModel` | Multi-turn tool calling with durable checkpoints and verification.         |
 | Decision & triage   | `JevClient` (TypeSafe Jev)    | Non-autoregressive fast triage and Supervisor routing via `POST /api/v1/systemone`. |
 
-Both generative paths use the configured OpenAI-compatible model API (OpenRouter, OpenAI, Gemini), while the decision path targets TypeSafe AI's Jev model (`typesafe/jev-1.13`) on OpenRouter's System One endpoint ($0.042/1M input tokens, zero output tokens).
+Both generative paths use the configured OpenAI-compatible model API (OpenRouter, OpenAI, Gemini), while the decision path targets TypeSafe AI's Jev model (`typesafe/jev-1.14`) on OpenRouter's System One endpoint ($0.042/1M input tokens, zero output tokens).
 
 ### Pre-flight finding triage with TypeSafe Jev
 
