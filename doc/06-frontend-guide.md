@@ -204,7 +204,7 @@ Located in `frontend/src/features/profile/`:
   - Switching between **OpenRouter (Default)** and **OpenAI-Compatible** providers.
   - Custom **API Base URL** input when OpenAI-compatible mode is active.
   - API key input with show/hide password toggle and "Replace existing key" mode when an encrypted key is already stored.
-  - Curated model presets (`anthropic/claude-3.5-sonnet`, `openai/gpt-4o`, `google/gemini-2.5-flash`, `glm-5.3-flash`, `deepseek-chat`) plus custom model input.
+  - Curated model presets (`openai/gpt-4o`, `openai/gpt-4o-mini`, `anthropic/claude-sonnet-5.5`, `google/gemini-2.5-flash`, `glm-5.3-flash`, `deepseek-chat`) plus custom model input.
   - Advanced settings toggle for optional supervisor model customization.
   - Live connection testing with real-time status banners and error diagnostics via `POST /api/user/llm-config/test`.
 - **`LlmOnboardingModal`**: A non-closable modal displayed immediately upon login if user keys are required but not yet configured, preventing users from attempting AI workflows with missing credentials.

@@ -200,6 +200,7 @@ Finally, the entire user journey is orchestrated by the `AuditWorkflowGraph`, wh
 - Same tool repeatedly: inject a progress nudge after repeated consecutive use.
 - Too much exploration: after two-thirds of iterations without a patch, tell the model to patch.
 - Maximum iterations: fail without creating a PR.
+- Upstream LLM errors: intercepted by `LlmErrorClassifier` to strip Java exception prefixes and unwrap provider JSON payloads, classifying failures (e.g. 404 model unavailable, 401 invalid credentials, 402 quota exhausted, 429 rate limit, 400 context window, connection failure) and automatically signaling the frontend to trigger the Profile Settings modal when configuration updates are required.
 
 ## Durable idempotency
 

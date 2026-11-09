@@ -108,7 +108,7 @@ describe('LlmConfigForm', () => {
     await waitFor(() => {
       expect(mockApi.saveUserLlmConfig).toHaveBeenCalledWith(expect.objectContaining({
         apiKey: 'sk-or-v1-valid-key-1234',
-        modelName: 'anthropic/claude-3.5-sonnet',
+        modelName: 'openai/gpt-6-luna',
         provider: 'OPENROUTER',
         jevEnabled: true,
         jevModelName: 'typesafe/jev-1.14',

@@ -63,9 +63,11 @@ const PROVIDERS = [
 
 const PROVIDER_PRESETS = {
   OPENROUTER: [
-    { id: 'anthropic/claude-3.5-sonnet', label: 'Anthropic Claude 3.5 Sonnet', tag: 'Recommended' },
+    { id: 'openai/gpt-6-luna', label: 'OpenAI GPT-6 Luna', tag: 'Recommended' },
     { id: 'openai/gpt-4o', label: 'OpenAI GPT-4o', tag: 'High Intelligence' },
     { id: 'openai/gpt-4o-mini', label: 'OpenAI GPT-4o-mini', tag: 'Fast & Lightweight' },
+    { id: 'anthropic/claude-sonnet-5.5', label: 'Anthropic Claude Sonnet 5.5', tag: 'Advanced' },
+    { id: 'anthropic/claude-haiku-5.5', label: 'Anthropic Claude Haiku 5.5', tag: 'Fast' },
     { id: 'google/gemini-2.5-flash', label: 'Google Gemini 2.5 Flash', tag: 'Ultra Fast' },
     { id: 'z-ai/glm-5.3-flash', label: 'Z-AI GLM 5.3 Flash', tag: 'Balanced' },
     { id: 'deepseek/deepseek-chat', label: 'DeepSeek Chat', tag: 'Cost Effective' },
@@ -91,8 +93,9 @@ const PROVIDER_PRESETS = {
     { id: 'deepseek-r1', label: 'DeepSeek R1', tag: 'Reasoning' },
   ],
   OPENAI_COMPATIBLE: [
-    { id: 'anthropic/claude-3.5-sonnet', label: 'Anthropic Claude 3.5 Sonnet', tag: 'Recommended' },
+    { id: 'openai/gpt-6-luna', label: 'OpenAI GPT-6 Luna', tag: 'Recommended' },
     { id: 'openai/gpt-4o', label: 'OpenAI GPT-4o', tag: 'High Intelligence' },
+    { id: 'openai/gpt-4o-mini', label: 'OpenAI GPT-4o-mini', tag: 'Fast & Lightweight' },
   ],
 };
 
@@ -112,7 +115,7 @@ export function LlmConfigForm({ api, onSuccess, isOnboarding = false }) {
   const [existingMaskedKey, setExistingMaskedKey] = useState('');
   const [isReplacingKey, setIsReplacingKey] = useState(false);
 
-  const [selectedPreset, setSelectedPreset] = useState('anthropic/claude-3.5-sonnet');
+  const [selectedPreset, setSelectedPreset] = useState('openai/gpt-6-luna');
   const [customModel, setCustomModel] = useState('');
   const [supervisorModel, setSupervisorModel] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);

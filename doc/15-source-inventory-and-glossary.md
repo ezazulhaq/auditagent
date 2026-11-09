@@ -150,6 +150,7 @@
 | `GitHubAuthService.java` | OAuth, tokens, sessions, CSRF, refresh. |
 | `GitHubProvider.java` | JGit clone/diff/hash/commit/push/PR/cleanup. |
 | `IssueLifecycleService.java` | GitHub App issue webhook event processor, triage matching, autonomous remediation, and issue thread tracking. |
+| `LlmErrorClassifier.java` | Classifies and normalizes LLM provider failures (404 model not found, 401 unauthorized, 402 quota exhausted, 429 rate limit, 400 context length, connection refused), strips Java exception prefixes, extracts clean JSON provider error messages, and indicates configuration resolution flags. |
 | `LlmService.java` | Chat, tool-calling remediation loop, failure reflection (`reflectOnFailure`), and PR diff learning (`summarizeDiffForGlobalPattern`). |
 | `ManagedProcessEnvironment.java` | Secret scrubbing, contained runtime directories, and validated scanner-temp override. |
 | `ManagedProcessRunner.java` | Concurrent stream draining, heartbeat, deadline, process-tree termination, and short per-scan temp lifecycle. |
@@ -274,7 +275,7 @@
 
 ### Backend
 
-`AuditagentApplicationTests`, `ApiSecurityFilterTest`, `AuditControllerReportExportTest`, `GitHubWebhookControllerTest`, `GitHubRepositoryControllerTest`, `IssueLifecycleServiceTest`, `AgentToolServiceSecurityTest`, `ConversationMemoryServiceTest`, `DatabaseMemoryServiceTest`, `FindingTriageServiceTest`, `GitHubAuthServiceTest`, `GitHubProviderIntegrationTest`, `JevClientTest`, `LlmServiceAgentLoopTest`, `ManagedProcessRunnerTest`, `ProjectUploadControllerTest`, `ProjectUploadServiceTest`, `RemediationWorkflowPreparationTest`, `ScanOrchestratorReportExportTest`, `ScanOrchestratorServiceTest`, `ReporterServiceTest`, `ScannerServiceTest`, `SupervisorNodeTest`, `TokenCipherTest`, `UserLlmClientFactoryTest`, `UserLlmConfigControllerTest`, `UserLlmConfigServiceTest`, and `ZipArchiveExtractorTest`.
+`AuditagentApplicationTests`, `ApiSecurityFilterTest`, `AuditControllerReportExportTest`, `GitHubWebhookControllerTest`, `GitHubRepositoryControllerTest`, `IssueLifecycleServiceTest`, `AgentToolServiceSecurityTest`, `ConversationMemoryServiceTest`, `DatabaseMemoryServiceTest`, `FindingTriageServiceTest`, `GitHubAuthServiceTest`, `GitHubProviderIntegrationTest`, `JevClientTest`, `LlmErrorClassifierTest`, `LlmServiceAgentLoopTest`, `ManagedProcessRunnerTest`, `ProjectUploadControllerTest`, `ProjectUploadServiceTest`, `RemediationWorkflowPreparationTest`, `ScanOrchestratorReportExportTest`, `ScanOrchestratorServiceTest`, `ReporterServiceTest`, `ScannerServiceTest`, `SupervisorNodeTest`, `TokenCipherTest`, `UserLlmClientFactoryTest`, `UserLlmConfigControllerTest`, `UserLlmConfigServiceTest`, and `ZipArchiveExtractorTest`.
 
 ### Frontend
 

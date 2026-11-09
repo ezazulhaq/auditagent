@@ -29,7 +29,7 @@ AuditAgent uses a Bring-Your-Own-Key (BYOK) architecture to power conversational
 Upon signing in for the first time (when `auditagent.llm.user-keys-required` is enabled on the server), an unclosable onboarding modal appears prompting you to configure your credentials:
 
 1. **Select Provider**:
-   - **OpenRouter (Default)**: Offers access to unified frontier and open models (`anthropic/claude-3.5-sonnet`, `openai/gpt-4o`, `google/gemini-2.5-flash`, etc.).
+   - **OpenRouter (Default)**: Offers access to unified frontier and open models (`openai/gpt-4o`, `anthropic/claude-sonnet-5.5`, `google/gemini-2.5-flash`, etc.).
    - **OpenAI-Compatible**: Use custom endpoints, self-hosted gateways, or direct OpenAI endpoints. When selected, you can specify a custom **API Base URL** (e.g. `https://api.openai.com/v1`).
 2. **Enter API Key**:
    - Paste your provider API key. The key input includes a visibility toggle (`Show/Hide`) and is never displayed unmasked once saved.

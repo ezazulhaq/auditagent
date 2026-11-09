@@ -653,13 +653,24 @@ Typical JSON:
 | `422`       | User LLM configuration missing or required credentials unconfigured (`code: "LLM_KEY_REQUIRED"`).          |
 | `500`       | Unhandled integration/runtime failure; not all exceptions have a dedicated advice mapping.                 |
 
-When remediation (`POST /api/analyze` or `POST /api/analyze/batch`) encounters missing credentials while `user-keys-required` is enabled, the SSE stream emits a terminal error event:
+When remediation (`POST /api/analyze` or `POST /api/analyze/batch`) encounters missing credentials, invalid keys, or unavailable models, the SSE stream emits a structured terminal error event classified by `LlmErrorClassifier`:
 
 ```json
 {
   "type": "error",
-  "message": "User LLM credentials are required. Please configure your API key in Profile settings.",
-  "code": "LLM_KEY_REQUIRED",
-  "requiresLlmConfig": true
+  "errorCode": "MODEL_NOT_FOUND",
+  "requiresLlmConfig": true,
+  "message": "The configured model is no longer available on your LLM provider (404 Not Found): anthropic/claude-3.5-sonnet is no longer available on OpenRouter. Please select a different model in Profile Settings."
 }
 ```
+
+Supported `errorCode` values:
+- `MODEL_NOT_FOUND` (`requiresLlmConfig: true`): Model unavailable, retired, or 404 on provider.
+- `CREDENTIALS_INVALID` (`requiresLlmConfig: true`): Invalid API key or 401 Unauthorized.
+- `QUOTA_EXCEEDED` (`requiresLlmConfig: true`): Account out of credits or 402 Payment Required.
+- `RATE_LIMITED` (`requiresLlmConfig: false`): Provider rate limit reached (429).
+- `CONTEXT_LENGTH_EXCEEDED` (`requiresLlmConfig: false`): Prompt exceeds model context window (400).
+- `CONNECTION_FAILED` (`requiresLlmConfig: true`): Network or connection failure reaching provider endpoint.
+- `LLM_KEY_REQUIRED` (`requiresLlmConfig: true`): User credentials required before running AI actions.
+- `STALE_BASE` (`requiresLlmConfig: false`): Branch advanced since last scan.
+- `REMEDIATION_FAILED` (`requiresLlmConfig: false`): General unclassified execution error.

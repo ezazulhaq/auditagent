@@ -37,7 +37,7 @@ services:
       # LLM / Model Credentials & Endpoints
       SPRING_AI_OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       SPRING_AI_OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://openrouter.ai/api/v1}
-      SPRING_AI_OPENAI_CHAT_MODEL: ${PROVIDER_MODEL:-anthropic/claude-3.5-sonnet}
+      SPRING_AI_OPENAI_CHAT_MODEL: ${PROVIDER_MODEL:-openai/gpt-6-luna}
 
       # Supervisor Model for LLM Agentic Remediation Loop
       AUDITAGENT_LLM_MODE: ${AUDITAGENT_LLM_MODE:-user}
@@ -45,7 +45,7 @@ services:
       AUDITAGENT_LLM_PROVIDER: ${AUDITAGENT_LLM_PROVIDER:-openai-compatible}
       AUDITAGENT_LLM_OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       AUDITAGENT_LLM_OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://openrouter.ai/api/v1}
-      AUDITAGENT_LLM_OPENAI_MODEL_NAME: ${OPENAI_MODEL_NAME:-anthropic/claude-3.5-sonnet}
+      AUDITAGENT_LLM_OPENAI_MODEL_NAME: ${OPENAI_MODEL_NAME:-openai/gpt-6-luna}
       AUDITAGENT_LLM_SUPERVISOR_MODEL_NAME: ${SUPERVISOR_MODEL_NAME:-typesafe/jev-1.14}
 
       # TypeSafe Jev Model Integration (Finding Triage & Supervisor Routing)

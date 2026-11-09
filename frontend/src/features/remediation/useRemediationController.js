@@ -181,6 +181,9 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
           if (event.message?.startsWith('Remediation failed') || event.status === 'FAILED') {
             toast?.error?.(event.message);
             notify('error', event.message || `Analysis failed for ${vulnId}.`);
+            if (event.requiresLlmConfig && onOpenProfileSettings) {
+              onOpenProfileSettings();
+            }
           } else {
             onMessage('agent', event.message);
           }
