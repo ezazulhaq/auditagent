@@ -50,6 +50,17 @@ public class DatabasePreflightCleanup {
             "DELETE FROM user_notifications WHERE user_id IS NOT NULL AND user_id NOT IN (SELECT user_id FROM app_users)",
             "DELETE FROM user_llm_configs WHERE user_id IS NOT NULL AND user_id NOT IN (SELECT user_id FROM app_users)",
 
+            // Schema migrations for user_llm_configs (Jev Model integration)
+            "ALTER TABLE user_llm_configs ADD COLUMN IF NOT EXISTS jev_enabled BOOLEAN",
+            "ALTER TABLE user_llm_configs ADD COLUMN IF NOT EXISTS jev_model_name VARCHAR(128)",
+            "ALTER TABLE user_llm_configs ADD COLUMN IF NOT EXISTS jev_base_url TEXT",
+            "ALTER TABLE user_llm_configs ADD COLUMN IF NOT EXISTS jev_api_key_encrypted TEXT",
+
+            // Schema migrations for vulnerabilities (Pre-flight finding triage)
+            "ALTER TABLE vulnerabilities ADD COLUMN IF NOT EXISTS triage_actionable BOOLEAN",
+            "ALTER TABLE vulnerabilities ADD COLUMN IF NOT EXISTS triage_confidence DOUBLE PRECISION",
+            "ALTER TABLE vulnerabilities ADD COLUMN IF NOT EXISTS triage_classification VARCHAR(255)",
+
             // Repository child entities referencing managed_repositories
             "DELETE FROM scan_snapshots WHERE repository_id IS NOT NULL AND repository_id NOT IN (SELECT repository_id FROM managed_repositories)",
             "DELETE FROM scan_history_stats WHERE repository_id IS NOT NULL AND repository_id NOT IN (SELECT repository_id FROM managed_repositories)",

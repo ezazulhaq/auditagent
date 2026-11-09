@@ -188,7 +188,7 @@ The most security-sensitive UI:
 - Quick-copy finding ID: A dedicated copy button beside the finding ID in the drawer header enables one-click copying of the identifier to the clipboard for chat triage or external tracking, displaying temporary visual feedback (`Copied!`).
 - `UPLOAD_SCAN`: when the active finding originates from a manual ZIP upload (`isUploadScan = true`), autonomous PR creation is disabled and an informational banner is displayed explaining that PR remediation requires a connected GitHub repository.
 - `DETECTED`: allows analysis for connected GitHub repositories.
-- `PUBLISHED` / `PR_OPEN`: The UI polls the backend API `/api/reports` and `/api/memory/threads/{threadId}` every 5 seconds to catch GitHub webhook state changes (e.g., `FIXED` upon merge) without needing a page refresh, or updates immediately via the FindingsView refresh control.
+- `PUBLISHED` / `PR_OPEN`: The UI polls the backend API `/api/reports` and `/api/memory/threads/{threadId}` every 5 seconds to catch GitHub webhook state changes (e.g., `FIXED` upon merge) without needing a page refresh, or updates immediately via the FindingsView refresh control. Background polling preserves user UI focus and never forcibly reopens a closed finding drawer.
 - `AWAITING_APPROVAL`: Automatically overridden by autonomous PR creation, though structurally preserved for legacy compatibility.
 - `PUBLISH_FAILED`: shows retry.
 - `PR_OPEN`: links the PR and explains merge is pending.
@@ -204,7 +204,7 @@ Located in `frontend/src/features/profile/`:
   - Switching between **OpenRouter (Default)** and **OpenAI-Compatible** providers.
   - Custom **API Base URL** input when OpenAI-compatible mode is active.
   - API key input with show/hide password toggle and "Replace existing key" mode when an encrypted key is already stored.
-  - Curated model presets (`anthropic/claude-3.5-sonnet`, `openai/gpt-4o`, `google/gemini-2.5-flash`, `glm-5.3-flash`, `deepseek-chat`) plus custom model input.
+  - Curated model presets (`openai/gpt-4o`, `openai/gpt-4o-mini`, `anthropic/claude-sonnet-5.5`, `google/gemini-2.5-flash`, `glm-5.3-flash`, `deepseek-chat`) plus custom model input.
   - Advanced settings toggle for optional supervisor model customization.
   - Live connection testing with real-time status banners and error diagnostics via `POST /api/user/llm-config/test`.
 - **`LlmOnboardingModal`**: A non-closable modal displayed immediately upon login if user keys are required but not yet configured, preventing users from attempting AI workflows with missing credentials.

@@ -27,7 +27,7 @@ export function UserProfileModal({ isOpen, onClose, user, api, toast }) {
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl p-6 md:p-7 space-y-6"
+        className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl p-6 md:p-7 space-y-6"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

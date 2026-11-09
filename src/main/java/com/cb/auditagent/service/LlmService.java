@@ -1099,8 +1099,9 @@ public class LlmService {
             persistChatAnswer(threadId, answer, repoPath);
             return answer;
         } catch (Exception e) {
-            logger.error("Chat generation failed with {}", e.getClass().getSimpleName());
-            return "Error: Could not process the chat message through Amazon Bedrock.";
+            LlmErrorClassifier.ClassifiedError classified = LlmErrorClassifier.classify(e);
+            logger.error("Chat generation failed: {}", classified.userMessage());
+            return "Error: " + classified.userMessage();
         }
     }
 
@@ -1218,34 +1219,16 @@ public class LlmService {
                         persistChatAnswer(threadId, fullResponse.toString().trim(), repoPath);
                     })
                     .onErrorResume(e -> {
-                        logger.error("Chat streaming failed with {}: {}", e.getClass().getSimpleName(), e.getMessage());
-                        String msg = e.getMessage() != null ? e.getMessage() : "";
-                        String errorMsg;
-                        if (msg.contains("401") || msg.toLowerCase().contains("unauthorized") || msg.toLowerCase().contains("invalid api key")) {
-                            errorMsg = "Error: Invalid API Key. Please update your API key in Profile & LLM Settings.";
-                        } else if (msg.contains("402") || msg.toLowerCase().contains("credit") || msg.toLowerCase().contains("quota")) {
-                            errorMsg = "Error: Insufficient credits or quota exceeded. Please check your account in Profile & LLM Settings.";
-                        } else if (e instanceof UserLlmConfigurationException uce) {
-                            errorMsg = "Error: " + uce.getMessage() + ". Please configure your API key in Profile & LLM Settings.";
-                        } else {
-                            errorMsg = "Error: Could not process the chat message: " + (msg.isBlank() ? e.getClass().getSimpleName() : msg);
-                        }
+                        LlmErrorClassifier.ClassifiedError classified = LlmErrorClassifier.classify(e);
+                        logger.error("Chat streaming failed with {}: {}", e.getClass().getSimpleName(), classified.userMessage());
+                        String errorMsg = "Error: " + classified.userMessage();
                         persistChatAnswer(threadId, errorMsg, repoPath);
                         return Flux.just(errorMsg);
                     });
         } catch (Exception e) {
-            logger.error("Chat response generation failed with {}: {}", e.getClass().getSimpleName(), e.getMessage());
-            String msg = e.getMessage() != null ? e.getMessage() : "";
-            String errorMsg;
-            if (msg.contains("401") || msg.toLowerCase().contains("unauthorized") || msg.toLowerCase().contains("invalid api key")) {
-                errorMsg = "Error: Invalid API Key. Please update your API key in Profile & LLM Settings.";
-            } else if (msg.contains("402") || msg.toLowerCase().contains("credit") || msg.toLowerCase().contains("quota")) {
-                errorMsg = "Error: Insufficient credits or quota exceeded. Please check your account in Profile & LLM Settings.";
-            } else if (e instanceof UserLlmConfigurationException uce) {
-                errorMsg = "Error: " + uce.getMessage() + ". Please configure your API key in Profile & LLM Settings.";
-            } else {
-                errorMsg = "Error: Could not process the chat message: " + (msg.isBlank() ? e.getClass().getSimpleName() : msg);
-            }
+            LlmErrorClassifier.ClassifiedError classified = LlmErrorClassifier.classify(e);
+            logger.error("Chat response generation failed with {}: {}", e.getClass().getSimpleName(), classified.userMessage());
+            String errorMsg = "Error: " + classified.userMessage();
             persistChatAnswer(threadId, errorMsg, repoPath);
             return Flux.just(errorMsg);
         }

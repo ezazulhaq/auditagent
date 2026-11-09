@@ -117,7 +117,50 @@ public class UserLlmClientFactory {
         return getAgentModelName(userId);
     }
 
-    private UserLlmConfigService.DecryptedLlmConfig resolveConfig(String userId) {
+    public boolean isJevEnabled(String userId) {
+        try {
+            UserLlmConfigService.DecryptedLlmConfig userConfig = resolveConfig(userId);
+            if (userConfig != null && userConfig.jevEnabled() != null) {
+                return userConfig.jevEnabled();
+            }
+        } catch (Exception ignored) {}
+        return true;
+    }
+
+    public String getJevModelName(String userId) {
+        try {
+            UserLlmConfigService.DecryptedLlmConfig userConfig = resolveConfig(userId);
+            if (userConfig != null && userConfig.jevModelName() != null && !userConfig.jevModelName().isBlank()) {
+                return userConfig.jevModelName();
+            }
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    public String getJevBaseUrl(String userId) {
+        try {
+            UserLlmConfigService.DecryptedLlmConfig userConfig = resolveConfig(userId);
+            if (userConfig != null && userConfig.jevBaseUrl() != null && !userConfig.jevBaseUrl().isBlank()) {
+                return userConfig.jevBaseUrl();
+            }
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    public String getJevApiKey(String userId) {
+        try {
+            UserLlmConfigService.DecryptedLlmConfig userConfig = resolveConfig(userId);
+            if (userConfig != null) {
+                if (userConfig.jevApiKey() != null && !userConfig.jevApiKey().isBlank()) {
+                    return userConfig.jevApiKey();
+                }
+                return userConfig.apiKey();
+            }
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    public UserLlmConfigService.DecryptedLlmConfig resolveConfig(String userId) {
         UserLlmConfigService.DecryptedLlmConfig config = configService != null ? configService.getDecryptedConfig(userId) : null;
         if (config == null || config.apiKey() == null || config.apiKey().isBlank()) {
             if (llmProperties.isUserKeysRequired()) {

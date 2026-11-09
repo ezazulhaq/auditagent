@@ -166,4 +166,46 @@ describe('useRemediationController', () => {
       findings: [expect.objectContaining({ id: 'VULN-000001', status: 'FIXED' })]
     }), true);
   });
+
+  it('does not re-open selectedFinding during background polling if the drawer is closed', () => {
+    const { result } = renderHook(() => useRemediationController({
+      api: {}, onMessage: vi.fn(), onReport: vi.fn(), onFindings: vi.fn()
+    }));
+
+    // Initially closed / null
+    expect(result.current.selectedFinding).toBeNull();
+
+    // Polling hydration arrives with activeFinding
+    act(() => {
+      result.current.hydrate({
+        activeRuns: [{ runId: 'run-1', status: 'PR_OPEN', vulnerabilityId: 'VULN-000001' }],
+        activeFinding: { id: 'VULN-000001', status: 'PR_OPEN' }
+      }, { isPoll: true });
+    });
+
+    // Must remain null! Drawer should NOT automatically open!
+    expect(result.current.selectedFinding).toBeNull();
+    expect(result.current.runs['VULN-000001'].status).toBe('PR_OPEN');
+  });
+
+  it('updates selectedFinding attributes during polling if the drawer is already open for that finding', () => {
+    const { result } = renderHook(() => useRemediationController({
+      api: {}, onMessage: vi.fn(), onReport: vi.fn(), onFindings: vi.fn()
+    }));
+
+    act(() => {
+      result.current.setSelectedFinding({ id: 'VULN-000001', status: 'PR_OPEN', title: 'Old Title' });
+    });
+
+    act(() => {
+      result.current.hydrate({
+        activeRuns: [{ runId: 'run-1', status: 'PR_OPEN', vulnerabilityId: 'VULN-000001' }],
+        activeFinding: { id: 'VULN-000001', status: 'FIXED', title: 'Updated Title' }
+      }, { isPoll: true });
+    });
+
+    expect(result.current.selectedFinding).not.toBeNull();
+    expect(result.current.selectedFinding.status).toBe('FIXED');
+    expect(result.current.selectedFinding.title).toBe('Updated Title');
+  });
 });

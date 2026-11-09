@@ -1,8 +1,14 @@
 package com.cb.auditagent.service;
 
+import com.cb.auditagent.client.jev.JevClient;
+import com.cb.auditagent.client.jev.JevQuestion;
+import com.cb.auditagent.client.jev.JevRequest;
+import com.cb.auditagent.client.jev.JevResponse;
+import com.cb.auditagent.config.JevProperties;
 import com.cb.auditagent.config.LlmProperties;
 import com.cb.auditagent.dto.TestConnectionRequest;
 import com.cb.auditagent.dto.TestConnectionResponse;
+import com.cb.auditagent.dto.TestJevConnectionRequest;
 import com.cb.auditagent.dto.UserLlmConfigDto;
 import com.cb.auditagent.dto.UserLlmConfigRequest;
 import com.cb.auditagent.entity.UserLlmConfig;
@@ -13,12 +19,15 @@ import dev.langchain4j.model.openai.OpenAiChatModel;
 import okhttp3.OkHttpClient.Builder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -31,25 +40,48 @@ public class UserLlmConfigService {
     private final UserLlmConfigRepository repository;
     private final TokenCipher tokenCipher;
     private final LlmProperties llmProperties;
+    private final JevProperties jevProperties;
     private final UserLlmClientFactory clientFactory;
+    private final JevClient jevClient;
 
     public record DecryptedLlmConfig(
             String provider,
             String baseUrl,
             String apiKey,
             String modelName,
-            String supervisorModelName
-    ) {}
+            String supervisorModelName,
+            Boolean jevEnabled,
+            String jevModelName,
+            String jevBaseUrl,
+            String jevApiKey
+    ) {
+        public DecryptedLlmConfig(String provider, String baseUrl, String apiKey, String modelName, String supervisorModelName) {
+            this(provider, baseUrl, apiKey, modelName, supervisorModelName, null, null, null, null);
+        }
+    }
+
+    @Autowired
+    public UserLlmConfigService(
+            UserLlmConfigRepository repository,
+            TokenCipher tokenCipher,
+            LlmProperties llmProperties,
+            JevProperties jevProperties,
+            @Lazy UserLlmClientFactory clientFactory,
+            @Autowired(required = false) @Lazy JevClient jevClient) {
+        this.repository = repository;
+        this.tokenCipher = tokenCipher;
+        this.llmProperties = llmProperties;
+        this.jevProperties = jevProperties;
+        this.clientFactory = clientFactory;
+        this.jevClient = jevClient;
+    }
 
     public UserLlmConfigService(
             UserLlmConfigRepository repository,
             TokenCipher tokenCipher,
             LlmProperties llmProperties,
-            @Lazy UserLlmClientFactory clientFactory) {
-        this.repository = repository;
-        this.tokenCipher = tokenCipher;
-        this.llmProperties = llmProperties;
-        this.clientFactory = clientFactory;
+            UserLlmClientFactory clientFactory) {
+        this(repository, tokenCipher, llmProperties, new JevProperties(), clientFactory, null);
     }
 
     public boolean isConfigured(String userId) {
@@ -61,15 +93,20 @@ public class UserLlmConfigService {
 
     public UserLlmConfigDto getConfig(String userId) {
         boolean userKeysRequired = llmProperties.isUserKeysRequired();
+        boolean systemJevEnabled = jevProperties != null && jevProperties.isEnabled();
+        String defaultJevModel = jevProperties != null ? jevProperties.getModelName() : "typesafe/jev-1.14";
+
         if (userId == null || userId.isBlank()) {
             return new UserLlmConfigDto(false, userKeysRequired, "OPENROUTER", DEFAULT_OPENROUTER_URL,
-                    llmProperties.getOpenai().getModelName(), llmProperties.getOpenai().getSupervisorModelName(), null);
+                    llmProperties.getOpenai().getModelName(), llmProperties.getOpenai().getSupervisorModelName(), null,
+                    systemJevEnabled, defaultJevModel, null, null, systemJevEnabled, defaultJevModel);
         }
 
         Optional<UserLlmConfig> opt = repository.findById(userId);
         if (opt.isEmpty()) {
             return new UserLlmConfigDto(false, userKeysRequired, "OPENROUTER", DEFAULT_OPENROUTER_URL,
-                    llmProperties.getOpenai().getModelName(), llmProperties.getOpenai().getSupervisorModelName(), null);
+                    llmProperties.getOpenai().getModelName(), llmProperties.getOpenai().getSupervisorModelName(), null,
+                    systemJevEnabled, defaultJevModel, null, null, systemJevEnabled, defaultJevModel);
         }
 
         UserLlmConfig entity = opt.get();
@@ -82,6 +119,20 @@ public class UserLlmConfigService {
             maskedKey = "••••••••";
         }
 
+        boolean jevEnabled = entity.getJevEnabled() != null ? entity.getJevEnabled() : systemJevEnabled;
+        String jevModelName = entity.getJevModelName() != null && !entity.getJevModelName().isBlank()
+                ? entity.getJevModelName()
+                : defaultJevModel;
+
+        String maskedJevKey = null;
+        if (entity.getJevApiKeyEncrypted() != null && !entity.getJevApiKeyEncrypted().isBlank()) {
+            try {
+                maskedJevKey = maskKey(tokenCipher.decrypt(entity.getJevApiKeyEncrypted()));
+            } catch (Exception e) {
+                maskedJevKey = "••••••••";
+            }
+        }
+
         return new UserLlmConfigDto(
                 true,
                 userKeysRequired,
@@ -89,7 +140,13 @@ public class UserLlmConfigService {
                 entity.getBaseUrl(),
                 entity.getModelName(),
                 entity.getSupervisorModelName(),
-                maskedKey
+                maskedKey,
+                jevEnabled,
+                jevModelName,
+                entity.getJevBaseUrl(),
+                maskedJevKey,
+                systemJevEnabled,
+                defaultJevModel
         );
     }
 
@@ -132,6 +189,22 @@ public class UserLlmConfigService {
             throw new IllegalArgumentException("API Key is required");
         }
 
+        // SystemOne properties
+        Boolean jevEnabled = request.jevEnabled();
+        String jevModelName = request.jevModelName() != null && !request.jevModelName().isBlank()
+                ? request.jevModelName().trim()
+                : (jevProperties != null ? jevProperties.getModelName() : "typesafe/jev-1.14");
+        String jevBaseUrl = request.jevBaseUrl() != null && !request.jevBaseUrl().isBlank()
+                ? request.jevBaseUrl().trim()
+                : null;
+
+        String encryptedJevKey = null;
+        if (request.jevApiKey() != null && !request.jevApiKey().isBlank()) {
+            encryptedJevKey = tokenCipher.encrypt(request.jevApiKey().trim());
+        } else if (existingOpt.isPresent()) {
+            encryptedJevKey = existingOpt.get().getJevApiKeyEncrypted();
+        }
+
         LocalDateTime now = LocalDateTime.now();
         UserLlmConfig entity = existingOpt.orElseGet(() -> UserLlmConfig.builder()
                 .userId(userId)
@@ -143,6 +216,10 @@ public class UserLlmConfigService {
         entity.setApiKeyEncrypted(encryptedKey);
         entity.setModelName(modelName);
         entity.setSupervisorModelName(supervisorModelName);
+        entity.setJevEnabled(jevEnabled);
+        entity.setJevModelName(jevModelName);
+        entity.setJevBaseUrl(jevBaseUrl);
+        entity.setJevApiKeyEncrypted(encryptedJevKey);
         entity.setUpdatedAt(now);
 
         repository.save(entity);
@@ -150,7 +227,8 @@ public class UserLlmConfigService {
         // Evict cached ChatModel clients for this user
         clientFactory.evict(userId);
 
-        logger.info("Saved user LLM configuration for user {} (provider={}, model={})", userId, provider, modelName);
+        logger.info("Saved user LLM configuration for user {} (provider={}, model={}, jevEnabled={})",
+                userId, provider, modelName, jevEnabled);
         return getConfig(userId);
     }
 
@@ -164,13 +242,87 @@ public class UserLlmConfigService {
         }
         UserLlmConfig entity = opt.get();
         String apiKey = tokenCipher.decrypt(entity.getApiKeyEncrypted());
+        String jevApiKey = null;
+        if (entity.getJevApiKeyEncrypted() != null && !entity.getJevApiKeyEncrypted().isBlank()) {
+            try {
+                jevApiKey = tokenCipher.decrypt(entity.getJevApiKeyEncrypted());
+            } catch (Exception e) {
+                logger.warn("Could not decrypt Jev API key for user {}: {}", userId, e.getMessage());
+            }
+        }
         return new DecryptedLlmConfig(
                 entity.getProvider(),
                 entity.getBaseUrl(),
                 apiKey,
                 entity.getModelName(),
-                entity.getSupervisorModelName()
+                entity.getSupervisorModelName(),
+                entity.getJevEnabled(),
+                entity.getJevModelName(),
+                entity.getJevBaseUrl(),
+                jevApiKey
         );
+    }
+
+    public TestConnectionResponse testJevConfig(String userId, TestJevConnectionRequest request) {
+        if (jevClient == null) {
+            return TestConnectionResponse.fail("SystemOne Jev client is not initialized", "JEV_UNAVAILABLE");
+        }
+        String modelName = request != null && request.modelName() != null && !request.modelName().isBlank()
+                ? request.modelName().trim()
+                : (jevProperties != null ? jevProperties.getModelName() : "typesafe/jev-1.14");
+
+        String baseUrl = request != null && request.baseUrl() != null && !request.baseUrl().isBlank()
+                ? request.baseUrl().trim()
+                : (jevProperties != null ? jevProperties.getBaseUrl() : "https://openrouter.ai/api/v1");
+
+        String apiKey = request != null ? request.apiKey() : null;
+        if (apiKey == null || apiKey.isBlank()) {
+            if (userId != null) {
+                DecryptedLlmConfig userConfig = getDecryptedConfig(userId);
+                if (userConfig != null) {
+                    apiKey = userConfig.jevApiKey() != null && !userConfig.jevApiKey().isBlank()
+                            ? userConfig.jevApiKey()
+                            : userConfig.apiKey();
+                }
+            }
+        }
+        if (apiKey == null || apiKey.isBlank()) {
+            apiKey = jevClient.resolveApiKey(null);
+        }
+        if (apiKey == null || apiKey.isBlank()) {
+            return TestConnectionResponse.fail("API Key is required to test SystemOne connection", "CREDENTIALS_MISSING");
+        }
+
+        try {
+            logger.info("Testing SystemOne connection to {} with model {}", baseUrl, modelName);
+            Map<String, String> pingCriteria = Map.of(
+                    "PING", "Respond with PING",
+                    "PONG", "Respond with PONG"
+            );
+            JevQuestion pingQuestion = JevQuestion.choice("ping", "System check: respond PING.", pingCriteria);
+            JevRequest jevRequest = new JevRequest(modelName, "Health check test", List.of(pingQuestion));
+
+            long start = System.currentTimeMillis();
+            JevResponse response = jevClient.execute(jevRequest, "test_connection", apiKey, baseUrl);
+            long elapsed = System.currentTimeMillis() - start;
+
+            String answer = response.getAnswerValue("ping");
+            Double conf = response.getAnswerConfidence("ping");
+            return TestConnectionResponse.ok(
+                    "SystemOne connection successful! Model " + modelName + " responded (" + (answer != null ? answer : "OK") +
+                    (conf != null ? String.format(", confidence: %.2f", conf) : "") + " in " + elapsed + "ms)."
+            );
+        } catch (Exception e) {
+            String message = e.getMessage() != null ? e.getMessage() : e.toString();
+            logger.warn("Test SystemOne connection failed for {}: {}", modelName, message);
+            if (message.contains("401") || message.toLowerCase().contains("unauthorized") || message.toLowerCase().contains("invalid api key")) {
+                return TestConnectionResponse.fail("SystemOne authentication failed: Invalid API Key.", "CREDENTIALS_INVALID");
+            }
+            if (message.contains("404") || message.toLowerCase().contains("not found")) {
+                return TestConnectionResponse.fail("SystemOne model not found: " + modelName, "MODEL_NOT_FOUND");
+            }
+            return TestConnectionResponse.fail("SystemOne connection test failed: " + message, "CONNECTION_FAILED");
+        }
     }
 
     public TestConnectionResponse testConfig(String userId, TestConnectionRequest request) {

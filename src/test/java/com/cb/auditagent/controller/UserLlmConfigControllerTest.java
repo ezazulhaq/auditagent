@@ -3,6 +3,7 @@ package com.cb.auditagent.controller;
 import com.cb.auditagent.domain.AuthenticatedUser;
 import com.cb.auditagent.dto.TestConnectionRequest;
 import com.cb.auditagent.dto.TestConnectionResponse;
+import com.cb.auditagent.dto.TestJevConnectionRequest;
 import com.cb.auditagent.dto.UserLlmConfigDto;
 import com.cb.auditagent.dto.UserLlmConfigRequest;
 import com.cb.auditagent.service.GitHubAuthService;
@@ -73,6 +74,19 @@ class UserLlmConfigControllerTest {
         when(configService.testConfig("user-123", request)).thenReturn(expected);
 
         ResponseEntity<TestConnectionResponse> response = controller.testConfig(request, exchange);
+        assertEquals(200, response.getStatusCode().value());
+        assertTrue(response.getBody().success());
+    }
+
+    @Test
+    void testTestJevConfig() {
+        TestJevConnectionRequest request = new TestJevConnectionRequest(
+                "https://openrouter.ai/api/v1", "sk-jev-test", "typesafe/jev-1.14"
+        );
+        TestConnectionResponse expected = TestConnectionResponse.ok("SystemOne connection successful");
+        when(configService.testJevConfig("user-123", request)).thenReturn(expected);
+
+        ResponseEntity<TestConnectionResponse> response = controller.testJevConfig(request, exchange);
         assertEquals(200, response.getStatusCode().value());
         assertTrue(response.getBody().success());
     }

@@ -68,6 +68,7 @@ PDF bytes are not stored in PostgreSQL and no schema migration is required for P
 | `file`, `type`, `description`, `code_context`, `severity`, `line_number` | Finding evidence.                   |
 | `status`, `proposed_fix`                                                 | Remediation lifecycle.              |
 | `rule_id`, `language`, `finding_fingerprint`                             | Migrated identity/retrieval fields. |
+| `triage_actionable`, `triage_confidence`, `triage_classification`         | Pre-flight finding triage assessment from TypeSafe Jev (nullable). |
 
 No secondary fingerprint index is used because of a DuckDB/PostgreSQL update limitation; lookup remains bounded by repository.
 
@@ -235,6 +236,10 @@ Stores encrypted Bring-Your-Own-Key (BYOK) provider credentials and model choice
 | `base_url` | `VARCHAR(512)` | Optional custom API base URL for OpenAI-compatible endpoints. |
 | `model_name` | `VARCHAR(128)` | Selected primary model identifier (e.g. `anthropic/claude-3.5-sonnet`), non-null. |
 | `supervisor_model_name` | `VARCHAR(128)` | Optional separate model identifier for the multi-agent supervisor. |
+| `jev_enabled` | `BOOLEAN` | Whether SystemOne (TypeSafe Jev) decision engine is enabled for this user. When null, defaults to system default. |
+| `jev_model_name` | `VARCHAR(128)` | Model identifier for SystemOne decision engine (defaults to `typesafe/jev-1.14`). |
+| `jev_base_url` | `VARCHAR(512)` | Optional custom endpoint URL for SystemOne / Jev calls. |
+| `jev_api_key_ciphertext` | `TEXT` | Optional separate AES-GCM encrypted API key ciphertext for SystemOne / Jev. If null, inherits primary key. |
 | `created_at` | `TIMESTAMP` | Record creation timestamp. |
 | `updated_at` | `TIMESTAMP` | Record last modification timestamp. |
 
@@ -462,9 +467,11 @@ To ensure zero breaking changes across existing domain mappers, record construct
 - `getRepositoryId()`, `setRepositoryId(Long)`
 - `getVulnerabilityId()`, `setVulnerabilityId(String)`
 
-### Startup Pre-flight Orphan Cleanup
+### Startup Pre-flight Orphan Cleanup & Schema Migration
 
-Before Hibernate applies schema updates (`ddl-auto: update`), existing databases might contain orphaned child rows (e.g. messages or steps with invalid foreign references). `DatabasePreflightCleanup` executes via `DataSource` prior to `LocalContainerEntityManagerFactoryBean` initialization to purge orphaned records from child tables (`memory_messages`, `agent_runs`, `agent_steps`, `verification_results`, `run_changes`, `graph_checkpoints`, `graph_node_events`, `subagent_states`, `user_sessions`, `user_notifications`, `user_llm_configs`, `scan_snapshots`, `scan_history_stats`), ensuring seamless foreign key constraint creation.
+Before Hibernate applies schema updates (`ddl-auto: update`), existing databases might contain orphaned child rows (e.g. messages or steps with invalid foreign references) or miss recently added columns when running under strict schema validation. `DatabasePreflightCleanup` executes via `DataSource` prior to `LocalContainerEntityManagerFactoryBean` initialization to:
+1. Apply idempotent DDL column additions (`ALTER TABLE ... ADD COLUMN IF NOT EXISTS`) for entities such as `user_llm_configs` (`jev_enabled`, `jev_model_name`, `jev_base_url`, `jev_api_key_encrypted`) and `vulnerabilities` (`triage_actionable`, `triage_confidence`, `triage_classification`).
+2. Purge orphaned records from child tables (`memory_messages`, `agent_runs`, `agent_steps`, `verification_results`, `run_changes`, `graph_checkpoints`, `graph_node_events`, `subagent_states`, `user_sessions`, `user_notifications`, `user_llm_configs`, `scan_snapshots`, `scan_history_stats`), ensuring seamless foreign key constraint creation.
 
 ### Domain Data Services
 

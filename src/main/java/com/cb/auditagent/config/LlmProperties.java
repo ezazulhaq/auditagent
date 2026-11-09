@@ -48,7 +48,7 @@ public class LlmProperties {
         private String baseUrl = "https://openrouter.ai/api/v1";
         private String apiKey = "";
         private String modelName = "z-ai/glm-5.3-flash";
-        private String supervisorModelName = "typesafe/jev-1.13";
+        private String supervisorModelName = "typesafe/jev-1.14";
 
         public String getBaseUrl() {
             return baseUrl;

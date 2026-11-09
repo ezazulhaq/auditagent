@@ -181,6 +181,16 @@ export const FindingDrawer = memo(function FindingDrawer({ finding, isAnalyzing,
                 />
               </div>
               <span className={`rounded-md px-2 py-0.5 text-[9px] font-bold tracking-wide ${statusTone(finding.status)}`}>{(finding.status || 'DETECTED').replaceAll('_', ' ')}</span>
+              {finding.triageActionable === false && (
+                <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[9px] font-semibold text-amber-300">
+                  Likely False Positive ({Math.round((finding.triageConfidence || 0) * 100)}% conf.)
+                </span>
+              )}
+              {finding.triageActionable === true && finding.triageConfidence != null && (
+                <span className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-semibold text-emerald-300">
+                  Triaged Actionable ({Math.round(finding.triageConfidence * 100)}% conf.)
+                </span>
+              )}
             </div>
             <h2 className="mt-3 truncate text-xl font-bold tracking-tight text-white sm:text-2xl font-sans">{finding.vulnType}</h2>
             <p className="mt-1.5 flex items-center gap-1.5 truncate font-mono text-[11px] text-slate-400"><MapPin size={12} className="text-cyan-400" /> {finding.filePath}:{finding.lineNumber}</p>
@@ -197,6 +207,25 @@ export const FindingDrawer = memo(function FindingDrawer({ finding, isAnalyzing,
 
         <RemediationTimeline currentStatus={isFixedOrIgnored ? finding.status : (activeRun?.status || finding.status || 'DETECTED')} />
         <GraphTimeline steps={graphSteps} />
+
+        {(finding.triageClassification || finding.triageConfidence != null) && (
+          <section className={`rounded-2xl border p-4 text-xs ${finding.triageActionable === false ? 'border-amber-500/30 bg-amber-500/[0.04]' : 'border-emerald-500/30 bg-emerald-500/[0.04]'}`}>
+            <div className="flex items-center justify-between">
+              <span className={`text-[10px] font-bold uppercase tracking-[0.14em] ${finding.triageActionable === false ? 'text-amber-400' : 'text-emerald-400'}`}>
+                TypeSafe Jev Pre-Flight Assessment
+              </span>
+              <span className="font-mono text-[11px] font-bold text-slate-300">
+                Confidence: {Math.round((finding.triageConfidence || 0) * 100)}%
+              </span>
+            </div>
+            <p className="mt-2 text-slate-300 leading-5">
+              Classification: <strong className="text-white">{finding.triageClassification?.replaceAll('_', ' ')}</strong>.
+              {finding.triageActionable === false
+                ? ' This finding was evaluated as unlikely to represent an exploitable production vulnerability. It is excluded from bulk fixes by default.'
+                : ' This finding was verified as an actionable production vulnerability.'}
+            </p>
+          </section>
+        )}
 
         <section>
           <h3 className="mb-2.5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500"><AlertTriangle size={14} className="text-amber-300" /> Finding summary</h3>

@@ -10,7 +10,7 @@ spring:
       api-key: ${OPENAI_API_KEY:}
       base-url: ${OPENAI_BASE_URL:https://openrouter.ai/api/v1}
       chat:
-        model: ${PROVIDER_MODEL:anthropic/claude-3.5-sonnet}
+        model: ${PROVIDER_MODEL:openai/gpt-6-luna}
   datasource:
     url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/auditagent}
     username: ${POSTGRES_USER:postgres}
@@ -39,8 +39,23 @@ auditagent:
     openai:
       base-url: ${OPENAI_BASE_URL:https://openrouter.ai/api/v1}
       api-key: ${OPENAI_API_KEY:}
-      model-name: ${OPENAI_MODEL_NAME:anthropic/claude-3.5-sonnet}
-      supervisor-model-name: ${SUPERVISOR_MODEL_NAME:typesafe/jev-1.13}
+      model-name: ${OPENAI_MODEL_NAME:openai/gpt-6-luna}
+      supervisor-model-name: ${SUPERVISOR_MODEL_NAME:typesafe/jev-1.14}
+  jev:
+    enabled: ${AUDITAGENT_JEV_ENABLED:true}
+    base-url: ${AUDITAGENT_JEV_BASE_URL:https://openrouter.ai/api/v1}
+    api-key: ${AUDITAGENT_JEV_API_KEY:${OPENAI_API_KEY:}}
+    model-name: ${AUDITAGENT_JEV_MODEL:typesafe/jev-1.14}
+    timeout-ms: ${AUDITAGENT_JEV_TIMEOUT_MS:3000}
+    max-retries: ${AUDITAGENT_JEV_MAX_RETRIES:1}
+    triage:
+      enabled: ${AUDITAGENT_JEV_TRIAGE_ENABLED:true}
+      confidence-threshold: ${AUDITAGENT_JEV_TRIAGE_CONFIDENCE:0.75}
+      critical-confidence-threshold: ${AUDITAGENT_JEV_TRIAGE_CRITICAL_CONFIDENCE:0.95}
+      max-batch-size: 10
+    supervisor:
+      enabled: ${AUDITAGENT_JEV_SUPERVISOR_ENABLED:true}
+      fallback-to-chat-model: true
   database:
     path: ${AUDITAGENT_DB_PATH:audit_reports.duckdb}
   scanner:

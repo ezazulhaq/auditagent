@@ -77,16 +77,23 @@ Response:
   "supervisorModelName": null,
   "hasApiKey": true,
   "maskedApiKey": "sk-or-••••••••3a8f",
+  "jevEnabled": true,
+  "jevModelName": "typesafe/jev-1.14",
+  "jevBaseUrl": null,
+  "hasJevApiKey": false,
+  "maskedJevApiKey": null,
+  "systemJevEnabled": true,
+  "systemJevModel": "typesafe/jev-1.14",
   "createdAt": "2026-10-31T07:00:00",
   "updatedAt": "2026-10-31T07:00:00"
 }
 ```
 
-If the user has not configured credentials yet, returns default provider and model values with `hasApiKey: false` and `maskedApiKey: null`.
+If the user has not configured credentials yet, returns default provider and model values with `hasApiKey: false`, `maskedApiKey: null`, and system Jev defaults.
 
 ### `POST /api/user/llm-config`
 
-Saves or updates the authenticated user's LLM configuration. Requires active session and `X-CSRF-Token`.
+Saves or updates the authenticated user's LLM configuration, including optional SystemOne (TypeSafe Jev) settings. Requires active session and `X-CSRF-Token`.
 
 Request:
 
@@ -96,11 +103,15 @@ Request:
   "apiKey": "sk-or-v1-abcdef123456...",
   "baseUrl": null,
   "modelName": "anthropic/claude-3.5-sonnet",
-  "supervisorModelName": null
+  "supervisorModelName": null,
+  "jevEnabled": true,
+  "jevModelName": "typesafe/jev-1.14",
+  "jevBaseUrl": null,
+  "jevApiKey": null
 }
 ```
 
-If an API key is already configured and the client sends an empty `apiKey` (or placeholder dots), the existing encrypted key is retained.
+If an API key is already configured and the client sends an empty `apiKey` or `jevApiKey` (or placeholder dots), the existing encrypted key is retained.
 
 Response:
 
@@ -138,6 +149,40 @@ Response (Failure):
   "success": false,
   "message": "Connection failed: 401 Unauthorized - Invalid API key",
   "modelTested": "anthropic/claude-3.5-sonnet"
+}
+```
+
+### `POST /api/user/llm-config/test-jev`
+
+Tests live connectivity against the target SystemOne (TypeSafe Jev) decision engine endpoint before saving. If `apiKey` is omitted, the test attempts to fall back to the user's primary API key or server-configured default. Requires active session and `X-CSRF-Token`.
+
+Request:
+
+```json
+{
+  "apiKey": "sk-or-v1-abcdef123456...",
+  "baseUrl": "https://openrouter.ai/api/v1",
+  "modelName": "typesafe/jev-1.14"
+}
+```
+
+Response (Success):
+
+```json
+{
+  "success": true,
+  "message": "SystemOne connection successful! Model typesafe/jev-1.14 responded.",
+  "modelTested": "typesafe/jev-1.14"
+}
+```
+
+Response (Failure):
+
+```json
+{
+  "success": false,
+  "message": "SystemOne connection failed: 401 Unauthorized - Invalid API key",
+  "modelTested": "typesafe/jev-1.14"
 }
 ```
 
@@ -279,11 +324,33 @@ Terminal report payload fields:
   "baseSha": "40-char SHA",
   "report_available": true,
   "html_report": "<!doctype html>...",
-  "findings": [],
+  "findings": [
+    {
+      "id": "VULN-000042",
+      "filePath": "src/main/Database.java",
+      "lineNumber": 156,
+      "codeSnippet": "statement.execute(query);",
+      "severity": "HIGH",
+      "vulnType": "SQL Injection",
+      "description": "Unsanitized user input in query execution",
+      "ruleId": "java.lang.security.audit.sqli",
+      "findingFingerprint": "40-char SHA",
+      "language": "Java",
+      "status": "DETECTED",
+      "triageActionable": true,
+      "triageConfidence": 0.94,
+      "triageClassification": "ACTIONABLE_VULNERABILITY"
+    }
+  ],
   "metadata": {},
   "message": "Scan complete..."
 }
 ```
+
+Finding object triage attributes:
+- `triageActionable`: `true` if verified actionable by TypeSafe Jev model; `false` if classified as a likely false positive or test mock fixture; `null` if triage was skipped or disabled.
+- `triageConfidence`: Floating-point confidence score (0.0 to 1.0) returned by Jev.
+- `triageClassification`: Categorical assessment string (e.g., `ACTIONABLE_VULNERABILITY`, `FALSE_POSITIVE`, `TEST_MOCK_FIXTURE`, `TRIAGE_FALLBACK`).
 
 `report_available` tells current clients that authenticated artifacts can be loaded. `html_report` remains in scan and restore payloads for backward compatibility; the current frontend does not render or download it.
 
@@ -586,13 +653,24 @@ Typical JSON:
 | `422`       | User LLM configuration missing or required credentials unconfigured (`code: "LLM_KEY_REQUIRED"`).          |
 | `500`       | Unhandled integration/runtime failure; not all exceptions have a dedicated advice mapping.                 |
 
-When remediation (`POST /api/analyze` or `POST /api/analyze/batch`) encounters missing credentials while `user-keys-required` is enabled, the SSE stream emits a terminal error event:
+When remediation (`POST /api/analyze` or `POST /api/analyze/batch`) encounters missing credentials, invalid keys, or unavailable models, the SSE stream emits a structured terminal error event classified by `LlmErrorClassifier`:
 
 ```json
 {
   "type": "error",
-  "message": "User LLM credentials are required. Please configure your API key in Profile settings.",
-  "code": "LLM_KEY_REQUIRED",
-  "requiresLlmConfig": true
+  "errorCode": "MODEL_NOT_FOUND",
+  "requiresLlmConfig": true,
+  "message": "The configured model is no longer available on your LLM provider (404 Not Found): anthropic/claude-3.5-sonnet is no longer available on OpenRouter. Please select a different model in Profile Settings."
 }
 ```
+
+Supported `errorCode` values:
+- `MODEL_NOT_FOUND` (`requiresLlmConfig: true`): Model unavailable, retired, or 404 on provider.
+- `CREDENTIALS_INVALID` (`requiresLlmConfig: true`): Invalid API key or 401 Unauthorized.
+- `QUOTA_EXCEEDED` (`requiresLlmConfig: true`): Account out of credits or 402 Payment Required.
+- `RATE_LIMITED` (`requiresLlmConfig: false`): Provider rate limit reached (429).
+- `CONTEXT_LENGTH_EXCEEDED` (`requiresLlmConfig: false`): Prompt exceeds model context window (400).
+- `CONNECTION_FAILED` (`requiresLlmConfig: true`): Network or connection failure reaching provider endpoint.
+- `LLM_KEY_REQUIRED` (`requiresLlmConfig: true`): User credentials required before running AI actions.
+- `STALE_BASE` (`requiresLlmConfig: false`): Branch advanced since last scan.
+- `REMEDIATION_FAILED` (`requiresLlmConfig: false`): General unclassified execution error.

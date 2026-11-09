@@ -155,25 +155,13 @@ public class RemediationWorkflowService {
                 }
                 sink.tryEmitComplete();
             } catch (Exception e) {
-                logger.error("Managed remediation failed: {}", safeMessage(e));
-                String rawMsg = e.getMessage() != null ? e.getMessage() : "";
-                String errorCode = "REMEDIATION_FAILED";
-                boolean requiresLlmConfig = false;
-                if (e instanceof UserLlmConfigurationException uce) {
-                    errorCode = uce.getErrorCode();
-                    requiresLlmConfig = true;
-                } else if (rawMsg.contains("401") || rawMsg.toLowerCase().contains("unauthorized") || rawMsg.toLowerCase().contains("invalid api key")) {
-                    errorCode = "CREDENTIALS_INVALID";
-                    requiresLlmConfig = true;
-                } else if (rawMsg.contains("402") || rawMsg.toLowerCase().contains("credit") || rawMsg.toLowerCase().contains("quota")) {
-                    errorCode = "QUOTA_EXCEEDED";
-                    requiresLlmConfig = true;
-                }
+                LlmErrorClassifier.ClassifiedError classified = LlmErrorClassifier.classify(e);
+                logger.error("Managed remediation failed [{}]: {}", classified.errorCode(), classified.userMessage());
                 emit(sink, java.util.Map.of(
                         "type", "error",
-                        "errorCode", errorCode,
-                        "requiresLlmConfig", requiresLlmConfig,
-                        "message", "Remediation failed: " + safeMessage(e)));
+                        "errorCode", classified.errorCode(),
+                        "requiresLlmConfig", classified.requiresLlmConfig(),
+                        "message", classified.userMessage()));
                 sink.tryEmitComplete();
             } finally {
                 keepAliveTimer.cancel();
@@ -254,7 +242,8 @@ public class RemediationWorkflowService {
                             completedCount.incrementAndGet();
                         } catch (Exception e) {
                             failedCount.incrementAndGet();
-                            logger.error("Remediation failed for vuln {}: {}", vulnId, safeMessage(e));
+                            LlmErrorClassifier.ClassifiedError classified = LlmErrorClassifier.classify(e);
+                            logger.error("Remediation failed for vuln {}: {}", vulnId, classified.userMessage());
                             try {
                                 database.getVulnerabilityById(vulnId).ifPresent(v -> {
                                     if (v.getStatus() == VulnerabilityStatus.ANALYZING) {
@@ -268,7 +257,9 @@ public class RemediationWorkflowService {
                             errEvent.put("type", "status");
                             errEvent.put("vulnId", vulnId);
                             errEvent.put("status", "FAILED");
-                            errEvent.put("message", "Remediation failed for " + vulnId + ": " + safeMessage(e));
+                            errEvent.put("errorCode", classified.errorCode());
+                            errEvent.put("requiresLlmConfig", classified.requiresLlmConfig());
+                            errEvent.put("message", "Remediation failed for " + vulnId + ": " + classified.userMessage());
                             emit(sink, errEvent);
                         } finally {
                             activeWorkerThreads.remove(current);
@@ -302,8 +293,13 @@ public class RemediationWorkflowService {
                 emit(sink, completeEvent);
                 sink.tryEmitComplete();
             } catch (Exception e) {
-                logger.error("Batch remediation failed: {}", safeMessage(e));
-                emit(sink, Map.of("type", "status", "message", "Batch remediation failed: " + safeMessage(e)));
+                LlmErrorClassifier.ClassifiedError classified = LlmErrorClassifier.classify(e);
+                logger.error("Batch remediation failed: {}", classified.userMessage());
+                emit(sink, Map.of(
+                        "type", "error",
+                        "errorCode", classified.errorCode(),
+                        "requiresLlmConfig", classified.requiresLlmConfig(),
+                        "message", "Batch remediation failed: " + classified.userMessage()));
                 sink.tryEmitComplete();
             } finally {
                 keepAliveTimer.cancel();
@@ -835,20 +831,8 @@ public class RemediationWorkflowService {
     }
 
     private String safeMessage(Throwable e) {
-        Throwable cause = e;
-        while (cause.getCause() != null &&
-                (cause instanceof java.util.concurrent.ExecutionException ||
-                        cause instanceof java.lang.reflect.InvocationTargetException ||
-                        cause instanceof RuntimeException)) {
-            if (cause.getCause() == cause)
-                break;
-            cause = cause.getCause();
-        }
-        String message = Optional.ofNullable(cause.getMessage()).orElse(cause.getClass().getSimpleName());
-        if (message.contains("STALE_BASE")) {
-            return "The repository branch has advanced since the last scan (e.g., a PR was merged). Please run a fresh scan before analyzing further findings.";
-        }
-        return redactor.redactAndCap(message, 500);
+        LlmErrorClassifier.ClassifiedError classified = LlmErrorClassifier.classify(e);
+        return redactor.redactAndCap(classified.userMessage(), 500);
     }
 
     private String safeRunStatus(String runId) {

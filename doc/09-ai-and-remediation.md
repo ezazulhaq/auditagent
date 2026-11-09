@@ -1,15 +1,37 @@
 # AI and remediation
 
-## Two AI paths
+## Two AI paths and fast-path decision reasoning
 
-AuditAgent deliberately uses two model integrations:
+AuditAgent employs specialized model integrations across different operational workloads:
 
-| Path                | Library                       | Purpose                                                                    |
+| Path                | Library / Client              | Purpose                                                                    |
 |---------------------|-------------------------------|----------------------------------------------------------------------------|
 | Conversational chat | Spring AI `ChatModel`         | Explain findings and emit scan/fix navigation tags.                        |
 | Remediation agent   | LangChain4j `OpenAiChatModel` | Multi-turn tool calling with durable checkpoints and verification.         |
+| Decision & triage   | `JevClient` (TypeSafe Jev)    | Non-autoregressive fast triage and Supervisor routing via `POST /api/v1/systemone`. |
 
-Both use the configured OpenAI-compatible model API, for example OpenRouter or Gemini.
+Both generative paths use the configured OpenAI-compatible model API (OpenRouter, OpenAI, Gemini), while the decision path targets TypeSafe AI's Jev model (`typesafe/jev-1.14`) on OpenRouter's System One endpoint ($0.042/1M input tokens, zero output tokens). Authenticated users can customize their SystemOne configuration in their User Profile (`UserLlmConfig`), enabling or disabling Jev routing, overriding the model name (`typesafe/jev-1.14`), and optionally supplying custom endpoint URLs and API keys. The `SupervisorNode` and `FindingTriageService` resolve credentials through `UserLlmClientFactory`, preferring user-specific Jev settings when present and falling back to server-level `auditagent.jev.*` environment defaults.
+
+### Pre-flight finding triage with TypeSafe Jev
+
+To avoid starting expensive multi-agent remediation runs (~50k–150k tokens per run) on non-actionable findings, Semgrep results are automatically evaluated by `FindingTriageService` using Jev immediately post-scan across all scan vectors (GitHub repository scans, legacy scans, and uploaded ZIP archives). Findings classified as false positives or test mocks are tagged `triageActionable: false` with high confidence (≥0.75 for standard findings, ≥0.95 for HIGH findings). These findings are surfaced in the UI with a `Likely FP` badge and excluded from bulk remediation by default.
+
+### OpenRouter SystemOne protocol and data model
+
+The OpenRouter System One endpoint (`POST /api/v1/systemone`) executes fast, non-autoregressive decision models (such as `typesafe/jev-1.14`) using a typed questions-and-criteria schema:
+
+- **Request Structure (`JevRequest`)**:
+  - `model`: Target decision model string (e.g., `typesafe/jev-1.14`).
+  - `prompt`: Free-form prompt text or context history.
+  - `questions`: Serialized as a JSON record/object (`Map<String, JevQuestion>`) keyed by the question identifier (not a JSON array).
+  - Each question (`JevQuestion`) contains `type` (`choice`, `noul`, or `score`), `instructions` (the question text or prompt), and `criteria` defining valid outcomes:
+    - `choice`: `Map<String, String>` mapping allowed choices to their semantic descriptions.
+    - `noul`: `Map<String, String>` mapping `true` and `false` conditions for probabilistic binary judgment.
+    - `score`: `List<String>` defining ordinal evaluation rubrics.
+- **Response Structure (`JevResponse`)**:
+  - `answers`: Map of answers keyed by question identifier.
+  - Each answer (`JevAnswer`) captures the model's categorical selection (`choice`), binary decision confidence (`noul`), or ordinal rating (`score`), along with optional `confidence` score and choice probability distribution (`probabilities`).
+  - `usage`: Maps `input_tokens` and `output_tokens` into `JevUsage` accounting.
 
 ### LLM provider compatibility and interception
 
@@ -158,7 +180,7 @@ Restores the latest timestamped backup for the relative file.
 
 The former `while` loop has been replaced by a state-machine implementation using `langgraph4j` (`RemediationGraph`). We have further implemented a **Multi-Agent Architecture** (`MultiAgentRemediationGraph`) that decomposes the remediation task into specialized agents:
 
-1. **SupervisorAgent**: Evaluates current state and dynamically delegates to the appropriate specialized sub-agent. Routes to the mandatory PLANNING stage first if no remediation plan exists.
+1. **SupervisorAgent**: Evaluates current state and dynamically delegates to the appropriate specialized sub-agent. Routes to the mandatory PLANNING stage first if no remediation plan exists. When `auditagent.jev.supervisor.enabled` is active, `SupervisorNode` queries the TypeSafe Jev model (`POST /api/v1/systemone`) using non-autoregressive multiple-choice queries. Jev evaluates the remediation plan and execution history, selecting the next stage in <2s with ~98% token cost reduction ($0.042/1M input tokens, zero output tokens). If Jev experiences a network timeout (3s) or error, `SupervisorNode` automatically falls back to the standard `ChatModel`, ensuring uninterrupted remediation.
 2. **16 Specialized Worker Agents**: Includes agents like Planning, Discovery, Syntax, Baseline, Memory Review, Security Review, Data-Flow, Root-Cause Analysis, etc.
 
 These specialized subgraphs are orchestrated by the parent `MultiAgentRemediationGraph` using a shared `MultiAgentState`. The parent routes control (e.g. if verification fails, the supervisor agent evaluates the state and routes back to the relevant code-modification agent). The PLANNING stage's output (`remediationPlan`) is included in the Supervisor's system prompt to guide routing order.
@@ -178,6 +200,7 @@ Finally, the entire user journey is orchestrated by the `AuditWorkflowGraph`, wh
 - Same tool repeatedly: inject a progress nudge after repeated consecutive use.
 - Too much exploration: after two-thirds of iterations without a patch, tell the model to patch.
 - Maximum iterations: fail without creating a PR.
+- Upstream LLM errors: intercepted by `LlmErrorClassifier` to strip Java exception prefixes and unwrap provider JSON payloads, classifying failures (e.g. 404 model unavailable, 401 invalid credentials, 402 quota exhausted, 429 rate limit, 400 context window, connection failure) and automatically signaling the frontend to trigger the Profile Settings modal when configuration updates are required.
 
 ## Durable idempotency
 

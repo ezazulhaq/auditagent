@@ -107,5 +107,28 @@ describe('FindingsView', () => {
     expect(screen.getAllByText('Fixed').length).toBeGreaterThan(0);
     expect(screen.queryByText('Pr Open')).not.toBeInTheDocument();
   });
+
+  it('renders Likely FP badge and excludes likely false positives from bulk select all', () => {
+    const triagedFindings = [
+      { id: 'VULN-ACT01', filePath: 'src/App.java', vulnType: 'SQL Injection', severity: 'HIGH', status: 'DETECTED', lineNumber: 10, triageActionable: true, triageConfidence: 0.95 },
+      { id: 'VULN-FP01', filePath: 'src/test/Mock.java', vulnType: 'Hardcoded Secret', severity: 'LOW', status: 'DETECTED', lineNumber: 25, triageActionable: false, triageConfidence: 0.90 },
+    ];
+    const onBulkAction = vi.fn();
+    render(<FindingsView findings={triagedFindings} onSelect={vi.fn()} onBulkAction={onBulkAction} />);
+
+    // Verify Likely FP badge rendered
+    expect(screen.getByTestId('badge-likely-fp')).toBeInTheDocument();
+    expect(screen.getByText('Likely FP')).toBeInTheDocument();
+
+    // Click header select-all (checkbox 0)
+    const checkboxes = screen.getAllByRole('checkbox');
+    fireEvent.click(checkboxes[0]);
+
+    // Should only have selected VULN-ACT01, excluding VULN-FP01
+    expect(screen.getByText(/selected/i)).toBeInTheDocument();
+    const analyzeButton = screen.getByRole('button', { name: 'Analyze' });
+    fireEvent.click(analyzeButton);
+    expect(onBulkAction).toHaveBeenCalledWith('analyze', ['VULN-ACT01']);
+  });
 });
 

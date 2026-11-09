@@ -200,16 +200,6 @@ export default function App({ api = auditApi }) {
     hydrate(restoredSession);
   }, [hydrate, restoreMessages, restoredSession]);
 
-  useEffect(() => {
-    if (activeRun?.status !== 'PR_OPEN' || !config.repositoryId || !config.branch) return undefined;
-    const interval = setInterval(() => {
-      restoreThread(config.repositoryId, config.branch).catch(error => {
-        console.error(`Polling restore failed: ${error.message}`);
-      });
-    }, 60000);
-    return () => clearInterval(interval);
-  }, [activeRun?.status, config.branch, config.repositoryId, restoreThread]);
-
   const updateConfig = useCallback((name, value) => {
     if (name === 'repositoryId') {
       selectedKeyRef.current = '';

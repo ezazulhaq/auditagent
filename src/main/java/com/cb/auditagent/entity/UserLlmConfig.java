@@ -39,6 +39,16 @@ public class UserLlmConfig {
 
     private String supervisorModelName;
 
+    private Boolean jevEnabled;
+
+    private String jevModelName;
+
+    @Column(columnDefinition = "TEXT")
+    private String jevBaseUrl;
+
+    @Column(columnDefinition = "TEXT")
+    private String jevApiKeyEncrypted;
+
     @jakarta.validation.constraints.NotNull
     @Column(nullable = false)
     private LocalDateTime createdAt;
