@@ -119,5 +119,42 @@ class JevClientTest {
         assertThrows(IOException.class, () -> jevClient.execute(request, "test_op"));
         assertNotNull(meterRegistry.find("jev.requests.total").tag("status", "failure").counter());
     }
+
+    @Test
+    void testSerializationStructure() throws Exception {
+        JevQuestion q = JevQuestion.choice("ping", "System check", List.of("PING", "PONG"));
+        JevRequest req = new JevRequest("typesafe/jev-1.14", "Health check test", List.of(q));
+        String json = objectMapper.writeValueAsString(req);
+        assertTrue(json.contains("\"questions\":{"), "questions must be serialized as a JSON object, was: " + json);
+        assertTrue(json.contains("\"ping\":{"), "question id must be key in questions object");
+        assertTrue(json.contains("\"instructions\":\"System check\""), "instructions must be present");
+        assertTrue(json.contains("\"criteria\":{"), "criteria must be present for choice");
+        assertFalse(json.contains("\"questions\":["), "questions must NOT be an array");
+    }
+
+    @Test
+    void testOpenRouterChoiceAnswerFormat() throws Exception {
+        String json = """
+                {
+                    "model": "typesafe/jev-1.14",
+                    "answers": {
+                        "ping": {
+                            "type": "choice",
+                            "choice": "PING",
+                            "probabilities": {"PING": 0.9, "PONG": 0.1},
+                            "confidence": 0.8
+                        }
+                    },
+                    "usage": {
+                        "input_tokens": 150,
+                        "output_tokens": 20
+                    }
+                }
+                """;
+        JevResponse response = objectMapper.readValue(json, JevResponse.class);
+        assertEquals("PING", response.getAnswerValue("ping"));
+        assertEquals(0.8, response.getAnswerConfidence("ping"));
+        assertEquals(170, response.getUsage().getTotalTokens());
+    }
 }
 

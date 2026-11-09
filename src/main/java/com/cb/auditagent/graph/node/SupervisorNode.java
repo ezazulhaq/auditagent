@@ -26,6 +26,7 @@ import com.cb.auditagent.service.UserLlmConfigService;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -216,10 +217,15 @@ public class SupervisorNode implements NodeAction<MultiAgentState> {
             options.add("COMPLETE");
             options.add("FAIL");
 
+            Map<String, String> stageCriteria = new LinkedHashMap<>();
+            for (String opt : options) {
+                stageCriteria.put(opt, "Execute stage " + opt);
+            }
+
             JevQuestion question = JevQuestion.choice(
                     "next_stage",
-                    "Based on the remediation plan and execution history, which agent stage must execute next? Options: " + String.join(", ", options),
-                    options
+                    "Based on the remediation plan and execution history, which agent stage must execute next?",
+                    stageCriteria
             );
 
             String modelName = jevProperties.getModelName();

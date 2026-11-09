@@ -27,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -294,7 +295,11 @@ public class UserLlmConfigService {
 
         try {
             logger.info("Testing SystemOne connection to {} with model {}", baseUrl, modelName);
-            JevQuestion pingQuestion = JevQuestion.choice("ping", "System check: respond PING.", List.of("PING", "PONG"));
+            Map<String, String> pingCriteria = Map.of(
+                    "PING", "Respond with PING",
+                    "PONG", "Respond with PONG"
+            );
+            JevQuestion pingQuestion = JevQuestion.choice("ping", "System check: respond PING.", pingCriteria);
             JevRequest jevRequest = new JevRequest(modelName, "Health check test", List.of(pingQuestion));
 
             long start = System.currentTimeMillis();

@@ -14,7 +14,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -117,10 +119,15 @@ public class FindingTriageService {
                 prompt.append("Code Snippet:\n").append(v.getCodeSnippet()).append("\n");
             }
 
+            Map<String, String> triageCriteria = new LinkedHashMap<>();
+            triageCriteria.put("ACTIONABLE_VULNERABILITY", "Actionable security vulnerability in production code");
+            triageCriteria.put("FALSE_POSITIVE", "False positive, harmless code pattern, or non-exploitable finding");
+            triageCriteria.put("TEST_MOCK_FIXTURE", "Test code, mock fixture, benchmark, or intentional sample");
+
             JevQuestion actionabilityQuestion = JevQuestion.choice(
                     "actionability",
                     "Is this static analysis finding an actionable security vulnerability in production code, or is it a false positive or test/mock fixture?",
-                    List.of("ACTIONABLE_VULNERABILITY", "FALSE_POSITIVE", "TEST_MOCK_FIXTURE")
+                    triageCriteria
             );
 
             String modelName = jevProperties.getModelName();

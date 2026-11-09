@@ -38,11 +38,11 @@
 | File | Purpose |
 |---|---|
 | `JevClient.java` | REST client targeting OpenRouter `POST /api/v1/systemone` with timeout (3s), retry policy, and Micrometer metrics. |
-| `JevQuestion.java` | Structured question model supporting `choice`, `noul`, and `score` question types. |
-| `JevRequest.java` | Request payload binding model identifier, state string, and question definitions. |
-| `JevAnswer.java` | Deserialized answer value and confidence score. |
+| `JevQuestion.java` | Structured question model serializing `instructions` and `criteria` mapping for `choice`, `noul`, and `score` types. |
+| `JevRequest.java` | Request payload binding model identifier, state prompt, and `questions` serialized as a key-value record/object. |
+| `JevAnswer.java` | Deserialized answer supporting OpenRouter SystemOne fields (`choice`, `noul`, `score`, `confidence`, `probabilities`). |
 | `JevResponse.java` | Response payload binding answers map and usage telemetry. |
-| `JevUsage.java` | Token accounting model for prompt, completion, and total tokens. |
+| `JevUsage.java` | Token accounting model supporting `input_tokens`, `output_tokens`, and total tokens. |
 
 ### `controller`
 

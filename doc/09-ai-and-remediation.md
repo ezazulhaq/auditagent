@@ -16,6 +16,23 @@ Both generative paths use the configured OpenAI-compatible model API (OpenRouter
 
 To avoid starting expensive multi-agent remediation runs (~50k–150k tokens per run) on non-actionable findings, Semgrep results are automatically evaluated by `FindingTriageService` using Jev immediately post-scan across all scan vectors (GitHub repository scans, legacy scans, and uploaded ZIP archives). Findings classified as false positives or test mocks are tagged `triageActionable: false` with high confidence (≥0.75 for standard findings, ≥0.95 for HIGH findings). These findings are surfaced in the UI with a `Likely FP` badge and excluded from bulk remediation by default.
 
+### OpenRouter SystemOne protocol and data model
+
+The OpenRouter System One endpoint (`POST /api/v1/systemone`) executes fast, non-autoregressive decision models (such as `typesafe/jev-1.14`) using a typed questions-and-criteria schema:
+
+- **Request Structure (`JevRequest`)**:
+  - `model`: Target decision model string (e.g., `typesafe/jev-1.14`).
+  - `prompt`: Free-form prompt text or context history.
+  - `questions`: Serialized as a JSON record/object (`Map<String, JevQuestion>`) keyed by the question identifier (not a JSON array).
+  - Each question (`JevQuestion`) contains `type` (`choice`, `noul`, or `score`), `instructions` (the question text or prompt), and `criteria` defining valid outcomes:
+    - `choice`: `Map<String, String>` mapping allowed choices to their semantic descriptions.
+    - `noul`: `Map<String, String>` mapping `true` and `false` conditions for probabilistic binary judgment.
+    - `score`: `List<String>` defining ordinal evaluation rubrics.
+- **Response Structure (`JevResponse`)**:
+  - `answers`: Map of answers keyed by question identifier.
+  - Each answer (`JevAnswer`) captures the model's categorical selection (`choice`), binary decision confidence (`noul`), or ordinal rating (`score`), along with optional `confidence` score and choice probability distribution (`probabilities`).
+  - `usage`: Maps `input_tokens` and `output_tokens` into `JevUsage` accounting.
+
 ### LLM provider compatibility and interception
 
 When connecting to Gemini via its OpenAI-compatible endpoint, Gemini requires a proprietary `thought_signature` to be preserved across multi-turn tool calling. Because standard OpenAI SDKs (like `langchain4j-open-ai`) drop unknown fields like `thought_signature` during JSON deserialization, AuditAgent uses a custom OkHttp interceptor (`GeminiThoughtSignatureInterceptor`) to bridge this gap.
