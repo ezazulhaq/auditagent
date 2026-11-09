@@ -188,7 +188,7 @@ The most security-sensitive UI:
 - Quick-copy finding ID: A dedicated copy button beside the finding ID in the drawer header enables one-click copying of the identifier to the clipboard for chat triage or external tracking, displaying temporary visual feedback (`Copied!`).
 - `UPLOAD_SCAN`: when the active finding originates from a manual ZIP upload (`isUploadScan = true`), autonomous PR creation is disabled and an informational banner is displayed explaining that PR remediation requires a connected GitHub repository.
 - `DETECTED`: allows analysis for connected GitHub repositories.
-- `PUBLISHED` / `PR_OPEN`: The UI polls the backend API `/api/reports` and `/api/memory/threads/{threadId}` every 5 seconds to catch GitHub webhook state changes (e.g., `FIXED` upon merge) without needing a page refresh, or updates immediately via the FindingsView refresh control.
+- `PUBLISHED` / `PR_OPEN`: The UI polls the backend API `/api/reports` and `/api/memory/threads/{threadId}` every 5 seconds to catch GitHub webhook state changes (e.g., `FIXED` upon merge) without needing a page refresh, or updates immediately via the FindingsView refresh control. Background polling preserves user UI focus and never forcibly reopens a closed finding drawer.
 - `AWAITING_APPROVAL`: Automatically overridden by autonomous PR creation, though structurally preserved for legacy compatibility.
 - `PUBLISH_FAILED`: shows retry.
 - `PR_OPEN`: links the PR and explains merge is pending.

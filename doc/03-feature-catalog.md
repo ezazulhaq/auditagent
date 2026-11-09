@@ -188,7 +188,7 @@ This catalog connects each feature to its user/business outcome and main impleme
 | Positive-memory gate | Only merged PR creates approved memory. | `handlePullRequestEvent()` |
 | Workspace cleanup schedule | Stale JGit workspaces from terminal runs are cleaned up hourly to prevent disk exhaustion. | `cleanupStaleWorkspaces()` |
 | Co-located finding auto-marking | On PR merge, all findings in the patched file are marked FIXED, which may over-mark findings not explicitly addressed. | `handlePullRequestEvent()` |
-| PR reconciliation polling & manual refresh | Frontend polls PR_OPEN status every 5 seconds and provides manual refresh in FindingsView to reconcile async webhook updates, synchronizing in-flight runs to FIXED and updating drawer and badge states without navigating away. | `useRemediationController.js`, `FindingsView.jsx`, `FindingDrawer.jsx` |
+| PR reconciliation polling & manual refresh | Frontend polls PR_OPEN status every 5 seconds and provides manual refresh in FindingsView to reconcile async webhook updates, synchronizing in-flight runs to FIXED and updating drawer and badge states without navigating away, while strictly preserving drawer visibility so closed drawers are never re-opened by polling intervals. | `useRemediationController.js`, `FindingsView.jsx`, `FindingDrawer.jsx` |
 
 ## Persistence, memory, and recovery
 

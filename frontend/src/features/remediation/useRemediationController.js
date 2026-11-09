@@ -21,7 +21,8 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
     if (batchAbortRef.current) batchAbortRef.current.abort();
   }, []);
 
-  const hydrate = useCallback((data) => {
+  const hydrate = useCallback((data, { isPoll = false } = {}) => {
+    if (!data) return;
     const newRuns = {};
     const newPubs = {};
 
@@ -52,7 +53,28 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
     setRuns(newRuns);
     setPublications(newPubs);
     setPreviews({});
-    setSelectedFinding(data.activeFinding ?? null);
+
+    if (isPoll) {
+      // During background polling: never open a closed finding drawer!
+      // Only refresh attributes if the drawer is already open for this finding.
+      setSelectedFinding(prev => {
+        if (!prev) return null;
+        if (data.activeFinding && prev.id === data.activeFinding.id) {
+          return { ...prev, ...data.activeFinding };
+        }
+        return prev;
+      });
+    } else {
+      setSelectedFinding(prev => {
+        if (prev) {
+          if (data.activeFinding && prev.id === data.activeFinding.id) {
+            return { ...prev, ...data.activeFinding };
+          }
+          return prev;
+        }
+        return data.activeFinding ?? null;
+      });
+    }
   }, []);
 
   const resetForScan = useCallback(() => {
@@ -398,7 +420,7 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
           if (threadId && api?.getThread) {
             try {
               const threadData = await api.getThread(threadId);
-              if (threadData) hydrate(threadData);
+              if (threadData) hydrate(threadData, { isPoll: true });
             } catch {
               // ignore thread reconcile error during polling
             }
