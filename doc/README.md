@@ -13,7 +13,7 @@ The implementation in `src/`, `frontend/src/`, `rules/`, and `.auditagent/skills
 | New developer                                    | [Architecture](04-architecture.md)                                            | [Backend](05-backend-guide.md), [Frontend](06-frontend-guide.md), [Doc navigator](../.agents/skills/doc-navigator/SKILL.md) |
 | API integrator                                   | [API reference](07-api-reference.md)                                          | [Security model](10-security-model.md)                           |
 | Database or memory maintainer                    | [Data and persistence](08-data-and-persistence.md)                            | [AI and remediation](09-ai-and-remediation.md)                   |
-| DevOps or platform engineer                      | [Setup, configuration, and operations](11-setup-configuration-operations.md) | [Security model](10-security-model.md)                           |
+| DevOps or platform engineer                      | [Setup, configuration, and operations](11-setup-configuration-operations.md) | [Security model](10-security-model.md), [Scalability & messaging](18-scalability-and-messaging-architecture.md) |
 | Test engineer                                    | [Testing and quality](12-testing-and-quality.md)                              | [Change guide](14-change-guide.md)                               |
 
 ## Complete document set
@@ -35,6 +35,7 @@ The implementation in `src/`, `frontend/src/`, `rules/`, and `.auditagent/skills
 15. [Source inventory and glossary](15-source-inventory-and-glossary.md) — production-file map, rule inventory, state vocabulary, and terms.
 16. [Skill catalog](16-skill-catalog.md) — runtime remediation skills, developer workspace skills, and playbook format.
 17. [LangGraph4j orchestration](17-langgraph4j-orchestration.md) — dedicated state machine orchestration guide for agentic loops and workflows.
+18. [Scalability and messaging architecture](18-scalability-and-messaging-architecture.md) — architectural roadmap for horizontal scaling, task queuing via RabbitMQ, and unified persistence with self-hosted Supabase.
 
 ## Documentation conventions
 

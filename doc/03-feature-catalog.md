@@ -245,3 +245,15 @@ This catalog connects each feature to its user/business outcome and main impleme
 | Frontend design | Distinctive UI design, token styling, typography, and layout rules avoiding generic AI templates. | `.agents/skills/frontend-design/SKILL.md` |
 | Frontend interaction responsiveness & INP | Sub-16ms click response across the application via non-blocking syntax highlighting (frame-1 immediate monospace render with `requestAnimationFrame` tokenization), scan timer isolation in `ScanPanel`, `React.memo` row and view memoization, CSS layout containment (`content-visibility: auto`), and `startTransition` click scheduling. | `frontend/src/features/remediation/FindingDrawer.jsx`, `frontend/src/features/scan/ScanPanel.jsx`, `frontend/src/features/findings/FindingsView.jsx`, `frontend/src/index.css` |
 | PR target and merge policy | Enforces that any Pull Request must strictly target and be merged into `dev` only (`--base dev`). | `.agents/rules/pr-merge-policy.md`, `AGENTS.md` |
+
+## Scalability, task queuing, and distributed persistence roadmap
+
+| Feature | Behavior | Implementation |
+|---|---|---|
+| RabbitMQ asynchronous task queuing | Scans and fixes return immediate `202 Accepted` with a `jobId`; execution is dispatched to RabbitMQ durable direct exchanges and queues. | `RabbitMqConfig`, `TaskProducerService`, `doc/18-scalability-and-messaging-architecture.md` |
+| Worker backpressure & prefetch throttling | Limits concurrent heavy Semgrep scans (`prefetch = 2`) and LangGraph4j loops (`prefetch = 1`) per worker pod to prevent OOM and CPU exhaustion. | `ScanTaskConsumer`, `RemediationTaskConsumer`, RabbitMQ QoS |
+| Unified deployment mode (`auditagent.mode`) | Configurable runtime mode (`all`, `web`, `worker`) enabling single-process local dev or decoupled horizontal worker scaling in production. | `application.yaml`, `AUDITAGENT_MODE` |
+| Supabase PostgreSQL memory & FTS consolidation | Retires embedded DuckDB; unifies approved memories and global patterns into Supabase PostgreSQL using native `tsvector`, GIN indexes, and `pg_trgm`. | `RepositoryMemoryPostgresRepository`, `RemediationDataService` |
+| Supabase Storage artifact offloading | Offloads large unified diffs (>10KB), SARIF JSON dumps, and generated PDF reports from database columns to an S3-compatible Supabase bucket (`auditagent-artifacts`). | `SupabaseStorageService` |
+| Supabase Realtime multi-pod sync | Replaces node-local Reactor SSE sinks with Change Data Capture on `job_event_log` over WebSockets, synchronizing progress across any number of backend pods. | `JobEventLogEntity`, Supabase Realtime, `auditApi.js` |
+| Automatic worker crash recovery & DLQ | Unacknowledged messages on crashed worker pods are automatically re-queued; poisonous or perpetually failing tasks route to `auditagent.dlq`. | RabbitMQ manual ack/nack, `auditagent.dlx` dead-letter exchange |
