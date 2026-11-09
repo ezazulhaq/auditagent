@@ -210,9 +210,9 @@ Located in `frontend/src/features/profile/`:
 - **`LlmOnboardingModal`**: A non-closable modal displayed immediately upon login if user keys are required but not yet configured, preventing users from attempting AI workflows with missing credentials.
 - **`UserProfileModal`**: Accessible from the user avatar dropdown menu in `AppHeader` ("Profile & LLM Keys"). Allows users to inspect their active GitHub identity, review their masked API key (`sk-or-••••••••3a8f`), update configurations, test connections, and save updates with automatic cache refresh.
 
-### `TokenUsageView`
+### `TokenUsageLayout`
 
-Presents AI observability and token usage data from `/api/observability/tokens` in an aggregated table. Shown via `AppHeader` modal.
+Presents AI observability and token consumption data from `/api/observability/tokens` in an aggregated table grouped by repository full name and model. Shown via the `AppHeader` Activity/Observability action.
 
 ### `ReportView`
 

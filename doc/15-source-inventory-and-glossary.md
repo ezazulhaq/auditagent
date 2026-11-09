@@ -200,7 +200,7 @@
 | `src/components/AppHeader.jsx` | Brand, scan summary, identity, logout. |
 | `src/components/CopyButton.jsx` | Reusable clipboard copy button supporting multiple sizes, accessible labels, and feedback states. |
 | `src/components/NotificationDropdown.jsx` | Bell icon notification dropdown with unread badge and real-time updates. |
-| `src/components/TokenUsageView.jsx` | User-level UI displaying aggregated token usage and observability metrics. |
+| `src/features/observability/TokenUsageLayout.jsx` | User-level UI displaying aggregated token usage and observability metrics by repository name and model. |
 | `src/features/auth/LoginPage.jsx` | Login/configuration screen. |
 | `src/features/chat/ChatWidget.jsx` | Floating durable chat/recovery controls. |
 | `src/features/chat/components/ChatHeader.jsx` | Top header for the chat widget. |

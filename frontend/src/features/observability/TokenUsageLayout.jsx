@@ -75,7 +75,7 @@ export function TokenUsageLayout({ api, theme, onClose }) {
                   <tbody className="divide-y divide-[var(--border-subtle)]">
                     {data.map((row, idx) => (
                       <tr key={idx} className="transition-colors hover:bg-slate-800/30">
-                        <td className="px-5 py-4 max-w-62.5 truncate font-mono text-xs" title={row.repoPath}>{row.repoPath || 'Unknown'}</td>
+                        <td className="px-5 py-4 max-w-62.5 truncate font-mono text-xs" title={row.repoName || row.repoPath}>{row.repoName || row.repoPath || 'Unknown'}</td>
                         <td className="px-5 py-4 font-mono text-xs text-slate-300">{row.modelName}</td>
                         <td className="px-5 py-4 text-right tabular-nums font-mono text-xs font-medium text-slate-200">{row.callCount}</td>
                         <td className="px-5 py-4 text-right tabular-nums font-mono text-xs font-semibold text-cyan-300">
