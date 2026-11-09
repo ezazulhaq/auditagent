@@ -547,15 +547,16 @@ Allowed only before remote publication makes discard unsafe.
 
 ### `GET /api/observability/tokens`
 
-Retrieves token consumption statistics aggregated per repository and model for the authenticated user.
+Retrieves token consumption statistics aggregated per repository name (`owner/repo`) and model for the authenticated user.
 
 **Response (200 OK):**
 
 ```json
 [
   {
-    "repoPath": "user/repo:main",
-    "modelName": "spring-ai",
+    "repoName": "octocat/auditagent",
+    "repoPath": "octocat/auditagent",
+    "modelName": "gpt-4o",
     "totalTokens": 14250,
     "callCount": 12
   }

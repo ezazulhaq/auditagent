@@ -269,4 +269,50 @@ class DomainDataServicesTest {
         // No match for PR 101 yet
         assertEquals("ANALYZING", scanDataService.findTrackedIssue(repoId, 42).get().remediationStatus());
     }
+
+    @Test
+    void testTokenUsageTrackingAndSummariesByRepoName() {
+        long repoId = 8888L;
+        ManagedRepository managedRepo = new ManagedRepository(
+                repoId, 1234L, "testorg", "sample-service", "testorg/sample-service",
+                "https://github.com/testorg/sample-service.git", "main", false, "ADMIN");
+        scanDataService.upsertManagedRepository(managedRepo);
+
+        String clientId = "user-token-test";
+        String threadId = conversationDataService.getOrCreateMemoryThread(clientId, "github:8888:main");
+
+        scanDataService.saveTokenUsage(threadId, "run-1", "VULN-1", "gpt-4o", 150);
+        scanDataService.saveTokenUsage(threadId, "run-2", "VULN-2", "gpt-4o", 250);
+        scanDataService.saveTokenUsage(threadId, "run-3", "VULN-3", "claude-3-7-sonnet", 100);
+
+        List<java.util.Map<String, Object>> usage = scanDataService.getTokenUsageForUser(clientId);
+        assertNotNull(usage);
+        assertEquals(2, usage.size());
+
+        java.util.Map<String, Object> gptRow = usage.stream()
+                .filter(m -> "gpt-4o".equals(m.get("modelName")))
+                .findFirst().orElseThrow();
+        assertEquals("testorg/sample-service", gptRow.get("repoName"));
+        assertEquals("testorg/sample-service", gptRow.get("repoPath"));
+        assertEquals(400L, gptRow.get("totalTokens"));
+        assertEquals(2L, gptRow.get("callCount"));
+
+        java.util.Map<String, Object> claudeRow = usage.stream()
+                .filter(m -> "claude-3-7-sonnet".equals(m.get("modelName")))
+                .findFirst().orElseThrow();
+        assertEquals("testorg/sample-service", claudeRow.get("repoName"));
+        assertEquals(100L, claudeRow.get("totalTokens"));
+        assertEquals(1L, claudeRow.get("callCount"));
+
+        // General thread test
+        String generalThreadId = conversationDataService.getOrCreateMemoryThread(clientId, "github:general:user-token-test");
+        scanDataService.saveTokenUsage(generalThreadId, "run-gen", null, "gpt-4o", 50);
+
+        List<java.util.Map<String, Object>> updatedUsage = scanDataService.getTokenUsageForUser(clientId);
+        java.util.Map<String, Object> generalRow = updatedUsage.stream()
+                .filter(m -> "General Chat".equals(m.get("repoName")))
+                .findFirst().orElseThrow();
+        assertEquals("General Chat", generalRow.get("repoName"));
+        assertEquals(50L, generalRow.get("totalTokens"));
+    }
 }

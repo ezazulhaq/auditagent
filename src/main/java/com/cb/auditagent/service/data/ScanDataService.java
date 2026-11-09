@@ -312,6 +312,7 @@ public class ScanDataService {
             t.setRunId(runId);
             t.setVulnerabilityId(vulnerabilityId);
             t.setRepoPath(thread.getRepoPath());
+            t.setRepoName(resolveRepoName(thread.getRepoPath()));
             t.setModelName(modelName);
             t.setTokens(tokens);
             t.setCreatedAt(LocalDateTime.now());
@@ -319,11 +320,37 @@ public class ScanDataService {
         });
     }
 
+    public String resolveRepoName(String repoPath) {
+        if (repoPath == null || repoPath.isBlank()) {
+            return "Unknown";
+        }
+        if (repoPath.startsWith("github:")) {
+            String[] parts = repoPath.split(":");
+            if (parts.length >= 2) {
+                if ("general".equalsIgnoreCase(parts[1])) {
+                    return "General Chat";
+                }
+                try {
+                    long repoId = Long.parseLong(parts[1]);
+                    return managedRepositoryRepository.findById(repoId)
+                            .map(m -> m.getFullName() != null && !m.getFullName().isBlank() ? m.getFullName() : m.getRepoName())
+                            .orElse("repo-" + repoId);
+                } catch (NumberFormatException ignored) {
+                    return parts[1];
+                }
+            }
+        } else if (repoPath.startsWith("upload:")) {
+            return "Project Upload";
+        }
+        return repoPath;
+    }
+
     public List<Map<String, Object>> getTokenUsageForUser(String userId) {
         List<Map<String, Object>> result = new ArrayList<>();
         tokenUsageRepository.findTokenUsageSummaryByUserId(userId).forEach(summary -> {
             Map<String, Object> map = new HashMap<>();
-            map.put("repoPath", summary.getRepoPath());
+            map.put("repoName", summary.getRepoName());
+            map.put("repoPath", summary.getRepoName());
             map.put("modelName", summary.getModelName());
             map.put("totalTokens", summary.getTotalTokens());
             map.put("callCount", summary.getCallCount());
