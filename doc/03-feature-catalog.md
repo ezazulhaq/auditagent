@@ -222,7 +222,7 @@ This catalog connects each feature to its user/business outcome and main impleme
 |---|---|---|
 | Method lifecycle logs | Controller/service calls log class, method, argument count, return type, and exception class without values. | AOP CGLIB interceptor |
 | Redacted public errors | Common API exceptions return capped, redacted messages. | `ApiExceptionHandler` |
-| Token usage tracking | Tracks AI token consumption and finding resolution via Micrometer and PostgreSQL with a user-level dashboard view. | `MeterRegistry`, `token_usage` table, `TokenUsageView` |
+| Token usage tracking | Tracks AI token consumption aggregated by repository full name, model, and call count via Micrometer and PostgreSQL with a user-level observability dashboard view. | `MeterRegistry`, `token_usage` table, `TokenUsageLayout` |
 | Java virtual threads | Long scans, runs, output readers, and background index work avoid platform-thread blocking. | `Thread.startVirtualThread()` |
 | Reactive streams | Long workflows return SSE through Reactor `Flux`. | WebFlux and unicast sinks |
 | Jackson compatibility bridge | Jackson 2 mapper is supplied for libraries while Spring Boot 4 defaults differ. | `Jackson2Config` |

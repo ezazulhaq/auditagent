@@ -200,7 +200,7 @@
 | `src/components/AppHeader.jsx` | Brand, scan summary, identity, logout. |
 | `src/components/CopyButton.jsx` | Reusable clipboard copy button supporting multiple sizes, accessible labels, and feedback states. |
 | `src/components/NotificationDropdown.jsx` | Bell icon notification dropdown with unread badge and real-time updates. |
-| `src/components/TokenUsageView.jsx` | User-level UI displaying aggregated token usage and observability metrics. |
+| `src/features/observability/TokenUsageLayout.jsx` | User-level UI displaying aggregated token usage and observability metrics by repository name and model. |
 | `src/features/auth/LoginPage.jsx` | Login/configuration screen. |
 | `src/features/chat/ChatWidget.jsx` | Floating durable chat/recovery controls. |
 | `src/features/chat/components/ChatHeader.jsx` | Top header for the chat widget. |
@@ -269,7 +269,7 @@
 | `scripts/install-git-hooks.ps1`                 | Configures repository hooks path to `.githooks` for PowerShell/Windows users. |
 | `scripts/install-git-hooks.sh`                  | Configures repository hooks path to `.githooks` and executable bit on Unix-like systems. |
 | `.devcontainer/devcontainer.json`               | Temurin Java 21, Node.js 24 & Python 3.12 development container. |
-| `release_notes/*.md`                            | Versioned release notes tracking product, tooling, and infrastructure updates (v2.0.0, v2.0.1, v2.1.0, v2.1.1, v2.2.0, v2.2.1, v2.3.0, v2.3.1, v2.3.2, v2.3.3, v2.4.0). |
+| `release_notes/*.md`                            | Versioned release notes tracking product, tooling, and infrastructure updates (v2.0.0, v2.0.1, v2.1.0, v2.1.1, v2.2.0, v2.2.1, v2.3.0, v2.3.1, v2.3.2, v2.3.3, v2.4.0, v2.4.1). |
 
 ## Test file map
 

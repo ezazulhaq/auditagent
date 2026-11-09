@@ -154,6 +154,7 @@ Stores LLM token consumption metrics per request, joined with finding and reposi
 
 * `id` (VARCHAR PK): Random UUID.
 * `user_id` (VARCHAR): The authenticated user who initiated the prompt.
+* `repo_name` (VARCHAR, nullable): The resolved human-readable repository full name (e.g., `owner/repo`), general conversation label (`General Chat`), or upload project label (`Project Upload`), used for repository-level token aggregation.
 * `repo_path` (VARCHAR): The structured repository and branch context (e.g., `github:{repoId}:{branch}`). This is reliably synced from the originating memory thread.
 * `vulnerability_id` (VARCHAR, nullable): The finding ID if the usage occurred during remediation.
 * `thread_id` (VARCHAR): The originating conversation. Tracks both UI streaming chat tokens and agentic loops.

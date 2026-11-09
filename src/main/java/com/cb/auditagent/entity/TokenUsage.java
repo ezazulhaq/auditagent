@@ -1,6 +1,7 @@
 package com.cb.auditagent.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
 @Entity
@@ -16,11 +17,13 @@ public class TokenUsage {
     @EqualsAndHashCode.Include
     private String id;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private String userId;
 
     private String repoPath;
+
+    private String repoName;
 
     private String vulnerabilityId;
 
@@ -28,15 +31,15 @@ public class TokenUsage {
 
     private String runId;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private String modelName;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private Integer tokens;
 
-    @jakarta.validation.constraints.NotNull
+    @NotNull
     @Column(nullable = false)
     private java.time.LocalDateTime createdAt;
 
