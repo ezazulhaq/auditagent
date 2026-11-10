@@ -30,6 +30,7 @@
 | `LangChainModelConfig.java` | Tool-calling OpenAI model. |
 | `LlmProperties.java` | Binds `auditagent.llm` properties (user keys requirement flag, execution mode, provider, and fallback OpenAI settings). |
 | `MemoryConfig.java` | Retention, context, retrieval, content limits, and context summarization settings. |
+| `RabbitMqConfig.java` | Declares RabbitMQ exchanges (`auditagent.direct`, `auditagent.dlx`), queues (`auditagent.scan.queue`, `auditagent.remediation.queue`), DLQ, routing keys, message converter, and container factory. |
 | `ScannerConfig.java` | Validated Semgrep timeout and heartbeat settings. |
 | `WebFluxConfig.java` | WebFlux multipart and codec in-memory size configuration. |
 
@@ -76,6 +77,8 @@
 | `TestJevConnectionRequest.java` | API key, base URL, model name for SystemOne (TypeSafe Jev) connectivity test. |
 | `UserLlmConfigDto.java` | user ID, provider, base URL, model names, masked API key, SystemOne/Jev config & system defaults, timestamps. |
 | `UserLlmConfigRequest.java` | provider, API key, base URL, model name, supervisor model name, SystemOne/Jev preferences (enabled, model, URL, key). |
+| `queue/ScanTaskPayload.java` | Immutable DTO carrying scan request parameters, authentication context, and priority for async worker execution. |
+| `queue/RemediationTaskPayload.java` | Immutable DTO carrying remediation request parameters, target vulnerability, authentication context, and priority for async worker execution. |
 
 ### `domain`
 
@@ -111,12 +114,14 @@
 | File | Purpose |
 |---|---|
 | `AppUser.java` | JPA aggregate root for authenticated users. |
+| `JobEventLog.java` | JPA entity mapping `job_event_logs` table for durable real-time event streaming and worker telemetry. |
 | `UserLlmConfig.java` | JPA entity mapping `user_llm_configs` table with encrypted primary & SystemOne/Jev API keys and model preferences. |
 
 ### `repository`
 
 | File | Purpose |
 |---|---|
+| `JobEventLogRepository.java` | Spring Data JPA repository for persisting and querying `JobEventLog` events by job ID. |
 | `UserLlmConfigRepository.java` | Spring Data JPA repository for `UserLlmConfig`. |
 
 ### `graph`
@@ -124,7 +129,8 @@
 | File | Purpose |
 |---|---|
 | `AuditWorkflowGraph.java` | Unified end-to-end graph orchestrating scan, chat, remediation, and publication. |
-| `DuckDbCheckpointSaver.java` | Native LangGraph4j state persistence (now using PostgreSQL despite the name). |
+| `DatabaseCheckpointSaver.java` | Native LangGraph4j state persistence backed by PostgreSQL / Supabase with thread-safe serialization and recovery. |
+| `DuckDbCheckpointSaver.java` | Deprecated compatibility subclass extending `DatabaseCheckpointSaver`. |
 | `MultiAgentRemediationGraph.java` | 15-stage Star Topology orchestration graph with a supervisor. |
 | `RemediationGraph.java` | Inner LangGraph4j state machine for agent execution. |
 | `RemediationState.java` | State definition for the remediation loop. |
@@ -156,21 +162,26 @@
 | `ManagedProcessRunner.java` | Concurrent stream draining, heartbeat, deadline, process-tree termination, and short per-scan temp lifecycle. |
 | `MemoryRedactor.java` | Secret masks and caps. |
 | `OrchestratorService.java` | Legacy local-path orchestration retained for compatibility; not current controller path. |
+| `PostgresKnowledgeBaseService.java` | Native PostgreSQL/Supabase full-text search (`tsvector`/`tsquery`), candidate retrieval, and domain ranking weights for approved remediation memory. |
+| `DuckDbKnowledgeBaseService.java` | Deprecated compatibility subclass extending `PostgresKnowledgeBaseService`. |
 | `PullRequestLifecycleService.java` | Pull request webhook events, and vulnerability state transitions. |
 | `PullRequestProvider.java` | Pull-request abstraction. |
 | `PdfReportRenderer.java` | Paginated enterprise PDF generation through Apache PDFBox. |
 | `ProjectUploadService.java` | Project upload scan orchestration, persistence, and report export. |
-| `RemediationWorkflowService.java` | GitHub-native remediation workflow orchestration. |
+| `queue/TaskProducerService.java` | AMQP task producer routing scan and remediation jobs to RabbitMQ direct exchanges with priority headers. |
+| `realtime/EventBroadcastService.java` | Service broadcasting job events to PostgreSQL durable log and Supabase Realtime / WebSocket subscribers. |
+| `RemediationWorkflowService.java` | GitHub-native remediation workflow orchestration and async worker task execution. |
 | `ReporterService.java` | Enterprise Markdown/PDF generation and legacy HTML compatibility generation. |
 | `RepositoryAccessService.java` | Centralized repository authorization check. |
 | `RepositoryMemoryService.java` | Renders approved retrieval into prompt. |
 | `ScannerService.java` | Language selection, Semgrep execution, finding parsing. |
 | `ScanExecutionException.java` | Terminal scanner execution/output failure. |
-| `ScanOrchestratorService.java` | GitHub-native scan orchestration. |
+| `ScanOrchestratorService.java` | GitHub-native scan orchestration and async worker task execution. |
 | `ScanTimeoutException.java` | Distinct scanner deadline failure. |
 | `SecurityConceptCatalog.java` | Categories, aliases, framework and query metadata. |
 | `SkillManagerService.java` | Dynamic skill discovery/parsing. |
 | `SourceControlProvider.java` | Repository/workspace abstraction. |
+| `storage/SupabaseStorageService.java` | Service providing object storage operations (upload, download, signed URL) for reports and artifacts via Supabase Storage REST API with local filesystem fallback. |
 | `TokenCipher.java` | AES-GCM OAuth encryption. |
 | `UserLlmClientFactory.java` | Factory dynamically instantiating and caching user-scoped `ChatModel` (Spring AI) and `OpenAiChatModel` (LangChain4j) clients. |
 | `UserLlmConfigService.java` | Service managing user LLM configurations, AES-GCM encryption, key masking, and connectivity testing. |
@@ -185,6 +196,13 @@
 | `RemediationDataService.java` | Domain data service managing `AgentRun` aggregate root, steps, verification results, changes, checkpoints, and repository memories. |
 | `UserDataService.java` | Domain data service managing `AppUser` aggregate root, user sessions, GitHub authorizations, OAuth state, and notifications. |
 | `ScanDataService.java` | Domain data service managing `ManagedRepository` aggregate root, scan snapshots, scan history stats, reports, vulnerabilities, webhooks, tracked issues, and token usage. |
+
+### `worker`
+
+| File | Purpose |
+|---|---|
+| `ScanTaskConsumer.java` | RabbitMQ AMQP listener handling asynchronous repository scanning tasks with prefetch limits and dead-letter error handling. |
+| `RemediationTaskConsumer.java` | RabbitMQ AMQP listener handling asynchronous multi-agent remediation tasks with concurrency control and dead-letter error handling. |
 
 ## Frontend production files
 
@@ -221,8 +239,8 @@
 | `src/features/profile/LlmConfigForm.jsx` | Reusable form for configuring LLM provider (OpenRouter/OpenAI-compatible), API key, models, and live connection testing. |
 | `src/features/profile/LlmOnboardingModal.jsx` | Unclosable onboarding modal displayed on login when user credentials are required and unconfigured. |
 | `src/features/profile/UserProfileModal.jsx` | User profile modal accessible from header menu for inspecting identity and updating LLM credentials. |
-| `src/features/remediation/FindingDrawer.jsx` | Evidence, diff, decisions, retry, PR state. |
-| `src/features/remediation/useRemediationController.js` | Run/publication browser state. |
+| `src/features/remediation/FindingDrawer.jsx` | Evidence, diff, decisions, retry action for failed/PATCH_FAILED remediations, PR state. |
+| `src/features/remediation/useRemediationController.js` | Run/publication browser state, SSE event dispatching, failed run hydration, and background PR polling. |
 | `src/features/report/ReportView.jsx` | Authenticated PDF viewer plus PDF/Markdown downloads, loading, retry, and Blob URL cleanup. |
 | `src/features/report/WorkspaceTabs.jsx` | Main tab navigation (Dashboard, Findings, Issues, Audit Report) with count badges. |
 | `src/features/scan/ScanPanel.jsx` | Selection, progress, errors, install guidance. |
@@ -269,13 +287,13 @@
 | `scripts/install-git-hooks.ps1`                 | Configures repository hooks path to `.githooks` for PowerShell/Windows users. |
 | `scripts/install-git-hooks.sh`                  | Configures repository hooks path to `.githooks` and executable bit on Unix-like systems. |
 | `.devcontainer/devcontainer.json`               | Temurin Java 21, Node.js 24 & Python 3.12 development container. |
-| `release_notes/*.md`                            | Versioned release notes tracking product, tooling, and infrastructure updates (v2.0.0, v2.0.1, v2.1.0, v2.1.1, v2.2.0, v2.2.1, v2.3.0, v2.3.1, v2.3.2, v2.3.3, v2.4.0, v2.4.1). |
+| `release_notes/*.md`                            | Versioned release notes tracking product, tooling, and infrastructure updates (v2.0.0, v2.0.1, v2.1.0, v2.1.1, v2.2.0, v2.2.1, v2.3.0, v2.3.1, v2.3.2, v2.3.3, v2.4.0, v2.4.1, v2.5.0). |
 
 ## Test file map
 
 ### Backend
 
-`AuditagentApplicationTests`, `ApiSecurityFilterTest`, `AuditControllerReportExportTest`, `GitHubWebhookControllerTest`, `GitHubRepositoryControllerTest`, `IssueLifecycleServiceTest`, `AgentToolServiceSecurityTest`, `ConversationMemoryServiceTest`, `DatabaseMemoryServiceTest`, `FindingTriageServiceTest`, `GitHubAuthServiceTest`, `GitHubProviderIntegrationTest`, `JevClientTest`, `LlmErrorClassifierTest`, `LlmServiceAgentLoopTest`, `ManagedProcessRunnerTest`, `ProjectUploadControllerTest`, `ProjectUploadServiceTest`, `RemediationWorkflowPreparationTest`, `ScanOrchestratorReportExportTest`, `ScanOrchestratorServiceTest`, `ReporterServiceTest`, `ScannerServiceTest`, `SupervisorNodeTest`, `TokenCipherTest`, `UserLlmClientFactoryTest`, `UserLlmConfigControllerTest`, `UserLlmConfigServiceTest`, and `ZipArchiveExtractorTest`.
+`AuditagentApplicationTests`, `ApiSecurityFilterTest`, `AuditControllerReportExportTest`, `GitHubWebhookControllerTest`, `GitHubRepositoryControllerTest`, `IssueLifecycleServiceTest`, `AgentToolServiceSecurityTest`, `ConversationMemoryServiceTest`, `DatabaseMemoryServiceTest`, `FindingTriageServiceTest`, `GitHubAuthServiceTest`, `GitHubProviderIntegrationTest`, `JevClientTest`, `LlmErrorClassifierTest`, `LlmServiceAgentLoopTest`, `ManagedProcessRunnerTest`, `ProjectUploadControllerTest`, `ProjectUploadServiceTest`, `RabbitMqTaskQueueTest`, `RemediationWorkflowPreparationTest`, `ScanOrchestratorReportExportTest`, `ScanOrchestratorServiceTest`, `ReporterServiceTest`, `ScannerServiceTest`, `SupabaseStorageServiceTest`, `SupervisorNodeTest`, `TokenCipherTest`, `UserLlmClientFactoryTest`, `UserLlmConfigControllerTest`, `UserLlmConfigServiceTest`, and `ZipArchiveExtractorTest`.
 
 ### Frontend
 
@@ -308,9 +326,11 @@ Get-ChildItem rules -Directory | ForEach-Object {
 
 ## Glossary
 
+**AuditAgent Mode** — process execution profile configured via `AUDITAGENT_MODE=all|web|worker` (or `auditagent.mode`), allowing single-process development or decoupled web ingress and queue worker instances.
+
 **Agent run** — one durable attempt to remediate one finding.
 
-**BM25** — lexical ranking algorithm used by DuckDB FTS.
+**BM25** — lexical ranking algorithm formerly used by DuckDB FTS; now replaced by PostgreSQL native text search ranking (`ts_rank_cd`).
 
 **BYOK (Bring Your Own Key)** — architecture where each user provides their own LLM API credentials and selects their preferred provider/model, stored encrypted at rest via AES-GCM and scoped to their server identity.
 
@@ -318,11 +338,13 @@ Get-ChildItem rules -Directory | ForEach-Object {
 
 **CSRF** — attack that causes a signed-in browser to send an unwanted mutation; prevented with a session-bound header token.
 
+**Dead Letter Queue (DLQ)** — RabbitMQ destination queue (`auditagent.dlq`) collecting poison-pill or failed tasks routed via dead-letter exchange `auditagent.dlx`.
+
 **Finding** — one Semgrep result represented by `Vulnerability`.
 
 **Finding fingerprint** — stable SHA-256 of normalized rule ID, path, and vulnerable code.
 
-**FTS** — full-text search. Here it is DuckDB lexical search, not embeddings.
+**FTS** — full-text search. Now powered by PostgreSQL / Supabase native `tsvector`, `plainto_tsquery`, and GIN indexing over `repository_memories`.
 
 **`getPullRequestDiff`** — `GitHubApiClient` method retrieving PR diffs via `application/vnd.github.v3.diff` for self-training.
 
@@ -344,7 +366,11 @@ Get-ChildItem rules -Directory | ForEach-Object {
 
 **PR_OPEN** — remediation was published, but merge is not yet confirmed.
 
+**Prefetch Count** — AMQP channel flow-control limit configured on workers (`prefetch = 1` for remediation, `prefetch = 2` for scans) to enforce backpressure.
+
 **Publication digest** — SHA-256 binding of run/finding/base/branch/file hashes/verification evidence.
+
+**RabbitMQ Task Queue** — durable message broker managing asynchronous scanning and multi-agent remediation job dispatching with priority levels.
 
 **Recovery checkpoint** — persisted phase/status/iteration/Git hashes enabling safe retry or resume.
 
@@ -357,6 +383,8 @@ Get-ChildItem rules -Directory | ForEach-Object {
 **SSE** — server-sent events, used to stream JSON progress from POST workflows.
 
 **`summarizeDiffForGlobalPattern`** — `LlmService` method asynchronously extracting abstract positive remediation patterns from merged PR diffs.
+
+**Supabase Storage** — S3-compatible object storage layer backed by Supabase used for durable PDF/Markdown audit reports and artifacts.
 
 **Automated publication** — explicit API decision with exact run/finding/digest; not chat text.
 

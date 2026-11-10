@@ -99,14 +99,14 @@ public class ToolExecutionNode implements NodeAction<RemediationState> {
                     hasCalledApplyPatch = true;
                     llmService.persistRunChange(runId, toolArgs, toolResult);
                 } else {
-                    String duckDbMemory = repositoryMemoryService != null
+                    String kbMemory = repositoryMemoryService != null
                             ? repositoryMemoryService.retrieveForPrompt(repoPath, state.getVulnerability())
                             : "";
                     String nudge = "[HARNESS WARNING]: The patch application failed. You are likely targeting the wrong lines or your syntax is invalid. Re-read the file and ensure you are using the EXACT existing lines in your patch.\n\n"
                             +
-                            (duckDbMemory.contains("No approved remediation") ? ""
+                            (kbMemory.contains("No approved remediation") ? ""
                                     : "For your reference, here is knowledge base context on how to fix this type of issue:\n"
-                                            + duckDbMemory);
+                                            + kbMemory);
                     memoryService.addUserMessage(threadId, runId, nudge);
                 }
             } else if ("rollback_file".equals(toolName) && toolResult.startsWith("SUCCESS")) {
@@ -121,13 +121,13 @@ public class ToolExecutionNode implements NodeAction<RemediationState> {
                 rescanPassed = toolResult.startsWith("Rescan complete: 0 vulnerabilities");
                 llmService.persistVerification(runId, "RESCAN", rescanPassed, false, toolResult);
                 if (!rescanPassed) {
-                    String duckDbMemory = repositoryMemoryService != null
+                    String kbMemory = repositoryMemoryService != null
                             ? repositoryMemoryService.retrieveForPrompt(repoPath, state.getVulnerability())
                             : "";
                     String nudge = "[HARNESS WARNING]: The rescan failed! Your previous patch did NOT fix the vulnerability. Review the rescan output carefully. DO NOT attempt the exact same fix again. You MUST learn from this mistake and propose a fundamentally different approach.\n\n"
                             +
-                            (duckDbMemory.contains("No approved remediation") ? ""
-                                    : "Here is knowledge base context to help you fix this:\n" + duckDbMemory);
+                            (kbMemory.contains("No approved remediation") ? ""
+                                    : "Here is knowledge base context to help you fix this:\n" + kbMemory);
                     memoryService.addUserMessage(threadId, runId, nudge);
                 }
             } else if ("run_tests".equals(toolName)) {

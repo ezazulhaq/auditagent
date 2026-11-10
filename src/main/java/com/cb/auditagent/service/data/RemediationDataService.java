@@ -11,7 +11,7 @@ import com.cb.auditagent.entity.RunPublication;
 import com.cb.auditagent.entity.SubagentState;
 import com.cb.auditagent.entity.VerificationResult;
 import com.cb.auditagent.repository.*;
-import com.cb.auditagent.service.DuckDbKnowledgeBaseService;
+import com.cb.auditagent.service.PostgresKnowledgeBaseService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,7 +43,7 @@ public class RemediationDataService {
     private final RunPublicationRepository runPublicationRepository;
     private final RepositoryMemoryRepository repositoryMemoryRepository;
     private final GlobalRemediationPatternRepository globalRemediationPatternRepository;
-    private final DuckDbKnowledgeBaseService duckDbKnowledgeBaseService;
+    private final PostgresKnowledgeBaseService postgresKnowledgeBaseService;
     private final MemoryConfig memoryConfig;
 
     public RemediationDataService(AgentRunRepository agentRunRepository,
@@ -56,7 +56,7 @@ public class RemediationDataService {
                                   RunPublicationRepository runPublicationRepository,
                                   RepositoryMemoryRepository repositoryMemoryRepository,
                                   GlobalRemediationPatternRepository globalRemediationPatternRepository,
-                                  DuckDbKnowledgeBaseService duckDbKnowledgeBaseService,
+                                  PostgresKnowledgeBaseService postgresKnowledgeBaseService,
                                   MemoryConfig memoryConfig) {
         this.agentRunRepository = agentRunRepository;
         this.agentStepRepository = agentStepRepository;
@@ -68,7 +68,7 @@ public class RemediationDataService {
         this.runPublicationRepository = runPublicationRepository;
         this.repositoryMemoryRepository = repositoryMemoryRepository;
         this.globalRemediationPatternRepository = globalRemediationPatternRepository;
-        this.duckDbKnowledgeBaseService = duckDbKnowledgeBaseService;
+        this.postgresKnowledgeBaseService = postgresKnowledgeBaseService;
         this.memoryConfig = memoryConfig;
     }
 
@@ -334,7 +334,7 @@ public class RemediationDataService {
             existing.setUsageCount(existing.getUsageCount() + 1);
             existing.setUpdatedAt(LocalDateTime.now());
             repositoryMemoryRepository.save(existing);
-            duckDbKnowledgeBaseService.syncRepositoryMemory(mapToRepositoryMemory(existing));
+            postgresKnowledgeBaseService.syncRepositoryMemory(mapToRepositoryMemory(existing));
         } else {
             com.cb.auditagent.entity.RepositoryMemory mem = new com.cb.auditagent.entity.RepositoryMemory();
             mem.setMemoryId(UUID.randomUUID().toString());
@@ -352,7 +352,7 @@ public class RemediationDataService {
             mem.setCreatedAt(LocalDateTime.now());
             mem.setUpdatedAt(LocalDateTime.now());
             repositoryMemoryRepository.save(mem);
-            duckDbKnowledgeBaseService.syncRepositoryMemory(mapToRepositoryMemory(mem));
+            postgresKnowledgeBaseService.syncRepositoryMemory(mapToRepositoryMemory(mem));
         }
     }
 
@@ -383,7 +383,7 @@ public class RemediationDataService {
             mem.setCreatedAt(LocalDateTime.now());
             mem.setUpdatedAt(LocalDateTime.now());
             repositoryMemoryRepository.save(mem);
-            duckDbKnowledgeBaseService.syncRepositoryMemory(mapToRepositoryMemory(mem));
+            postgresKnowledgeBaseService.syncRepositoryMemory(mapToRepositoryMemory(mem));
         });
     }
 
@@ -432,11 +432,11 @@ public class RemediationDataService {
     }
 
     public List<RepositoryMemory> searchRepositoryMemories(String repoPath, Vulnerability vulnerability) {
-        return duckDbKnowledgeBaseService.searchRepositoryMemories(repoPath, vulnerability);
+        return postgresKnowledgeBaseService.searchRepositoryMemories(repoPath, vulnerability);
     }
 
     public List<RepositoryMemory> searchRejectedMemories(String repoPath, Vulnerability vulnerability) {
-        return duckDbKnowledgeBaseService.searchRejectedMemories(repoPath, vulnerability);
+        return postgresKnowledgeBaseService.searchRejectedMemories(repoPath, vulnerability);
     }
 
     @Transactional
@@ -446,11 +446,11 @@ public class RemediationDataService {
 
     @Transactional
     public void ensureFtsIndex() {
-        duckDbKnowledgeBaseService.ensureFtsIndex();
+        postgresKnowledgeBaseService.ensureFtsIndex();
     }
 
     public boolean isFtsAvailable() {
-        return duckDbKnowledgeBaseService.isFtsAvailable();
+        return postgresKnowledgeBaseService.isFtsAvailable();
     }
 
     @Transactional
@@ -517,12 +517,12 @@ public class RemediationDataService {
 
     public boolean hasActiveManagedRun(long repositoryId, String branch, String fingerprint) {
         return !runPublicationRepository.findActiveManagedRunIds(repositoryId, branch, fingerprint,
-                List.of("ACTIVE", "INTERRUPTED", "PR_OPEN")).isEmpty();
+                List.of("ACTIVE", "INTERRUPTED", "AWAITING_APPROVAL", "CONFLICTED", "PUBLISHING", "PUBLISH_FAILED", "PR_OPEN")).isEmpty();
     }
 
     public List<String> getActiveManagedRunIds(long repositoryId, String branch, String fingerprint) {
         return runPublicationRepository.findActiveManagedRunIds(repositoryId, branch, fingerprint,
-                List.of("ACTIVE", "INTERRUPTED", "PR_OPEN"));
+                List.of("ACTIVE", "INTERRUPTED", "AWAITING_APPROVAL", "CONFLICTED", "PUBLISHING", "PUBLISH_FAILED", "PR_OPEN"));
     }
 
     public Optional<RunPublicationRecord> findRunPublication(long repositoryId, int prNumber) {

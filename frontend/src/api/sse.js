@@ -23,7 +23,10 @@ export const parseSseFrame = (frame) => {
   }
   if (dataLines.length === 0) return null;
 
-  const payload = dataLines.join('\n');
+  let payload = dataLines.join('\n');
+  while (payload.startsWith('data:')) {
+    payload = payload.slice(5).replace(/^ /, '');
+  }
   try {
     return JSON.parse(payload);
   } catch (error) {

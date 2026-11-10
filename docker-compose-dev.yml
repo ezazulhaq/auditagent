@@ -31,8 +31,18 @@ services:
       SPRING_JPA_HIBERNATE_DDL_AUTO: ${SPRING_JPA_HIBERNATE_DDL_AUTO:-update}
 
       # DuckDB FTS Knowledge Base & Isolated Workspaces
-      AUDITAGENT_DB_PATH: /var/lib/auditagent/data/audit_reports.duckdb
       AUDITAGENT_WORKSPACE_ROOT: /var/lib/auditagent/workspaces
+
+      # RabbitMQ Task Broker & Unified Deployment Mode (all | web | worker)
+      SPRING_RABBITMQ_HOST: ${RABBITMQ_HOST:-rabbitmq}
+      SPRING_RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-auditagent}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-auditagent}
+      AUDITAGENT_MODE: ${AUDITAGENT_MODE:-all}
+      AUDITAGENT_WORKER_ENABLED: ${AUDITAGENT_WORKER_ENABLED:-true}
+      AUDITAGENT_SUPABASE_URL: ${SUPABASE_URL:-http://localhost:8000}
+      AUDITAGENT_SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY:-}
+      AUDITAGENT_SUPABASE_STORAGE_BUCKET: ${SUPABASE_STORAGE_BUCKET:-auditagent-artifacts}
 
       # LLM / Model Credentials & Endpoints
       SPRING_AI_OPENAI_API_KEY: ${OPENAI_API_KEY:-}
@@ -85,8 +95,6 @@ services:
       AUDITAGENT_SANDBOX_MEMORY: ${AUDITAGENT_SANDBOX_MEMORY:-2g}
       AUDITAGENT_SANDBOX_CPU: ${AUDITAGENT_SANDBOX_CPU:-2.0}
     volumes:
-      # Persistent DuckDB knowledge base
-      - auditagent_data:/var/lib/auditagent/data
       # Persistent workspace storage for git clones
       - auditagent_workspaces:/var/lib/auditagent/workspaces
       # Hot-reloadable security rules and stage skill playbooks (optional for local live editing)
@@ -96,6 +104,9 @@ services:
       # - ./.auditagent/skills:/app/.auditagent/skills:ro
       # Optional: Docker daemon socket mount when AUDITAGENT_SANDBOX_ENABLED=true
       # - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8173/api/auth/session || exit 1"]
       interval: 15s
@@ -130,6 +141,30 @@ services:
       - auditagent-net
 
   # ----------------------------------------------------------------------------
+  # RabbitMQ Message Broker
+  # Provides durable task queues, worker fleet backpressure, and DLQ handling
+  # ----------------------------------------------------------------------------
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: auditagent-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-auditagent}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-auditagent}
+    volumes:
+      - auditagent_rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q check_port_connectivity || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - auditagent-net
+
+  # ----------------------------------------------------------------------------
   # Agent Sandbox Image Builder (Optional Profile: sandbox)
   # Builds auditagent-sandbox:latest with tools for isolated command execution
   # ----------------------------------------------------------------------------
@@ -144,8 +179,8 @@ services:
       - all
 
 volumes:
-  auditagent_data:
-    name: auditagent_duckdb_data
+  auditagent_rabbitmq_data:
+    name: auditagent_rabbitmq_data
   auditagent_workspaces:
     name: auditagent_workspaces_data
 

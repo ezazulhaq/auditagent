@@ -281,7 +281,7 @@ Deletes approved memory for that repository/branch.
 
 ## Scan and report
 
-### `POST /api/scan` — SSE
+### `POST /api/scan` — SSE & Async Job Ingress
 
 Body:
 
@@ -294,6 +294,8 @@ Body:
   "threadId": "uuid"
 }
 ```
+
+In interactive web mode, streams `text/event-stream` SSE events. In decoupled worker mode (`auditagent.mode=web` or when dispatched asynchronously via RabbitMQ), can return `202 Accepted` with a `jobId` for worker background execution, streaming progress via `job_event_logs` and Supabase Realtime.
 
 Events:
 
@@ -425,7 +427,7 @@ Events:
 
 ## Remediation
 
-### `POST /api/analyze` — SSE
+### `POST /api/analyze` — SSE & Async Job Ingress
 
 Body:
 
@@ -438,15 +440,20 @@ Body:
 }
 ```
 
+In interactive web mode, streams `text/event-stream` SSE events. In decoupled worker mode (`auditagent.mode=web` or when dispatched asynchronously via RabbitMQ), can return `202 Accepted` with a `jobId` for worker background execution, streaming progress via `job_event_logs` and Supabase Realtime.
+
 Events:
 
-- `workspace_prepared`: includes `runId`, repository, branch, base SHA.
+- `queued`: emitted upon queuing in RabbitMQ (`auditagent.remediation.queue`), includes `jobId`, `vulnId`, `vulnerabilityId`, repository, and branch.
+- `workspace_prepared`: includes `runId`, `vulnId`, repository, branch, base SHA.
 - `agent_progress`: includes `runId`, `step`, `message`, iteration, max iterations.
 - `graph_step`: indicates a state transition within the graph execution (Phase 4).
 - `tool_detail`: provides detailed inputs and outputs of a tool executed during a step (Phase 4).
-- `approval_ready`: includes `runId` and `preview` (automatically proceeds to publication).
+- `approval_ready`: includes `runId`, `vulnId`, and `preview`.
 - `analysis_complete`: terminal logical result with optional preview, and message.
-- `status`: remediation failure.
+- `complete`: indicates autonomous pull request creation and run completion (`runStatus: "PUBLISHED"`).
+- `status`: diagnostic progress or failure notification.
+- `error`: terminal classified error event with `vulnId`, `errorCode`, `requiresLlmConfig`, and `message`. Transitions client run state to `FAILED` and triggers report refresh. Failed tasks in RabbitMQ route to `auditagent.dlq`.
 
 `agent_progress.step` values currently include `agent_thinking`, `tool_call`, `tool_result`, `agent_nudge`, `agent_error`, and `agent_complete`.
 

@@ -17,7 +17,7 @@ RemediationWorkflowService / LlmService
   +--> Semgrep process
   +--> Maven/Gradle processes
   +--> OpenAI-compatible LLM provider
-  +--> PostgreSQL & DuckDB FTS
+  +--> PostgreSQL (Supabase) & RabbitMQ Broker
 ```
 
 The Vite frontend is compiled into `src/main/resources/static` for the packaged application. In development, Vite runs on port 5173 and proxies `/api` to Spring Boot on port 8173.
@@ -141,6 +141,11 @@ Controllers translate HTTP into application operations. `ApiSecurityFilter` hand
 - `ScannerService`: Semgrep.
 - `LlmService`: OpenAI chat and remediation loop.
 - `AgentToolService`: constrained repository tools.
+- `TaskProducerService`: RabbitMQ asynchronous task dispatcher with message priority and dead-letter routing.
+- `ScanTaskConsumer` & `RemediationTaskConsumer`: background worker listeners enforcing concurrency backpressure (`prefetch = 2` for scans, `prefetch = 1` for remediations).
+- `PostgresKnowledgeBaseService`: PostgreSQL-backed memory search using native `tsvector`, GIN indexing, and metadata ranking (retiring embedded DuckDB).
+- `SupabaseStorageService`: offloads heavy unified diffs, SARIF dumps, and PDF reports to S3-compatible Supabase Storage.
+- `EventBroadcastService`: records progress in `job_event_log` for Supabase Realtime WebSocket client push.
 
 ### Persistence
 

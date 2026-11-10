@@ -149,6 +149,12 @@ public class UserDataService {
                         u.getAvatarUrl(), s.getCsrfToken())));
     }
 
+    public Optional<AuthenticatedUser> findUserById(String userId) {
+        return appUserRepository.findById(userId).map(u -> new AuthenticatedUser(
+                u.getUserId(), u.getGithubUserId(), u.getLogin(), u.getDisplayName(),
+                u.getAvatarUrl(), null));
+    }
+
     @Transactional
     public void deleteUserSession(String sessionHash) {
         userSessionRepository.deleteById(sessionHash);

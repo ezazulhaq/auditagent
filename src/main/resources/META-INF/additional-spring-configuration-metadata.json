@@ -361,5 +361,30 @@
     "name": "auditagent.jev.supervisor.fallback-to-chat-model",
     "type": "java.lang.String",
     "description": "A description for 'auditagent.jev.supervisor.fallback-to-chat-model'"
+  },
+  {
+    "name": "auditagent.mode",
+    "type": "java.lang.String",
+    "description": "Deployment mode: all, web, or worker."
+  },
+  {
+    "name": "auditagent.worker.enabled",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.worker.enabled'"
+  },
+  {
+    "name": "auditagent.supabase.url",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.supabase.url'"
+  },
+  {
+    "name": "auditagent.supabase.service-key",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.supabase.service-key'"
+  },
+  {
+    "name": "auditagent.supabase.storage.bucket",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.supabase.storage.bucket'"
   }
 ]}
