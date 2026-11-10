@@ -34,15 +34,15 @@ services:
       AUDITAGENT_WORKSPACE_ROOT: /var/lib/auditagent/workspaces
 
       # RabbitMQ Task Broker & Unified Deployment Mode (all | web | worker)
-      RABBITMQ_HOST: ${RABBITMQ_HOST:-rabbitmq}
-      RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
-      RABBITMQ_USER: ${RABBITMQ_USER:-auditagent}
-      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-auditagent}
+      SPRING_RABBITMQ_HOST: ${RABBITMQ_HOST:-rabbitmq}
+      SPRING_RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-auditagent}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-auditagent}
       AUDITAGENT_MODE: ${AUDITAGENT_MODE:-all}
       AUDITAGENT_WORKER_ENABLED: ${AUDITAGENT_WORKER_ENABLED:-true}
-      SUPABASE_URL: ${SUPABASE_URL:-http://localhost:8000}
-      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY:-}
-      SUPABASE_STORAGE_BUCKET: ${SUPABASE_STORAGE_BUCKET:-auditagent-artifacts}
+      AUDITAGENT_SUPABASE_URL: ${SUPABASE_URL:-http://localhost:8000}
+      AUDITAGENT_SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY:-}
+      AUDITAGENT_SUPABASE_STORAGE_BUCKET: ${SUPABASE_STORAGE_BUCKET:-auditagent-artifacts}
 
       # LLM / Model Credentials & Endpoints
       SPRING_AI_OPENAI_API_KEY: ${OPENAI_API_KEY:-}
@@ -157,7 +157,7 @@ services:
     volumes:
       - auditagent_rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q check_port_connectivity || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5

@@ -256,7 +256,7 @@ services:
     volumes:
       - auditagent_rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q check_port_connectivity || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -267,10 +267,14 @@ services:
     # ...
     environment:
       AUDITAGENT_MODE: ${AUDITAGENT_MODE:-all}
-      RABBITMQ_HOST: rabbitmq
-      RABBITMQ_PORT: 5672
+      RABBITMQ_HOST: ${RABBITMQ_HOST:-rabbitmq}
+      RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
       RABBITMQ_USER: ${RABBITMQ_USER:-auditagent}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-auditagent}
+      SPRING_RABBITMQ_HOST: ${RABBITMQ_HOST:-rabbitmq}
+      SPRING_RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-auditagent}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-auditagent}
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -279,6 +283,12 @@ volumes:
   auditagent_rabbitmq_data:
     name: auditagent_rabbitmq_data
 ```
+
+### Container Network Host Resolution
+
+When deploying via Docker Compose or PaaS orchestrators (like Dokploy) on Linux:
+- `auditagent` connects to the `rabbitmq` service using container network DNS (`rabbitmq:5672`). Set `RABBITMQ_HOST=rabbitmq` in `.env` (the fallback in `docker-compose.yml` and `docker-compose-dev.yml` also defaults to `rabbitmq`).
+- The healthcheck uses `rabbitmq-diagnostics -q check_port_connectivity` to guarantee that the AMQP listener on port 5672 is open and accepting socket connections before dependent services start.
 
 ---
 
