@@ -114,6 +114,54 @@ public class RemediationWorkflowService {
 
     public Flux<String> analyze(AuthenticatedUser user, String threadId, long repositoryId,
             String branch, String vulnerabilityId, Integer issueNumber) {
+        if (taskProducerService != null && eventBroadcastService != null) {
+            return enqueueAndStreamAnalysis(user, threadId, repositoryId, branch, vulnerabilityId, issueNumber);
+        }
+        return analyzeDirect(user, threadId, repositoryId, branch, vulnerabilityId, issueNumber);
+    }
+
+    public Flux<String> enqueueAndStreamAnalysis(AuthenticatedUser user, String threadId, long repositoryId,
+            String branch, String vulnerabilityId, Integer issueNumber) {
+        requireThreadOwner(threadId, user);
+        ManagedRepository repository = repositoryAccess.requireRepositoryAccess(user, repositoryId);
+        database.findLatestScanSnapshot(repositoryId, branch)
+                .orElseThrow(() -> new IllegalStateException("Run a scan for this repository branch first"));
+
+        String jobId = "remed-" + UUID.randomUUID();
+        Flux<String> stream = eventBroadcastService.listenEvents(jobId);
+
+        RemediationTaskPayload payload = new RemediationTaskPayload(
+                jobId, user.userId(), threadId, repositoryId, branch, vulnerabilityId, issueNumber,
+                java.time.Instant.now()
+        );
+
+        eventBroadcastService.broadcastEvent(jobId, null, "queued", Map.of(
+                "type", "queued",
+                "jobId", jobId,
+                "repository", repository.fullName(),
+                "branch", branch,
+                "vulnerabilityId", vulnerabilityId,
+                "message", "Remediation task queued."
+        ));
+
+        if (taskProducerService != null) {
+            try {
+                taskProducerService.enqueueRemediation(payload, 10);
+            } catch (Exception e) {
+                logger.warn("Failed to enqueue remediation to RabbitMQ for job [{}], falling back to local virtual thread: {}",
+                        jobId, e.getMessage());
+                Thread.startVirtualThread(() -> executeRemediationTask(payload));
+            }
+        } else {
+            logger.warn("TaskProducerService not available; executing remediation task [{}] locally", jobId);
+            Thread.startVirtualThread(() -> executeRemediationTask(payload));
+        }
+
+        return stream;
+    }
+
+    public Flux<String> analyzeDirect(AuthenticatedUser user, String threadId, long repositoryId,
+            String branch, String vulnerabilityId, Integer issueNumber) {
         requireThreadOwner(threadId, user);
         Sinks.Many<String> sink = Sinks.many().unicast().onBackpressureBuffer();
         Thread.startVirtualThread(() -> {
@@ -221,7 +269,13 @@ public class RemediationWorkflowService {
         }
 
         if (taskProducerService != null) {
-            taskProducerService.enqueueRemediation(payload, priority);
+            try {
+                taskProducerService.enqueueRemediation(payload, priority);
+            } catch (Exception e) {
+                logger.warn("Failed to enqueue remediation to RabbitMQ for job [{}], falling back to local virtual thread: {}",
+                        jobId, e.getMessage());
+                Thread.startVirtualThread(() -> executeRemediationTask(payload));
+            }
         } else {
             logger.warn("TaskProducerService not available; executing remediation task [{}] locally", jobId);
             Thread.startVirtualThread(() -> executeRemediationTask(payload));
@@ -236,7 +290,7 @@ public class RemediationWorkflowService {
                 throw new IllegalStateException("Repository not found: " + task.repositoryId());
             }
             ManagedRepository repository = repoOpt.get();
-            database.findLatestScanSnapshot(task.repositoryId(), task.branch())
+            ScanSnapshot snapshot = database.findLatestScanSnapshot(task.repositoryId(), task.branch())
                     .orElseThrow(() -> new IllegalStateException("Run a scan for this repository branch first"));
 
             String workflowId = task.threadId() + "-" + task.vulnerabilityId();
@@ -264,23 +318,71 @@ public class RemediationWorkflowService {
                     eventBroadcastService.broadcastEvent(task.jobId(), s.getRunId(), "graph_step", Map.of(
                             "type", "graph_step", "node", nodeName, "status", "completed"
                     ));
-                    if ("publish".equals(nodeName)) {
+
+                    if ("clone_workspace".equals(nodeName)) {
+                        eventBroadcastService.broadcastEvent(task.jobId(), s.getRunId(), "workspace_prepared", Map.of(
+                                "type", "workspace_prepared",
+                                "runId", s.getRunId() != null ? s.getRunId() : "",
+                                "repository", repository.fullName(),
+                                "branch", task.branch(),
+                                "baseSha", snapshot.baseSha() != null ? snapshot.baseSha() : ""
+                        ));
+                    } else if ("approval_ready".equals(nodeName)) {
+                        Object preview = s.getApprovalPreview() != null ? s.getApprovalPreview() : Map.of();
+                        eventBroadcastService.broadcastEvent(task.jobId(), s.getRunId(), "approval_ready", Map.of(
+                                "type", "approval_ready",
+                                "runId", s.getRunId() != null ? s.getRunId() : "",
+                                "preview", preview
+                        ));
+                        eventBroadcastService.broadcastEvent(task.jobId(), s.getRunId(), "analysis_complete", Map.of(
+                                "type", "analysis_complete",
+                                "runId", s.getRunId() != null ? s.getRunId() : "",
+                                "requires_approval", true,
+                                "preview", preview,
+                                "message", s.getWorkflowMessage() != null ? s.getWorkflowMessage()
+                                        : "Remediation verified. Awaiting human approval."
+                        ));
+                    } else if ("publish".equals(nodeName)) {
+                        eventBroadcastService.broadcastEvent(task.jobId(), s.getRunId(), "publish_progress", Map.of(
+                                "type", "publish_progress",
+                                "runId", s.getRunId() != null ? s.getRunId() : "",
+                                "phase", "TRACKING_PR",
+                                "message", s.getWorkflowMessage() != null ? s.getWorkflowMessage() : "Pull request created."
+                        ));
+                        if (s.getPullRequestNumber() != null && s.getPullRequestUrl() != null) {
+                            eventBroadcastService.broadcastEvent(task.jobId(), s.getRunId(), "pr_created", Map.of(
+                                    "type", "pr_created",
+                                    "runId", s.getRunId() != null ? s.getRunId() : "",
+                                    "pullRequestNumber", s.getPullRequestNumber(),
+                                    "pullRequestUrl", s.getPullRequestUrl()
+                            ));
+                        }
                         eventBroadcastService.broadcastEvent(task.jobId(), s.getRunId(), "complete", Map.of(
-                                "type", "complete", "runStatus", "PUBLISHED",
-                                "pullRequestNumber", s.getPullRequestNumber() != null ? s.getPullRequestNumber() : 0,
-                                "pullRequestUrl", s.getPullRequestUrl() != null ? s.getPullRequestUrl() : ""
+                                "type", "complete",
+                                "runId", s.getRunId() != null ? s.getRunId() : "",
+                                "runStatus", "PUBLISHED",
+                                "message", s.getWorkflowMessage() != null ? s.getWorkflowMessage() : "Pull request created."
                         ));
                     }
                 }
             }
         } catch (Exception e) {
-            logger.error("Remediation task execution failed for job {}: {}", task.jobId(), safeMessage(e));
+            LlmErrorClassifier.ClassifiedError classified = LlmErrorClassifier.classify(e);
+            logger.error("Remediation task execution failed for job {}: [{}] {}", task.jobId(),
+                    classified.errorCode(), classified.userMessage());
             if (eventBroadcastService != null) {
                 eventBroadcastService.broadcastEvent(task.jobId(), null, "error", Map.of(
-                        "type", "error", "message", safeMessage(e)
+                        "type", "error",
+                        "errorCode", classified.errorCode(),
+                        "requiresLlmConfig", classified.requiresLlmConfig(),
+                        "message", classified.userMessage()
                 ));
             }
             throw new RuntimeException("Remediation execution failed", e);
+        } finally {
+            if (eventBroadcastService != null) {
+                eventBroadcastService.completeStream(task.jobId());
+            }
         }
     }
 

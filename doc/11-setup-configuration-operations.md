@@ -516,7 +516,19 @@ The production `Dockerfile` builds a Debian-based container equipped with the fu
    docker compose ps
    ```
 
-6. **Stop and cleanup**:
+6. **Verify Queue-backed Finding Analysis & Event Logging**:
+   When analyzing vulnerabilities via the web interface or `POST /api/analyze`, requests are dispatched through RabbitMQ queue `auditagent.remediation.queue` and processed by `RemediationTaskConsumer`.
+   * **RabbitMQ Management Dashboard**: Navigate to `http://localhost:15672` (default user: `auditagent` / pass: `auditagent`). Under the **Queues** tab, inspect `auditagent.remediation.queue` to view active consumer channels and message throughput.
+   * **PostgreSQL Event Log (`job_event_log`)**: Connect to your PostgreSQL database to inspect recorded lifecycle steps:
+     ```sql
+     SELECT event_id, job_id, run_id, event_type, created_at, payload_json
+     FROM job_event_log
+     WHERE job_id LIKE 'remed-%'
+     ORDER BY created_at ASC;
+     ```
+     Logged events include `queued`, `workspace_prepared`, `graph_step`, `approval_ready`, and `analysis_complete`.
+
+7. **Stop and cleanup**:
    ```bash
    docker compose down
    # To also wipe workspace and RabbitMQ volumes:
