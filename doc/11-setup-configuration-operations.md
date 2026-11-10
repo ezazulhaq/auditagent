@@ -469,6 +469,7 @@ AuditAgent provides a containerized deployment via `docker-compose.yml` that pac
 | Service | Image / Build | Default Port | Profile | Description |
 |---|---|---|---|---|
 | `auditagent` | `Dockerfile` (multi-stage) | `8173` | default | Full-stack application containing Spring Boot, static UI, and all built-in CLI tools. |
+| `rabbitmq` | `rabbitmq:3-management-alpine` | `5672`, `15672` | default | Message broker providing AMQP task queues for asynchronous worker tasks and management console. |
 | `frontend` | `frontend/Dockerfile.dev` | `5173` | `dev`, `frontend-dev` | Vite development server with Hot Module Replacement (HMR) proxying `/api` to the backend. |
 | `sandbox` | `Dockerfile.sandbox` | - | `sandbox`, `all` | Isolated execution container (`auditagent-sandbox:latest`) used when `AUDITAGENT_SANDBOX_ENABLED=true`. |
 
@@ -490,13 +491,13 @@ The production `Dockerfile` builds a Debian-based container equipped with the fu
    ```bash
    cp .env.example .env
    ```
-   Edit `.env` to configure your PostgreSQL connection parameters (`POSTGRES_HOSTNAME`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` or `POSTGRES_URL`), OpenAI/OpenRouter credentials, TypeSafe Jev triage/supervisor settings (`AUDITAGENT_JEV_*`), and GitHub App keys.
+   Edit `.env` to configure your PostgreSQL connection parameters (`POSTGRES_HOSTNAME`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` or `POSTGRES_URL`), RabbitMQ credentials (`RABBITMQ_USER`, `RABBITMQ_PASSWORD`), deployment mode (`AUDITAGENT_MODE=all|web|worker`), Supabase integration settings (`SUPABASE_URL`, `SUPABASE_SERVICE_KEY`), OpenAI/OpenRouter credentials, TypeSafe Jev triage/supervisor settings (`AUDITAGENT_JEV_*`), and GitHub App keys.
 
-2. **Start the application**:
+2. **Start the application and messaging infrastructure**:
    ```bash
    docker compose up --build -d
    ```
-   The backend API and web interface will be accessible at `http://localhost:8173`.
+   This starts both the RabbitMQ message broker (`ports 5672, 15672`) and AuditAgent. The backend API and web interface will be accessible at `http://localhost:8173`, and the RabbitMQ management console at `http://localhost:15672`.
 
 3. **Start with interactive frontend development server (Vite on port 5173)**:
    ```bash
@@ -511,13 +512,14 @@ The production `Dockerfile` builds a Debian-based container equipped with the fu
 5. **View logs and check health**:
    ```bash
    docker compose logs -f auditagent
+   docker compose logs -f rabbitmq
    docker compose ps
    ```
 
 6. **Stop and cleanup**:
    ```bash
    docker compose down
-   # To also wipe workspace/DuckDB volumes:
+   # To also wipe workspace and RabbitMQ volumes:
    docker compose down -v
    ```
 

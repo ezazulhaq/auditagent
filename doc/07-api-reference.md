@@ -281,7 +281,7 @@ Deletes approved memory for that repository/branch.
 
 ## Scan and report
 
-### `POST /api/scan` — SSE
+### `POST /api/scan` — SSE & Async Job Ingress
 
 Body:
 
@@ -294,6 +294,8 @@ Body:
   "threadId": "uuid"
 }
 ```
+
+In interactive web mode, streams `text/event-stream` SSE events. In decoupled worker mode (`auditagent.mode=web` or when dispatched asynchronously via RabbitMQ), can return `202 Accepted` with a `jobId` for worker background execution, streaming progress via `job_event_logs` and Supabase Realtime.
 
 Events:
 
@@ -425,7 +427,7 @@ Events:
 
 ## Remediation
 
-### `POST /api/analyze` — SSE
+### `POST /api/analyze` — SSE & Async Job Ingress
 
 Body:
 
@@ -437,6 +439,8 @@ Body:
   "vulnId": "VULN-ABC123"
 }
 ```
+
+In interactive web mode, streams `text/event-stream` SSE events. In decoupled worker mode (`auditagent.mode=web` or when dispatched asynchronously via RabbitMQ), can return `202 Accepted` with a `jobId` for worker background execution, streaming progress via `job_event_logs` and Supabase Realtime.
 
 Events:
 

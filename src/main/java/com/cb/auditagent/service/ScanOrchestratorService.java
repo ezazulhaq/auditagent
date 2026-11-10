@@ -5,6 +5,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.cb.auditagent.domain.*;
+import com.cb.auditagent.dto.queue.ScanTaskPayload;
+import com.cb.auditagent.service.queue.TaskProducerService;
+import com.cb.auditagent.service.realtime.EventBroadcastService;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
@@ -30,6 +33,8 @@ public class ScanOrchestratorService {
     private final ReporterService reporter;
     private final RepositoryAccessService repositoryAccess;
     private final FindingTriageService findingTriageService;
+    private final TaskProducerService taskProducerService;
+    private final EventBroadcastService eventBroadcastService;
 
     public ScanOrchestratorService(
             DatabaseService database,
@@ -38,7 +43,18 @@ public class ScanOrchestratorService {
             ScannerService scanner,
             ReporterService reporter,
             RepositoryAccessService repositoryAccess) {
-        this(database, sourceControl, github, scanner, reporter, repositoryAccess, null);
+        this(database, sourceControl, github, scanner, reporter, repositoryAccess, null, null, null);
+    }
+
+    public ScanOrchestratorService(
+            DatabaseService database,
+            SourceControlProvider sourceControl,
+            GitHubApiClient github,
+            ScannerService scanner,
+            ReporterService reporter,
+            RepositoryAccessService repositoryAccess,
+            FindingTriageService findingTriageService) {
+        this(database, sourceControl, github, scanner, reporter, repositoryAccess, findingTriageService, null, null);
     }
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -49,7 +65,9 @@ public class ScanOrchestratorService {
             ScannerService scanner,
             ReporterService reporter,
             RepositoryAccessService repositoryAccess,
-            @org.springframework.beans.factory.annotation.Autowired(required = false) FindingTriageService findingTriageService) {
+            @org.springframework.beans.factory.annotation.Autowired(required = false) FindingTriageService findingTriageService,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) TaskProducerService taskProducerService,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) EventBroadcastService eventBroadcastService) {
         this.database = database;
         this.sourceControl = sourceControl;
         this.github = github;
@@ -57,6 +75,8 @@ public class ScanOrchestratorService {
         this.reporter = reporter;
         this.repositoryAccess = repositoryAccess;
         this.findingTriageService = findingTriageService;
+        this.taskProducerService = taskProducerService;
+        this.eventBroadcastService = eventBroadcastService;
     }
 
     public Flux<String> scan(AuthenticatedUser user, String threadId, long repositoryId, String branch,
@@ -145,6 +165,134 @@ public class ScanOrchestratorService {
             }
         });
         return sink.asFlux();
+    }
+
+    public String enqueueScanJob(AuthenticatedUser user, String threadId, long repositoryId, String branch,
+            String scannerName, boolean forceRescan, int priority) {
+        requireThreadOwner(threadId, user);
+        ManagedRepository repository = repositoryAccess.requireRepositoryAccess(user, repositoryId);
+        String installationToken = github.installationToken(repository.installationId());
+        String baseSha = sourceControl.branchHead(repository, branch, installationToken);
+        String jobId = "scan-" + UUID.randomUUID();
+
+        ScanTaskPayload payload = new ScanTaskPayload(
+                jobId, user.userId(), threadId, repositoryId, branch, baseSha,
+                scannerName, forceRescan, java.time.Instant.now()
+        );
+
+        if (eventBroadcastService != null) {
+            eventBroadcastService.broadcastEvent(jobId, null, "queued", Map.of(
+                    "type", "queued",
+                    "jobId", jobId,
+                    "repository", repository.fullName(),
+                    "branch", branch,
+                    "baseSha", baseSha,
+                    "message", "Scan task queued."
+            ));
+        }
+
+        if (taskProducerService != null) {
+            taskProducerService.enqueueScan(payload, priority);
+        } else {
+            logger.warn("TaskProducerService not available; executing scan task [{}] locally", jobId);
+            Thread.startVirtualThread(() -> executeScanTask(payload));
+        }
+        return jobId;
+    }
+
+    public void executeScanTask(ScanTaskPayload task) {
+        Path workspace = null;
+        try {
+            Optional<ManagedRepository> repoOpt = database.getManagedRepository(task.repositoryId());
+            if (repoOpt.isEmpty()) {
+                throw new IllegalStateException("Repository not found: " + task.repositoryId());
+            }
+            ManagedRepository repository = repoOpt.get();
+            String installationToken = github.installationToken(repository.installationId());
+            String reportKey = reportKey(task.repositoryId(), task.branch());
+
+            if (eventBroadcastService != null) {
+                eventBroadcastService.broadcastEvent(task.jobId(), null, "progress", Map.of(
+                        "type", "progress", "step", "init", "progress", 10,
+                        "message", "Preparing isolated workspace at " + shortSha(task.baseSha()) + "..."
+                ));
+            }
+
+            String workspaceKey = "scan-" + UUID.randomUUID();
+            workspace = sourceControl.cloneAtCommit(repository, task.branch(), task.baseSha(), installationToken, workspaceKey);
+
+            long started = System.currentTimeMillis();
+            ScannerService.ScanResult scanResult = scanner.scan(workspace.toString(), progress -> {
+                if (eventBroadcastService != null) {
+                    Map<String, Object> event = new LinkedHashMap<>(progress);
+                    event.put("type", "progress");
+                    eventBroadcastService.broadcastEvent(task.jobId(), null, "progress", event);
+                }
+            });
+
+            ScanMetadata metadata = new ScanMetadata();
+            metadata.setProjectName(repository.fullName());
+            metadata.setScannerName(task.scannerName());
+            metadata.setStartTime(java.time.Instant.ofEpochMilli(started).toString());
+            metadata.setEndTime(java.time.Instant.now().toString());
+            metadata.setScanDuration(String.format("%.2f seconds", (System.currentTimeMillis() - started) / 1000.0));
+            metadata.setTotalFilesScanned(scanResult.getFilesScanned());
+            metadata.setTotalLocScanned(scanResult.getTotalLoc());
+
+            List<Vulnerability> findings = scanResult.getFindings();
+            if (findingTriageService != null) {
+                if (eventBroadcastService != null) {
+                    eventBroadcastService.broadcastEvent(task.jobId(), null, "progress", Map.of(
+                            "type", "progress", "step", "triage", "progress", 85,
+                            "message", "Triaging security findings with TypeSafe Jev..."
+                    ));
+                }
+                findings = findingTriageService.triageFindings(findings, workspace.toString());
+            }
+
+            String markdown = reporter.generateMarkdown(findings, metadata, repository.fullName());
+            String html = reporter.generateHtml(findings, metadata, repository.fullName());
+            database.saveReport(reportKey, markdown, html, findings, metadata);
+
+            LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+            database.saveScanSnapshot(new ScanSnapshot(UUID.randomUUID().toString(), task.repositoryId(), task.branch(),
+                    task.baseSha(), reportKey, workspace.toString(), task.userId(), now));
+
+            int high = 0, medium = 0, low = 0, info = 0;
+            for (Vulnerability v : findings) {
+                String sev = v.getSeverity() != null ? v.getSeverity().name().toUpperCase() : "INFO";
+                if ("HIGH".equals(sev) || "CRITICAL".equals(sev)) high++;
+                else if ("MEDIUM".equals(sev)) medium++;
+                else if ("LOW".equals(sev)) low++;
+                else info++;
+            }
+            database.saveScanHistory(new ScanHistoryRecord(UUID.randomUUID().toString(), task.repositoryId(), task.branch(),
+                    task.baseSha(), now, findings.size(), high, medium, low, info));
+
+            if (eventBroadcastService != null) {
+                eventBroadcastService.broadcastEvent(task.jobId(), null, "complete", Map.of(
+                        "type", "complete",
+                        "repository", repository.fullName(),
+                        "branch", task.branch(),
+                        "baseSha", task.baseSha(),
+                        "findingsCount", findings.size(),
+                        "message", "Scan complete at " + shortSha(task.baseSha()) + ". Found " + findings.size() + " issue(s)."
+                ));
+            }
+        } catch (Exception e) {
+            logger.error("Scan task execution failed for job {}: {}", task.jobId(), safeMessage(e));
+            if (eventBroadcastService != null) {
+                eventBroadcastService.broadcastEvent(task.jobId(), null, "error", Map.of(
+                        "type", "error",
+                        "message", safeMessage(e)
+                ));
+            }
+            throw new RuntimeException("Scan execution failed", e);
+        } finally {
+            if (workspace != null) {
+                safeCleanup(workspace);
+            }
+        }
     }
 
     public java.util.Map<String, Object> report(AuthenticatedUser user, long repositoryId, String branch) {

@@ -9,7 +9,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 		"spring.ai.model.chat=none",
 		"spring.ai.openai.api-key=dummy",
 		"auditagent.memory.fts-enabled=false",
-		"auditagent.database.path=target/test-context.duckdb"
+		"spring.rabbitmq.listener.simple.auto-startup=false"
 })
 class AuditagentApplicationTests {
 	@MockitoBean

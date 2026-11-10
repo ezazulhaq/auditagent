@@ -1,7 +1,10 @@
 package com.cb.auditagent.service;
 
 import com.cb.auditagent.domain.*;
+import com.cb.auditagent.dto.queue.RemediationTaskPayload;
 import com.cb.auditagent.graph.workflow.RemediationWorkflowGraph;
+import com.cb.auditagent.service.queue.TaskProducerService;
+import com.cb.auditagent.service.realtime.EventBroadcastService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.slf4j.Logger;
@@ -36,6 +39,8 @@ public class RemediationWorkflowService {
     private final RepositoryAccessService repositoryAccess;
     private final ReporterService reporter;
     private final com.cb.auditagent.config.AgentConfig agentConfig;
+    private final TaskProducerService taskProducerService;
+    private final EventBroadcastService eventBroadcastService;
 
     public RemediationWorkflowService(
             DatabaseService database,
@@ -50,7 +55,24 @@ public class RemediationWorkflowService {
             RepositoryAccessService repositoryAccess,
             ReporterService reporter) {
         this(database, sourceControl, pullRequests, github, auth, llm, objectMapper, redactor,
-                workflowGraph, repositoryAccess, reporter, new com.cb.auditagent.config.AgentConfig());
+                workflowGraph, repositoryAccess, reporter, new com.cb.auditagent.config.AgentConfig(), null, null);
+    }
+
+    public RemediationWorkflowService(
+            DatabaseService database,
+            SourceControlProvider sourceControl,
+            PullRequestProvider pullRequests,
+            GitHubApiClient github,
+            GitHubAuthService auth,
+            LlmService llm,
+            ObjectMapper objectMapper,
+            MemoryRedactor redactor,
+            RemediationWorkflowGraph workflowGraph,
+            RepositoryAccessService repositoryAccess,
+            ReporterService reporter,
+            com.cb.auditagent.config.AgentConfig agentConfig) {
+        this(database, sourceControl, pullRequests, github, auth, llm, objectMapper, redactor,
+                workflowGraph, repositoryAccess, reporter, agentConfig, null, null);
     }
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -66,7 +88,9 @@ public class RemediationWorkflowService {
             RemediationWorkflowGraph workflowGraph,
             RepositoryAccessService repositoryAccess,
             ReporterService reporter,
-            com.cb.auditagent.config.AgentConfig agentConfig) {
+            com.cb.auditagent.config.AgentConfig agentConfig,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) TaskProducerService taskProducerService,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) EventBroadcastService eventBroadcastService) {
         this.database = database;
         this.sourceControl = sourceControl;
         this.pullRequests = pullRequests;
@@ -79,6 +103,8 @@ public class RemediationWorkflowService {
         this.repositoryAccess = repositoryAccess;
         this.reporter = reporter;
         this.agentConfig = agentConfig;
+        this.taskProducerService = taskProducerService;
+        this.eventBroadcastService = eventBroadcastService;
     }
 
     public Flux<String> analyze(AuthenticatedUser user, String threadId, long repositoryId,
@@ -168,6 +194,94 @@ public class RemediationWorkflowService {
             }
         });
         return sink.asFlux();
+    }
+
+    public String enqueueRemediationJob(AuthenticatedUser user, String threadId, long repositoryId,
+            String branch, String vulnerabilityId, Integer issueNumber, int priority) {
+        requireThreadOwner(threadId, user);
+        ManagedRepository repository = repositoryAccess.requireRepositoryAccess(user, repositoryId);
+        database.findLatestScanSnapshot(repositoryId, branch)
+                .orElseThrow(() -> new IllegalStateException("Run a scan for this repository branch first"));
+
+        String jobId = "remed-" + UUID.randomUUID();
+        RemediationTaskPayload payload = new RemediationTaskPayload(
+                jobId, user.userId(), threadId, repositoryId, branch, vulnerabilityId, issueNumber,
+                java.time.Instant.now()
+        );
+
+        if (eventBroadcastService != null) {
+            eventBroadcastService.broadcastEvent(jobId, null, "queued", Map.of(
+                    "type", "queued",
+                    "jobId", jobId,
+                    "repository", repository.fullName(),
+                    "branch", branch,
+                    "vulnerabilityId", vulnerabilityId,
+                    "message", "Remediation task queued."
+            ));
+        }
+
+        if (taskProducerService != null) {
+            taskProducerService.enqueueRemediation(payload, priority);
+        } else {
+            logger.warn("TaskProducerService not available; executing remediation task [{}] locally", jobId);
+            Thread.startVirtualThread(() -> executeRemediationTask(payload));
+        }
+        return jobId;
+    }
+
+    public void executeRemediationTask(RemediationTaskPayload task) {
+        try {
+            Optional<ManagedRepository> repoOpt = database.getManagedRepository(task.repositoryId());
+            if (repoOpt.isEmpty()) {
+                throw new IllegalStateException("Repository not found: " + task.repositoryId());
+            }
+            ManagedRepository repository = repoOpt.get();
+            database.findLatestScanSnapshot(task.repositoryId(), task.branch())
+                    .orElseThrow(() -> new IllegalStateException("Run a scan for this repository branch first"));
+
+            String workflowId = task.threadId() + "-" + task.vulnerabilityId();
+            database.deleteGraphCheckpoints(workflowId);
+
+            java.util.Map<String, Object> state = new java.util.HashMap<>();
+            AuthenticatedUser user = new AuthenticatedUser(task.userId(), 0L, task.userId(), task.userId(), null, null);
+            state.put("authenticatedUser", user);
+            state.put("threadId", task.threadId());
+            state.put("repositoryId", task.repositoryId());
+            state.put("branch", task.branch());
+            state.put("vulnerabilityId", task.vulnerabilityId());
+            if (task.issueNumber() != null && task.issueNumber() > 0) {
+                state.put("issueNumber", task.issueNumber());
+            }
+
+            var config = org.bsc.langgraph4j.RunnableConfig.builder().threadId(workflowId).build();
+            var stream = workflowGraph.getGraph().stream(org.bsc.langgraph4j.GraphInput.args(state), config);
+
+            for (var node : stream) {
+                String nodeName = node.node();
+                com.cb.auditagent.graph.workflow.WorkflowState s = node.state();
+
+                if (eventBroadcastService != null) {
+                    eventBroadcastService.broadcastEvent(task.jobId(), s.getRunId(), "graph_step", Map.of(
+                            "type", "graph_step", "node", nodeName, "status", "completed"
+                    ));
+                    if ("publish".equals(nodeName)) {
+                        eventBroadcastService.broadcastEvent(task.jobId(), s.getRunId(), "complete", Map.of(
+                                "type", "complete", "runStatus", "PUBLISHED",
+                                "pullRequestNumber", s.getPullRequestNumber() != null ? s.getPullRequestNumber() : 0,
+                                "pullRequestUrl", s.getPullRequestUrl() != null ? s.getPullRequestUrl() : ""
+                        ));
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Remediation task execution failed for job {}: {}", task.jobId(), safeMessage(e));
+            if (eventBroadcastService != null) {
+                eventBroadcastService.broadcastEvent(task.jobId(), null, "error", Map.of(
+                        "type", "error", "message", safeMessage(e)
+                ));
+            }
+            throw new RuntimeException("Remediation execution failed", e);
+        }
     }
 
     public Flux<String> analyzeBatch(AuthenticatedUser user, String threadId, long repositoryId,

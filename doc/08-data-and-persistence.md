@@ -384,7 +384,7 @@ The concept catalog recognizes injection/SQLi, XSS, path traversal, command inje
 ### Candidate sources
 
 - Cross-repository `global_remediation_patterns` queried directly by Semgrep rule ID.
-- DuckDB BM25 FTS when available for repository-scoped memories.
+- PostgreSQL native FTS (`tsvector` / `plainto_tsquery` / `ts_rank_cd`) and metadata ranking for repository-scoped memories via `PostgresKnowledgeBaseService`.
 - Always-on structured metadata fallback.
 - Maximum 50 candidates from each query path by default.
 - Maximum eight returned prompt memories.
@@ -397,7 +397,7 @@ Large deterministic weights enforce:
 2. exact rule ID;
 3. category;
 4. vulnerability type;
-5. BM25;
+5. PostgreSQL FTS ranking / BM25;
 6. language;
 7. framework;
 8. file extension pattern;
@@ -408,7 +408,15 @@ Usage counters increment for selected memories.
 
 ### FTS lifecycle
 
-DuckDB's `fts` extension is loaded or installed. The index covers title, summary, root cause, remediation pattern, and search text using Porter stemming, English stopwords, accent stripping, and lowercase normalization. A rebuild occurs when source/index versions differ. Failure sets `ftsAvailable=false`, records a safe failure, and preserves metadata retrieval.
+PostgreSQL native text search (`tsvector` and `plainto_tsquery`) handles lexical candidate matching across title, summary, root cause, remediation pattern, and search text using English stemming and lowercasing. Embedded DuckDB has been completely retired, removing single-process file locks and ensuring horizontal scalability across multiple application and worker pods.
+
+### Realtime event log (`job_event_log`)
+
+Stores lifecycle events (`queued`, `progress`, `workspace_prepared`, `graph_step`, `pr_created`, `complete`, `error`) with `job_id`, optional `run_id`, event type, payload JSON, and UTC timestamp. Supabase Realtime listens to PostgreSQL WAL changes to push updates directly to connected WebSocket clients across pods.
+
+### Artifact offloading (`SupabaseStorageService`)
+
+Heavy binary and text artifacts (raw Semgrep SARIF JSON dumps, unified git diffs exceeding 10 KB, and generated PDF reports) are stored in Supabase Storage (`auditagent-artifacts` bucket), keeping relational database tables compact and query latencies fast.
 
 ## Entity Relationships, Aggregate Roots, and Modular Domain Data Services
 

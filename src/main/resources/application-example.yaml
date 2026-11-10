@@ -24,6 +24,16 @@ spring:
       hibernate:
         format-sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:auditagent}
+    password: ${RABBITMQ_PASSWORD:auditagent}
+    listener:
+      simple:
+        acknowledge-mode: auto
+        prefetch: ${RABBITMQ_PREFETCH:2}
+        auto-startup: ${RABBITMQ_AUTO_STARTUP:true}
 management:
   health:
     db:
@@ -31,6 +41,14 @@ management:
 
 # Agentic remediation loop configuration
 auditagent:
+  mode: ${AUDITAGENT_MODE:all} # all | web | worker
+  worker:
+    enabled: ${AUDITAGENT_WORKER_ENABLED:true}
+  supabase:
+    url: ${SUPABASE_URL:http://localhost:8000}
+    service-key: ${SUPABASE_SERVICE_KEY:}
+    storage:
+      bucket: ${SUPABASE_STORAGE_BUCKET:auditagent-artifacts}
   llm:
     # Mode can be 'user' (mandatory BYOK) or 'system' (legacy single-tenant / automated test mode)
     mode: ${AUDITAGENT_LLM_MODE:user}

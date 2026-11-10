@@ -24,4 +24,26 @@ public interface RepositoryMemoryRepository extends JpaRepository<RepositoryMemo
     @Modifying
     @Query("UPDATE RepositoryMemory m SET m.usageCount = m.usageCount + 1 WHERE m.memoryId = :memoryId")
     int incrementUsageCount(@Param("memoryId") String memoryId);
+
+    @Query("SELECT m FROM RepositoryMemory m WHERE m.repoPath = :repoPath AND m.approved = :approved AND (" +
+           "m.findingFingerprint = :fingerprint OR m.ruleId = :ruleId OR m.vulnerabilityType = :vulnType OR m.language = :language) " +
+           "ORDER BY m.confidence DESC, m.updatedAt DESC")
+    List<RepositoryMemory> findMetadataCandidates(@Param("repoPath") String repoPath,
+                                                  @Param("approved") Boolean approved,
+                                                  @Param("fingerprint") String fingerprint,
+                                                  @Param("ruleId") String ruleId,
+                                                  @Param("vulnType") String vulnType,
+                                                  @Param("language") String language,
+                                                  org.springframework.data.domain.Pageable pageable);
+
+    @Query("SELECT m FROM RepositoryMemory m WHERE m.repoPath = :repoPath AND m.approved = :approved AND (" +
+           "LOWER(m.title) LIKE LOWER(CONCAT('%', :term, '%')) OR " +
+           "LOWER(m.summary) LIKE LOWER(CONCAT('%', :term, '%')) OR " +
+           "LOWER(m.rootCause) LIKE LOWER(CONCAT('%', :term, '%')) OR " +
+           "LOWER(m.remediationPattern) LIKE LOWER(CONCAT('%', :term, '%')) OR " +
+           "LOWER(m.searchText) LIKE LOWER(CONCAT('%', :term, '%')))")
+    List<RepositoryMemory> findTextCandidates(@Param("repoPath") String repoPath,
+                                              @Param("approved") Boolean approved,
+                                              @Param("term") String term,
+                                              org.springframework.data.domain.Pageable pageable);
 }
