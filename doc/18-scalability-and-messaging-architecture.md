@@ -224,12 +224,16 @@ Worker nodes record all lifecycle events directly into PostgreSQL `job_event_log
 
 When findings analysis is requested via `POST /api/analyze`:
 1. `RemediationWorkflowService.analyze(...)` invokes `enqueueAndStreamAnalysis(...)` when messaging components (`TaskProducerService`, `EventBroadcastService`) are present (falling back to direct in-process execution in standalone test environments).
-2. `EventBroadcastService.listenEvents(jobId)` registers an in-memory replay sink (`Sinks.many().replay().all()`) and returns an SSE `Flux<String>` with 15-second keepalive pulses.
-3. `queued` event is broadcast and persisted to `job_event_log`.
+2. `EventBroadcastService.listenEvents(jobId)` registers an in-memory replay sink (`Sinks.many().replay().all()`) and returns an SSE `Flux<String>` emitting raw JSON payloads with 15-second keepalive pulses (`{"type":"keepalive"}`). Spring WebFlux's `ServerSentEventHttpMessageWriter` automatically wraps each payload into standard SSE framing (`data: <json>\n\n`), preventing duplicate framing issues.
+3. `queued` event (containing both `vulnId` and `vulnerabilityId`) is broadcast and persisted to `job_event_log`.
 4. `TaskProducerService.enqueueRemediation(payload, 10)` sends the task to RabbitMQ exchange `auditagent.direct` with routing key `task.remediation`.
-5. `RemediationTaskConsumer` (QoS prefetch 1) receives the task and calls `executeRemediationTask(payload)`.
-6. As each node of the LangGraph4j multi-agent remediation graph executes, `EventBroadcastService.broadcastEvent(...)` persists the step to PostgreSQL `job_event_log` AND pushes the SSE frame `"data: <json>\n\n"` to the active client stream.
-7. Reaching `approval_ready` emits `approval_ready` followed by `analysis_complete` (or `complete` upon PR creation, or classified `error`), which completes the SSE Flux stream and automatically unregisters the sink.
+5. `RemediationTaskConsumer` (QoS prefetch 1) receives the task and calls `executeRemediationTask(payload)`. On execution failure, `RemediationTaskConsumer` throws `AmqpRejectAndDontRequeueException`, rejecting the poison message (`requeue = false`) and routing it to dead-letter queue `auditagent.dlq` via `auditagent.dlx` instead of creating an infinite redelivery loop.
+6. User identity is resolved via `database.findUserById(task.userId())` so commit authorship, reviewer state, and GitHub identity reflect the authenticated user's real GitHub login and details rather than fallback UUID placeholders.
+7. Workspace preparation (`CloneWorkspaceNode`) queries active managed runs across all non-terminal statuses (`ACTIVE`, `INTERRUPTED`, `AWAITING_APPROVAL`, `CONFLICTED`, `PUBLISHING`, `PUBLISH_FAILED`, `PR_OPEN`). Any existing uncompleted or conflicted runs are marked `DISCARDED`, associated workspaces are cleaned up, and findings awaiting approval or retry transition safely to `DETECTED`.
+8. As each node of the LangGraph4j multi-agent remediation graph executes, `EventBroadcastService.broadcastEvent(...)` persists the step to PostgreSQL `job_event_log` AND pushes the JSON payload to the active client stream. Every event includes explicit `vulnId` correlation.
+9. Reaching `approval_ready` emits `approval_ready` followed by `analysis_complete` (or `complete` upon PR creation, or classified `error`), which completes the SSE Flux stream and automatically unregisters the sink.
+10. The frontend remediation controller (`useRemediationController.js`) handles `queued`, `graph_step`, `approval_ready`, `analysis_complete`, `status`, and `error` events: setting runs to `FAILED` and refreshing reports upon error or rejection so finding drawers and timelines never remain stuck in `ACTIVE`. The drawer (`FindingDrawer.jsx`) enables retrying analysis for `PATCH_FAILED` and `FAILED` runs.
+11. The frontend SSE parser (`frontend/src/api/sse.js`) provides defensive trimming of duplicate `data:` prefixes to ensure seamless state hydration in all proxy and container environments.
 
 #### Verifying Findings Analysis in PostgreSQL `job_event_log`
 

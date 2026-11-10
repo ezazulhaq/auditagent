@@ -5,6 +5,7 @@ import com.cb.auditagent.dto.queue.RemediationTaskPayload;
 import com.cb.auditagent.service.RemediationWorkflowService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -33,7 +34,7 @@ public class RemediationTaskConsumer {
             logger.info("Successfully completed remediation task [{}]", task.jobId());
         } catch (Exception e) {
             logger.error("Failed executing remediation task [{}]: {}", task.jobId(), e.getMessage(), e);
-            throw new RuntimeException("Remediation task execution failed", e);
+            throw new AmqpRejectAndDontRequeueException("Remediation task execution failed: " + e.getMessage(), e);
         }
     }
 }

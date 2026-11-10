@@ -239,8 +239,8 @@
 | `src/features/profile/LlmConfigForm.jsx` | Reusable form for configuring LLM provider (OpenRouter/OpenAI-compatible), API key, models, and live connection testing. |
 | `src/features/profile/LlmOnboardingModal.jsx` | Unclosable onboarding modal displayed on login when user credentials are required and unconfigured. |
 | `src/features/profile/UserProfileModal.jsx` | User profile modal accessible from header menu for inspecting identity and updating LLM credentials. |
-| `src/features/remediation/FindingDrawer.jsx` | Evidence, diff, decisions, retry, PR state. |
-| `src/features/remediation/useRemediationController.js` | Run/publication browser state. |
+| `src/features/remediation/FindingDrawer.jsx` | Evidence, diff, decisions, retry action for failed/PATCH_FAILED remediations, PR state. |
+| `src/features/remediation/useRemediationController.js` | Run/publication browser state, SSE event dispatching, failed run hydration, and background PR polling. |
 | `src/features/report/ReportView.jsx` | Authenticated PDF viewer plus PDF/Markdown downloads, loading, retry, and Blob URL cleanup. |
 | `src/features/report/WorkspaceTabs.jsx` | Main tab navigation (Dashboard, Findings, Issues, Audit Report) with count badges. |
 | `src/features/scan/ScanPanel.jsx` | Selection, progress, errors, install guidance. |

@@ -175,6 +175,8 @@ The durable lifecycle record:
 - final summary and safe error;
 - create/update/complete timestamps.
 
+Active run lifecycle queries (`getActiveManagedRunIds` and `hasActiveManagedRun`) match all non-terminal runs (`ACTIVE`, `INTERRUPTED`, `AWAITING_APPROVAL`, `CONFLICTED`, `PUBLISHING`, `PUBLISH_FAILED`, `PR_OPEN`) to ensure workspaces and publications from interrupted, conflicted, or awaiting runs are cleaned up and discarded before a new run begins. User lookups via `UserDataService.findUserById` resolve the authenticated user's real GitHub numeric ID, login, and display name for git authorship and reviewer tracking.
+
 #### `agent_steps`
 
 Stores redacted tool actions, arguments, results, duration, status, and idempotency key. `(run_id, idempotency_key)` is unique.

@@ -21,7 +21,9 @@ import org.mockito.InOrder;
 
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -109,5 +111,52 @@ class RemediationWorkflowPreparationTest {
                 verify(source).cleanupWorkspace(workspace);
                 assertTrue(events.stream().anyMatch(event -> event.contains("STALE_BASE")
                                 || event.contains("advanced since the last scan")));
+        }
+
+        @Test
+        void allowsReanalysisWhenVulnerabilityAwaitingApproval() throws Exception {
+                DatabaseService database = mock(DatabaseService.class);
+                SourceControlProvider source = mock(SourceControlProvider.class);
+                GitHubApiClient github = mock(GitHubApiClient.class);
+                Vulnerability vulnerability = new Vulnerability("VULN-000002", "src/Regex.js", 36, "unsafe",
+                                Severity.MEDIUM, "ReDoS", "Non-literal regexp", "javascript");
+                vulnerability.setStatus(VulnerabilityStatus.AWAITING_APPROVAL);
+                vulnerability.setFindingFingerprint("fingerprint-redos");
+                ManagedRepository repository = new ManagedRepository(42, 9, "octo", "repo", "octo/repo",
+                                "https://github.test/octo/repo.git", "main", true, "WRITE");
+                ScanSnapshot snapshot = new ScanSnapshot("snapshot", 42, "main", "base-sha",
+                                "github:42:main", "", "user-1", LocalDateTime.now());
+                Path workspace = tempDir.resolve("managed-run-redos");
+                AgentRunRecord run = new AgentRunRecord("run-redos", "thread-1", vulnerability.getId(),
+                                "fingerprint-redos", workspace.toString(), AgentPhase.PREPARING_WORKSPACE,
+                                AgentRunStatus.ACTIVE,
+                                0, 0, 15, false, false, false, false, null, null, null, null, LocalDateTime.now());
+
+                when(database.getManagedRepository(42)).thenReturn(Optional.of(repository));
+                when(database.findLatestScanSnapshot(42, "main")).thenReturn(Optional.of(snapshot));
+                when(database.getVulnerabilityById(vulnerability.getId(), snapshot.reportKey()))
+                                .thenReturn(Optional.of(vulnerability));
+                when(database.getActiveManagedRunIds(42, "main", "fingerprint-redos")).thenReturn(List.of("old-conflicted-run"));
+                when(source.workspacePath(anyString())).thenReturn(workspace);
+                when(database.createManagedAgentRun(eq("thread-1"), eq(vulnerability), eq(workspace.toString()), anyInt()))
+                                .thenReturn(run);
+                when(github.installationToken(9)).thenReturn("tok");
+
+                com.cb.auditagent.graph.workflow.CloneWorkspaceNode cloneWorkspaceNode =
+                                new com.cb.auditagent.graph.workflow.CloneWorkspaceNode(database, source, github, new AgentConfig());
+
+                Map<String, Object> stateData = new HashMap<>();
+                stateData.put("repositoryId", 42L);
+                stateData.put("branch", "main");
+                stateData.put("threadId", "thread-1");
+                stateData.put("vulnerabilityId", vulnerability.getId());
+                stateData.put("authenticatedUser", new AuthenticatedUser("user-1", 1L, "octo", "Octo", null, null));
+                com.cb.auditagent.graph.workflow.WorkflowState state = new com.cb.auditagent.graph.workflow.WorkflowState(stateData);
+
+                var updates = cloneWorkspaceNode.apply(state);
+
+                org.junit.jupiter.api.Assertions.assertEquals("run-redos", updates.get("runId"));
+                verify(database).updateVulnerabilityStatus(vulnerability.getId(), VulnerabilityStatus.DETECTED, null);
+                verify(source).cloneAtCommit(eq(repository), eq("main"), eq("base-sha"), eq("tok"), anyString());
         }
 }

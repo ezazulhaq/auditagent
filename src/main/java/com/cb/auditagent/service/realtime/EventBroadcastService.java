@@ -50,7 +50,7 @@ public class EventBroadcastService {
             @Override
             public void run() {
                 try {
-                    sink.tryEmitNext("data: {\"type\":\"keepalive\"}\n\n");
+                    sink.tryEmitNext("{\"type\":\"keepalive\"}");
                 } catch (Exception ignore) {
                 }
             }
@@ -87,7 +87,7 @@ public class EventBroadcastService {
         if (jobId != null) {
             Sinks.Many<String> sink = jobSinks.computeIfAbsent(jobId, k -> Sinks.many().replay().all());
             if (payloadJson != null) {
-                sink.tryEmitNext("data: " + payloadJson + "\n\n");
+                sink.tryEmitNext(payloadJson);
             }
             if (isTerminalEvent(eventType)) {
                 sink.tryEmitComplete();

@@ -526,7 +526,7 @@ The production `Dockerfile` builds a Debian-based container equipped with the fu
      WHERE job_id LIKE 'remed-%'
      ORDER BY created_at ASC;
      ```
-     Logged events include `queued`, `workspace_prepared`, `graph_step`, `approval_ready`, and `analysis_complete`.
+     Logged events include `queued`, `workspace_prepared`, `graph_step`, `approval_ready`, and `analysis_complete`. If an execution failure occurs, `RemediationTaskConsumer` logs the failure, broadcasts an `error` event, and rejects the message with `requeue = false` via `AmqpRejectAndDontRequeueException`, dead-lettering the failed task into `auditagent.dlq` to prevent infinite redelivery loops. The web drawer allows immediate re-analysis retry once the error or `PATCH_FAILED` status is hydrated.
 
 7. **Stop and cleanup**:
    ```bash

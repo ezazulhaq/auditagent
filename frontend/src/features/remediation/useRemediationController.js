@@ -189,7 +189,9 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
       updateRun(vulnId, { runId, status: 'ACTIVE', vulnerabilityId: vulnId });
 
       await api.analyze({ vulnId, repositoryId: Number(targetRepoId), branch: targetBranch, threadId }, event => {
-        if (event.type === 'graph_step') {
+        if (event.type === 'queued') {
+          onMessage('system', event.message || 'Remediation task queued.');
+        } else if (event.type === 'graph_step') {
           setGraphStepsMap(prev => {
             const steps = prev[vulnId] || [];
             if (!steps.find(s => s.node === event.node)) {
@@ -203,6 +205,8 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
           if (event.message?.startsWith('Remediation failed') || event.status === 'FAILED') {
             toast?.error?.(event.message);
             notify('error', event.message || `Analysis failed for ${vulnId}.`);
+            updateRun(vulnId, prev => ({ ...(prev || {}), status: 'FAILED' }));
+            refreshReport(targetRepoId, targetBranch, true).catch(() => { });
             if (event.requiresLlmConfig && onOpenProfileSettings) {
               onOpenProfileSettings();
             }
@@ -213,12 +217,16 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
           const msg = event.message || `Analysis failed for ${vulnId}.`;
           toast?.error?.(msg);
           notify('error', msg);
+          onMessage('agent', msg);
+          updateRun(vulnId, prev => ({ ...(prev || {}), status: 'FAILED' }));
+          refreshReport(targetRepoId, targetBranch, true).catch(() => { });
           if (event.requiresLlmConfig && onOpenProfileSettings) {
             onOpenProfileSettings();
           }
         } else if (event.type === 'approval_ready') {
           setPreviews(prev => ({ ...prev, [vulnId]: event.preview }));
           updateRun(vulnId, prev => ({ ...(prev || {}), runId: event.runId, status: 'AWAITING_APPROVAL' }));
+          refreshReport(targetRepoId, targetBranch, true).catch(() => { });
         } else if (event.type === 'analysis_complete') {
           if (event.message) onMessage('agent', event.message);
           if (event.preview) setPreviews(prev => ({ ...prev, [vulnId]: event.preview }));
@@ -226,6 +234,7 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
             ...(prev || {}), runId: event.runId ?? prev?.runId,
             status: event.requires_approval ? 'AWAITING_APPROVAL' : (prev?.status || 'FAILED')
           }));
+          refreshReport(targetRepoId, targetBranch, true).catch(() => { });
           if (event.requires_approval) {
             notify('success', `Analysis completed for ${vulnId}: Remediation verified and awaiting approval.`);
           } else if (event.status === 'FAILED') {
@@ -253,9 +262,12 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
       }, controller.signal);
     } catch (error) {
       if (error.name !== 'AbortError') {
-        toast?.error?.(`Analysis failed: ${error.message}`);
-        onMessage('agent', `Analysis failed: ${error.message}`);
+        const msg = `Analysis failed: ${error.message}`;
+        toast?.error?.(msg);
+        onMessage('agent', msg);
         notify('error', `Analysis failed for ${vulnId}: ${error.message}`);
+        updateRun(vulnId, prev => ({ ...(prev || {}), status: 'FAILED' }));
+        refreshReport(targetRepoId, targetBranch, true).catch(() => { });
         if (error.message?.includes('Profile & LLM Settings') && onOpenProfileSettings) {
           onOpenProfileSettings();
         }
@@ -377,6 +389,10 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
               setIsAnalyzingMap(prev => ({ ...prev, [eventVulnId]: false }));
               notify('error', event.message || `Analysis failed for ${eventVulnId}.`);
             }
+          } else if (event.type === 'error') {
+            updateRun(eventVulnId, prev => ({ ...(prev || {}), status: 'FAILED' }));
+            setIsAnalyzingMap(prev => ({ ...prev, [eventVulnId]: false }));
+            notify('error', event.message || `Analysis failed for ${eventVulnId}.`);
           }
         }
       }, controller.signal);

@@ -138,9 +138,10 @@ public class RemediationWorkflowService {
         eventBroadcastService.broadcastEvent(jobId, null, "queued", Map.of(
                 "type", "queued",
                 "jobId", jobId,
+                "vulnId", vulnerabilityId,
+                "vulnerabilityId", vulnerabilityId,
                 "repository", repository.fullName(),
                 "branch", branch,
-                "vulnerabilityId", vulnerabilityId,
                 "message", "Remediation task queued."
         ));
 
@@ -284,6 +285,7 @@ public class RemediationWorkflowService {
     }
 
     public void executeRemediationTask(RemediationTaskPayload task) {
+        String activeRunId = null;
         try {
             Optional<ManagedRepository> repoOpt = database.getManagedRepository(task.repositoryId());
             if (repoOpt.isEmpty()) {
@@ -297,7 +299,8 @@ public class RemediationWorkflowService {
             database.deleteGraphCheckpoints(workflowId);
 
             java.util.Map<String, Object> state = new java.util.HashMap<>();
-            AuthenticatedUser user = new AuthenticatedUser(task.userId(), 0L, task.userId(), task.userId(), null, null);
+            AuthenticatedUser user = database.findUserById(task.userId())
+                    .orElseGet(() -> new AuthenticatedUser(task.userId(), 0L, task.userId(), task.userId(), null, null));
             state.put("authenticatedUser", user);
             state.put("threadId", task.threadId());
             state.put("repositoryId", task.repositoryId());
@@ -313,15 +316,22 @@ public class RemediationWorkflowService {
             for (var node : stream) {
                 String nodeName = node.node();
                 com.cb.auditagent.graph.workflow.WorkflowState s = node.state();
+                if (s.getRunId() != null && !s.getRunId().isBlank()) {
+                    activeRunId = s.getRunId();
+                }
 
                 if (eventBroadcastService != null) {
                     eventBroadcastService.broadcastEvent(task.jobId(), s.getRunId(), "graph_step", Map.of(
-                            "type", "graph_step", "node", nodeName, "status", "completed"
+                            "type", "graph_step",
+                            "vulnId", task.vulnerabilityId(),
+                            "node", nodeName,
+                            "status", "completed"
                     ));
 
                     if ("clone_workspace".equals(nodeName)) {
                         eventBroadcastService.broadcastEvent(task.jobId(), s.getRunId(), "workspace_prepared", Map.of(
                                 "type", "workspace_prepared",
+                                "vulnId", task.vulnerabilityId(),
                                 "runId", s.getRunId() != null ? s.getRunId() : "",
                                 "repository", repository.fullName(),
                                 "branch", task.branch(),
@@ -331,11 +341,13 @@ public class RemediationWorkflowService {
                         Object preview = s.getApprovalPreview() != null ? s.getApprovalPreview() : Map.of();
                         eventBroadcastService.broadcastEvent(task.jobId(), s.getRunId(), "approval_ready", Map.of(
                                 "type", "approval_ready",
+                                "vulnId", task.vulnerabilityId(),
                                 "runId", s.getRunId() != null ? s.getRunId() : "",
                                 "preview", preview
                         ));
                         eventBroadcastService.broadcastEvent(task.jobId(), s.getRunId(), "analysis_complete", Map.of(
                                 "type", "analysis_complete",
+                                "vulnId", task.vulnerabilityId(),
                                 "runId", s.getRunId() != null ? s.getRunId() : "",
                                 "requires_approval", true,
                                 "preview", preview,
@@ -345,6 +357,7 @@ public class RemediationWorkflowService {
                     } else if ("publish".equals(nodeName)) {
                         eventBroadcastService.broadcastEvent(task.jobId(), s.getRunId(), "publish_progress", Map.of(
                                 "type", "publish_progress",
+                                "vulnId", task.vulnerabilityId(),
                                 "runId", s.getRunId() != null ? s.getRunId() : "",
                                 "phase", "TRACKING_PR",
                                 "message", s.getWorkflowMessage() != null ? s.getWorkflowMessage() : "Pull request created."
@@ -352,6 +365,7 @@ public class RemediationWorkflowService {
                         if (s.getPullRequestNumber() != null && s.getPullRequestUrl() != null) {
                             eventBroadcastService.broadcastEvent(task.jobId(), s.getRunId(), "pr_created", Map.of(
                                     "type", "pr_created",
+                                    "vulnId", task.vulnerabilityId(),
                                     "runId", s.getRunId() != null ? s.getRunId() : "",
                                     "pullRequestNumber", s.getPullRequestNumber(),
                                     "pullRequestUrl", s.getPullRequestUrl()
@@ -359,6 +373,7 @@ public class RemediationWorkflowService {
                         }
                         eventBroadcastService.broadcastEvent(task.jobId(), s.getRunId(), "complete", Map.of(
                                 "type", "complete",
+                                "vulnId", task.vulnerabilityId(),
                                 "runId", s.getRunId() != null ? s.getRunId() : "",
                                 "runStatus", "PUBLISHED",
                                 "message", s.getWorkflowMessage() != null ? s.getWorkflowMessage() : "Pull request created."
@@ -371,8 +386,9 @@ public class RemediationWorkflowService {
             logger.error("Remediation task execution failed for job {}: [{}] {}", task.jobId(),
                     classified.errorCode(), classified.userMessage());
             if (eventBroadcastService != null) {
-                eventBroadcastService.broadcastEvent(task.jobId(), null, "error", Map.of(
+                eventBroadcastService.broadcastEvent(task.jobId(), activeRunId, "error", Map.of(
                         "type", "error",
+                        "vulnId", task.vulnerabilityId(),
                         "errorCode", classified.errorCode(),
                         "requiresLlmConfig", classified.requiresLlmConfig(),
                         "message", classified.userMessage()

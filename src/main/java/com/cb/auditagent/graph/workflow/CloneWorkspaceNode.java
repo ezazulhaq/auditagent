@@ -85,7 +85,7 @@ public class CloneWorkspaceNode implements NodeAction<WorkflowState> {
                 });
             }
 
-            if (!activeRuns.isEmpty()) {
+            if (!activeRuns.isEmpty() || vulnerability.getStatus() == VulnerabilityStatus.AWAITING_APPROVAL) {
                 vulnerability.setStatus(VulnerabilityStatus.DETECTED);
                 database.updateVulnerabilityStatus(vulnerability.getId(), vulnerability.getStatus(), null);
             }

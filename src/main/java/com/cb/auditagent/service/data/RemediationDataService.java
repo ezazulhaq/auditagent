@@ -517,12 +517,12 @@ public class RemediationDataService {
 
     public boolean hasActiveManagedRun(long repositoryId, String branch, String fingerprint) {
         return !runPublicationRepository.findActiveManagedRunIds(repositoryId, branch, fingerprint,
-                List.of("ACTIVE", "INTERRUPTED", "PR_OPEN")).isEmpty();
+                List.of("ACTIVE", "INTERRUPTED", "AWAITING_APPROVAL", "CONFLICTED", "PUBLISHING", "PUBLISH_FAILED", "PR_OPEN")).isEmpty();
     }
 
     public List<String> getActiveManagedRunIds(long repositoryId, String branch, String fingerprint) {
         return runPublicationRepository.findActiveManagedRunIds(repositoryId, branch, fingerprint,
-                List.of("ACTIVE", "INTERRUPTED", "PR_OPEN"));
+                List.of("ACTIVE", "INTERRUPTED", "AWAITING_APPROVAL", "CONFLICTED", "PUBLISHING", "PUBLISH_FAILED", "PR_OPEN"));
     }
 
     public Optional<RunPublicationRecord> findRunPublication(long repositoryId, int prNumber) {

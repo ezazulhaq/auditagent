@@ -504,6 +504,10 @@ public class DatabaseService {
         return userDataService.findAuthenticatedUser(sessionHash);
     }
 
+    public Optional<AuthenticatedUser> findUserById(String userId) {
+        return userDataService.findUserById(userId);
+    }
+
     @Transactional
     public void deleteUserSession(String sessionHash) {
         userDataService.deleteUserSession(sessionHash);
