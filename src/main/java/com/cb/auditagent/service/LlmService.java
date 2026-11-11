@@ -59,7 +59,7 @@ import java.util.function.Consumer;
  * </ul>
  */
 @Service
-public class LlmService {
+public class LlmService implements ChatService {
     private static final Logger logger = LoggerFactory.getLogger(LlmService.class);
 
     // Tool name constants

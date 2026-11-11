@@ -19,9 +19,9 @@ import com.cb.auditagent.dto.AnalyzeRequest;
 import com.cb.auditagent.dto.BatchAnalyzeRequest;
 import com.cb.auditagent.dto.ChatRequest;
 import com.cb.auditagent.dto.ScanRequest;
+import com.cb.auditagent.service.ChatService;
 import com.cb.auditagent.service.DatabaseService;
 import com.cb.auditagent.service.GitHubAuthService;
-import com.cb.auditagent.service.LlmService;
 import com.cb.auditagent.service.RemediationWorkflowService;
 import com.cb.auditagent.service.RepositoryAccessService;
 import com.cb.auditagent.service.ScanOrchestratorService;
@@ -35,14 +35,14 @@ import java.nio.charset.StandardCharsets;
 @RequestMapping("/api")
 public class AuditController {
     private final SkillManagerService skills;
-    private final LlmService llm;
+    private final ChatService llm;
     private final ScanOrchestratorService scanOrchestrator;
     private final RemediationWorkflowService remediationWorkflow;
     private final RepositoryAccessService repositoryAccess;
     private final GitHubAuthService auth;
     private final DatabaseService database;
 
-    public AuditController(SkillManagerService skills, LlmService llm,
+    public AuditController(SkillManagerService skills, ChatService llm,
             ScanOrchestratorService scanOrchestrator,
             RemediationWorkflowService remediationWorkflow,
             RepositoryAccessService repositoryAccess,

@@ -50,6 +50,7 @@ This catalog connects each feature to its user/business outcome and main impleme
 | Upload report restore and export | Persists upload reports with key `upload:<uploadId>` in DuckDB/PostgreSQL, scoped to the authenticated user, supporting PDF and Markdown export. | `GET /api/reports/upload`, `GET /api/reports/upload/export`, `UploadedProject` |
 | Scan history clearing | Users can delete all scan reports, snapshots, stats, and vulnerabilities for a selected repository branch. | `DELETE /api/reports/history`, `DatabaseService`, `DashboardView` |
 | Isolated scan clone | Scanner never operates on a browser-supplied local directory. | unique `scan-<UUID>` workspace |
+| Polymorphic Scanner Strategy | Scanners implement `SecurityScanner` and are dynamically resolved by engine name (`semgrep`, etc.) via `ScannerRegistry` (OCP/DIP). | `SecurityScanner`, `ScannerRegistry`, `SemgrepSecurityScanner` |
 | Commit-aware cache | Report is reused only if stored base SHA equals current branch SHA and force rescan is false. | `ScanOrchestratorService.scan()` |
 | Force rescan | User can bypass an otherwise valid cache. | `ScanRequest.forceRescan`, UI checkbox |
 | Language detection | File extensions choose relevant rule directories. | Java/Kotlin, Python, JavaScript/JSX, TypeScript/TSX, HTML/HTM |
@@ -66,8 +67,9 @@ This catalog connects each feature to its user/business outcome and main impleme
 | Context fallback | When Semgrep omits usable lines, four source lines from the finding are read. | `readContextFromFile()` |
 | Stable finding identity | Matching rescans reuse ID, status, and proposed fix. | SHA-256 rule/path/code fingerprint and DB upsert |
 | Scan metrics | Files, lines, duration, project, scanner, and timestamps are persisted. | `ScanMetadata` |
-| Enterprise PDF report | Management-ready title, confidentiality label, repository/commit context, executive summary, severity metrics, scope, paginated finding details, code previews, and page labels are generated in memory from the persisted scan. | `ReporterService.generatePdf()`, `PdfReportRenderer`, Apache PDFBox |
-| Markdown report | Portable full-detail summary and finding evidence are generated for engineering review and download. | `ReporterService.generateMarkdown()` |
+| Enterprise PDF report | Management-ready title, confidentiality label, repository/commit context, executive summary, severity metrics, scope, paginated finding details, code previews, and page labels are generated in memory from the persisted scan via `PdfReportExporter`. | `ReporterService.generatePdf()`, `PdfReportExporter`, `PdfReportRenderer`, Apache PDFBox |
+| Markdown report | Portable full-detail summary and finding evidence are generated for engineering review and download via `MarkdownReportExporter`. | `ReporterService.generateMarkdown()`, `MarkdownReportExporter` |
+| Segregated Agent Tools | Constrained model tools decomposed into role interfaces: `WorkspaceInspector`, `WorkspacePatcher`, `WorkspaceBuildVerifier`, and `WorkspaceRescanner` (ISP/SRP). | `AgentToolService`, `WorkspaceInspector`, `WorkspacePatcher`, `WorkspaceBuildVerifier`, `WorkspaceRescanner` |
 | Legacy HTML compatibility | Standalone HTML continues to be persisted and returned in legacy payload fields so cached/older consumers are not broken, but the current UI does not render or download it. | `ReporterService.generateHtml()`, `html_report` compatibility field |
 | Report restore | Latest repository/branch report loads on selection or reload. | `/api/reports`, frontend restore effect |
 | Dual-format report export | Authenticated users can download the latest authorized report as PDF or Markdown with a safe repository/branch filename. | `GET /api/reports/export`, `ReportArtifact`, `auditApi.reportArtifact()` |

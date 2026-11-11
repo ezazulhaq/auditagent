@@ -26,6 +26,8 @@ import com.cb.auditagent.domain.ScanMetadata;
 import com.cb.auditagent.domain.Vulnerability;
 import com.cb.auditagent.entity.UploadedProject;
 import com.cb.auditagent.repository.UploadedProjectRepository;
+import com.cb.auditagent.service.scanner.ScannerRegistry;
+import com.cb.auditagent.service.scanner.SecurityScanner;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import reactor.core.publisher.Flux;
@@ -36,7 +38,8 @@ public class ProjectUploadService {
     private static final Logger logger = LoggerFactory.getLogger(ProjectUploadService.class);
 
     private final ZipArchiveExtractor extractor;
-    private final ScannerService scanner;
+    private final SecurityScanner scanner;
+    private final ScannerRegistry scannerRegistry;
     private final ReporterService reporter;
     private final DatabaseService database;
     private final UploadedProjectRepository uploadedProjectRepository;
@@ -45,23 +48,35 @@ public class ProjectUploadService {
 
     public ProjectUploadService(
             ZipArchiveExtractor extractor,
-            ScannerService scanner,
+            SecurityScanner scanner,
             ReporterService reporter,
             DatabaseService database,
             UploadedProjectRepository uploadedProjectRepository,
             ObjectMapper objectMapper) {
-        this(extractor, scanner, reporter, database, uploadedProjectRepository, objectMapper, null);
+        this(extractor, scanner, reporter, database, uploadedProjectRepository, objectMapper, null, null);
+    }
+
+    public ProjectUploadService(
+            ZipArchiveExtractor extractor,
+            SecurityScanner scanner,
+            ReporterService reporter,
+            DatabaseService database,
+            UploadedProjectRepository uploadedProjectRepository,
+            ObjectMapper objectMapper,
+            FindingTriageService findingTriageService) {
+        this(extractor, scanner, reporter, database, uploadedProjectRepository, objectMapper, findingTriageService, null);
     }
 
     @org.springframework.beans.factory.annotation.Autowired
     public ProjectUploadService(
             ZipArchiveExtractor extractor,
-            ScannerService scanner,
+            SecurityScanner scanner,
             ReporterService reporter,
             DatabaseService database,
             UploadedProjectRepository uploadedProjectRepository,
             ObjectMapper objectMapper,
-            @org.springframework.beans.factory.annotation.Autowired(required = false) FindingTriageService findingTriageService) {
+            @org.springframework.beans.factory.annotation.Autowired(required = false) FindingTriageService findingTriageService,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) ScannerRegistry scannerRegistry) {
         this.extractor = extractor;
         this.scanner = scanner;
         this.reporter = reporter;
@@ -69,6 +84,7 @@ public class ProjectUploadService {
         this.uploadedProjectRepository = uploadedProjectRepository;
         this.objectMapper = objectMapper;
         this.findingTriageService = findingTriageService;
+        this.scannerRegistry = scannerRegistry;
     }
 
     public Flux<String> scanUpload(AuthenticatedUser user, FilePart filePart, String rawProjectName, String scannerName) {
@@ -108,13 +124,17 @@ public class ProjectUploadService {
                 extractor.extract(tempZipFile, tempExtractDir);
 
                 long started = System.currentTimeMillis();
+                String resolvedScannerName = Optional.ofNullable(scannerName).filter(s -> !s.isBlank()).orElse("semgrep");
+                SecurityScanner activeScanner = (scannerRegistry != null)
+                        ? scannerRegistry.getScanner(resolvedScannerName)
+                        : this.scanner;
                 emit(sink, Map.of(
                         "type", "progress",
                         "step", "scanning",
                         "progress", 25,
-                        "message", "Starting Semgrep static analysis..."));
+                        "message", "Starting " + activeScanner.getScannerName() + " static analysis..."));
 
-                ScannerService.ScanResult scanResult = scanner.scan(tempExtractDir.toString(), progress -> {
+                ScannerService.ScanResult scanResult = activeScanner.scan(tempExtractDir.toString(), progress -> {
                     Map<String, Object> event = new LinkedHashMap<>(progress);
                     event.put("type", "progress");
                     emit(sink, event);
@@ -122,7 +142,7 @@ public class ProjectUploadService {
 
                 ScanMetadata metadata = new ScanMetadata();
                 metadata.setProjectName(projectName);
-                metadata.setScannerName(Optional.ofNullable(scannerName).filter(s -> !s.isBlank()).orElse("semgrep"));
+                metadata.setScannerName(activeScanner.getScannerName());
                 metadata.setStartTime(java.time.Instant.ofEpochMilli(started).toString());
                 metadata.setEndTime(java.time.Instant.now().toString());
                 metadata.setScanDuration(String.format(Locale.ROOT, "%.2f seconds", (System.currentTimeMillis() - started) / 1000.0));

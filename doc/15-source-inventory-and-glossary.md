@@ -146,7 +146,8 @@
 
 | File | Purpose |
 |---|---|
-| `AgentToolService.java` | Secure model tools and managed processes; Docker sandbox wrapping. |
+| `AgentToolService.java` | LLM agent tool suite implementing segregated role interfaces (`WorkspaceInspector`, `WorkspacePatcher`, `WorkspaceBuildVerifier`, `WorkspaceRescanner`). |
+| `ChatService.java` | Interface for AI conversational assistance, vulnerability triage, and command dispatching (ISP/DIP). |
 | `ConversationMemoryService.java` | Durable LangChain message history, context summarization, and aggressive tool output truncation. |
 | `DatabaseService.java` | Unified persistence facade delegating to Conversation, Remediation, User, and Scan domain data services. |
 | `FilePatchService.java` | Backup, rollback, diff, and legacy patch helper. |
@@ -157,11 +158,11 @@
 | `GitHubProvider.java` | JGit clone/diff/hash/commit/push/PR/cleanup. |
 | `IssueLifecycleService.java` | GitHub App issue webhook event processor, triage matching, autonomous remediation, and issue thread tracking. |
 | `LlmErrorClassifier.java` | Classifies and normalizes LLM provider failures (404 model not found, 401 unauthorized, 402 quota exhausted, 429 rate limit, 400 context length, connection refused), strips Java exception prefixes, extracts clean JSON provider error messages, and indicates configuration resolution flags. |
-| `LlmService.java` | Chat, tool-calling remediation loop, failure reflection (`reflectOnFailure`), and PR diff learning (`summarizeDiffForGlobalPattern`). |
+| `LlmService.java` | Core LLM provider delegation, tool-calling remediation loop, failure reflection (`reflectOnFailure`), and PR diff learning (`summarizeDiffForGlobalPattern`). Implements `ChatService`. |
+| `LlmTokenTracker.java` | Dedicated component for recording token consumption to Micrometer metrics and database audit tables (SRP). |
 | `ManagedProcessEnvironment.java` | Secret scrubbing, contained runtime directories, and validated scanner-temp override. |
 | `ManagedProcessRunner.java` | Concurrent stream draining, heartbeat, deadline, process-tree termination, and short per-scan temp lifecycle. |
 | `MemoryRedactor.java` | Secret masks and caps. |
-| `OrchestratorService.java` | Legacy local-path orchestration retained for compatibility; not current controller path. |
 | `PostgresKnowledgeBaseService.java` | Native PostgreSQL/Supabase full-text search (`tsvector`/`tsquery`), candidate retrieval, and domain ranking weights for approved remediation memory. |
 | `DuckDbKnowledgeBaseService.java` | Deprecated compatibility subclass extending `PostgresKnowledgeBaseService`. |
 | `PullRequestLifecycleService.java` | Pull request webhook events, and vulnerability state transitions. |
@@ -171,18 +172,32 @@
 | `queue/TaskProducerService.java` | AMQP task producer routing scan and remediation jobs to RabbitMQ direct exchanges with priority headers. |
 | `realtime/EventBroadcastService.java` | Service broadcasting job events to PostgreSQL durable log and Supabase Realtime / WebSocket subscribers. |
 | `RemediationWorkflowService.java` | GitHub-native remediation workflow orchestration and async worker task execution. |
-| `ReporterService.java` | Enterprise Markdown/PDF generation and legacy HTML compatibility generation. |
+| `reporting/ReportFormat.java` | Enum defining supported report export targets (`MARKDOWN`, `HTML`, `PDF`). |
+| `reporting/ReportExportContext.java` | Encapsulates immutable scan findings and metadata parameters for report generation. |
+| `reporting/SecurityMetricsCalculator.java` | Calculates severity distributions, counts, and risk posture assessments (SRP). |
+| `reporting/ReportExporter.java` | Strategy interface for exporting audit assessment reports to target formats (OCP). |
+| `reporting/MarkdownReportExporter.java` | Markdown export strategy implementing `ReportExporter`. |
+| `reporting/HtmlReportExporter.java` | Interactive HTML export strategy implementing `ReportExporter`. |
+| `reporting/PdfReportExporter.java` | PDF export strategy implementing `ReportExporter` via `PdfReportRenderer`. |
+| `reporting/ReportGenerator.java` | High-level reporting contract implemented by `ReporterService` (DIP). |
+| `ReporterService.java` | Reporting facade coordinating format-specific exporters (`MarkdownReportExporter`, `HtmlReportExporter`, `PdfReportExporter`) via `ReportGenerator`. |
 | `RepositoryAccessService.java` | Centralized repository authorization check. |
 | `RepositoryMemoryService.java` | Renders approved retrieval into prompt. |
-| `ScannerService.java` | Language selection, Semgrep execution, finding parsing. |
+| `scanner/SecurityScanner.java` | Polymorphic strategy interface for vulnerability and security scanners (OCP/DIP). |
+| `scanner/ScannerRegistry.java` | Spring component registry dynamically resolving `SecurityScanner` beans by engine name. |
+| `ScannerService.java` | Default Semgrep CLI implementation of `SecurityScanner`. |
 | `ScanExecutionException.java` | Terminal scanner execution/output failure. |
-| `ScanOrchestratorService.java` | GitHub-native scan orchestration and async worker task execution. |
+| `ScanOrchestratorService.java` | GitHub-native scan orchestration and async worker task execution consuming `SecurityScanner`. |
 | `ScanTimeoutException.java` | Distinct scanner deadline failure. |
 | `SecurityConceptCatalog.java` | Categories, aliases, framework and query metadata. |
 | `SkillManagerService.java` | Dynamic skill discovery/parsing. |
 | `SourceControlProvider.java` | Repository/workspace abstraction. |
 | `storage/SupabaseStorageService.java` | Service providing object storage operations (upload, download, signed URL) for reports and artifacts via Supabase Storage REST API with local filesystem fallback. |
 | `TokenCipher.java` | AES-GCM OAuth encryption. |
+| `tool/WorkspaceInspector.java` | Role interface for reading files, search queries, and SHA-256 hash checks (ISP). |
+| `tool/WorkspacePatcher.java` | Role interface for applying patches and rolling back files (ISP). |
+| `tool/WorkspaceBuildVerifier.java` | Role interface for compiling projects, running tests, and linting (ISP). |
+| `tool/WorkspaceRescanner.java` | Role interface for rescanning individual files and full static analysis (ISP). |
 | `UserLlmClientFactory.java` | Factory dynamically instantiating and caching user-scoped `ChatModel` (Spring AI) and `OpenAiChatModel` (LangChain4j) clients. |
 | `UserLlmConfigService.java` | Service managing user LLM configurations, AES-GCM encryption, key masking, and connectivity testing. |
 | `UserLlmConfigurationException.java` | Domain exception thrown when required user LLM configuration is missing (HTTP 422 `LLM_KEY_REQUIRED`). |

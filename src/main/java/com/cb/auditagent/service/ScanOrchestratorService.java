@@ -8,6 +8,8 @@ import com.cb.auditagent.domain.*;
 import com.cb.auditagent.dto.queue.ScanTaskPayload;
 import com.cb.auditagent.service.queue.TaskProducerService;
 import com.cb.auditagent.service.realtime.EventBroadcastService;
+import com.cb.auditagent.service.scanner.ScannerRegistry;
+import com.cb.auditagent.service.scanner.SecurityScanner;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
@@ -29,7 +31,8 @@ public class ScanOrchestratorService {
     private final DatabaseService database;
     private final SourceControlProvider sourceControl;
     private final GitHubApiClient github;
-    private final ScannerService scanner;
+    private final SecurityScanner scanner;
+    private final ScannerRegistry scannerRegistry;
     private final ReporterService reporter;
     private final RepositoryAccessService repositoryAccess;
     private final FindingTriageService findingTriageService;
@@ -40,21 +43,21 @@ public class ScanOrchestratorService {
             DatabaseService database,
             SourceControlProvider sourceControl,
             GitHubApiClient github,
-            ScannerService scanner,
+            SecurityScanner scanner,
             ReporterService reporter,
             RepositoryAccessService repositoryAccess) {
-        this(database, sourceControl, github, scanner, reporter, repositoryAccess, null, null, null);
+        this(database, sourceControl, github, scanner, reporter, repositoryAccess, null, null, null, null);
     }
 
     public ScanOrchestratorService(
             DatabaseService database,
             SourceControlProvider sourceControl,
             GitHubApiClient github,
-            ScannerService scanner,
+            SecurityScanner scanner,
             ReporterService reporter,
             RepositoryAccessService repositoryAccess,
             FindingTriageService findingTriageService) {
-        this(database, sourceControl, github, scanner, reporter, repositoryAccess, findingTriageService, null, null);
+        this(database, sourceControl, github, scanner, reporter, repositoryAccess, findingTriageService, null, null, null);
     }
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -62,12 +65,13 @@ public class ScanOrchestratorService {
             DatabaseService database,
             SourceControlProvider sourceControl,
             GitHubApiClient github,
-            ScannerService scanner,
+            SecurityScanner scanner,
             ReporterService reporter,
             RepositoryAccessService repositoryAccess,
             @org.springframework.beans.factory.annotation.Autowired(required = false) FindingTriageService findingTriageService,
             @org.springframework.beans.factory.annotation.Autowired(required = false) TaskProducerService taskProducerService,
-            @org.springframework.beans.factory.annotation.Autowired(required = false) EventBroadcastService eventBroadcastService) {
+            @org.springframework.beans.factory.annotation.Autowired(required = false) EventBroadcastService eventBroadcastService,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) ScannerRegistry scannerRegistry) {
         this.database = database;
         this.sourceControl = sourceControl;
         this.github = github;
@@ -77,6 +81,7 @@ public class ScanOrchestratorService {
         this.findingTriageService = findingTriageService;
         this.taskProducerService = taskProducerService;
         this.eventBroadcastService = eventBroadcastService;
+        this.scannerRegistry = scannerRegistry;
     }
 
     public Flux<String> scan(AuthenticatedUser user, String threadId, long repositoryId, String branch,
@@ -109,7 +114,10 @@ public class ScanOrchestratorService {
                         "branch", branch, "baseSha", baseSha));
 
                 long started = System.currentTimeMillis();
-                ScannerService.ScanResult scanResult = scanner.scan(workspace.toString(), progress -> {
+                SecurityScanner activeScanner = (scannerRegistry != null)
+                        ? scannerRegistry.getScanner(scannerName)
+                        : this.scanner;
+                ScannerService.ScanResult scanResult = activeScanner.scan(workspace.toString(), progress -> {
                     Map<String, Object> event = new LinkedHashMap<>(progress);
                     event.put("type", "progress");
                     emit(sink, event);
@@ -222,7 +230,10 @@ public class ScanOrchestratorService {
             workspace = sourceControl.cloneAtCommit(repository, task.branch(), task.baseSha(), installationToken, workspaceKey);
 
             long started = System.currentTimeMillis();
-            ScannerService.ScanResult scanResult = scanner.scan(workspace.toString(), progress -> {
+            SecurityScanner activeScanner = (scannerRegistry != null)
+                    ? scannerRegistry.getScanner(task.scannerName())
+                    : this.scanner;
+            ScannerService.ScanResult scanResult = activeScanner.scan(workspace.toString(), progress -> {
                 if (eventBroadcastService != null) {
                     Map<String, Object> event = new LinkedHashMap<>(progress);
                     event.put("type", "progress");

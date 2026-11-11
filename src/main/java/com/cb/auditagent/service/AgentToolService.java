@@ -29,14 +29,21 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import com.cb.auditagent.service.scanner.SecurityScanner;
+import com.cb.auditagent.service.tool.WorkspaceBuildVerifier;
+import com.cb.auditagent.service.tool.WorkspaceInspector;
+import com.cb.auditagent.service.tool.WorkspacePatcher;
+import com.cb.auditagent.service.tool.WorkspaceRescanner;
+
 /**
  * Service implementing the tools that the LLM agent can invoke during its
  * reasoning loop. Each public method represents a callable tool and returns
  * a String result describing what happened. Errors are returned as descriptive
  * strings rather than thrown exceptions so the LLM can interpret them.
+ * Follows Interface Segregation Principle (ISP) by implementing discrete role interfaces.
  */
 @Service
-public class AgentToolService {
+public class AgentToolService implements WorkspaceInspector, WorkspacePatcher, WorkspaceBuildVerifier, WorkspaceRescanner {
 
     private static final Logger logger = LoggerFactory.getLogger(AgentToolService.class);
 
@@ -49,14 +56,14 @@ public class AgentToolService {
     private final AgentConfig agentConfig;
     private final FilePatchService filePatchService;
     private final ScannerConfig scannerConfig;
-    private final ScannerService scannerService;
+    private final SecurityScanner scannerService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public AgentToolService(
             AgentConfig agentConfig,
             FilePatchService filePatchService,
             ScannerConfig scannerConfig,
-            ScannerService scannerService) {
+            SecurityScanner scannerService) {
         this.agentConfig = agentConfig;
         this.filePatchService = filePatchService;
         this.scannerConfig = scannerConfig;

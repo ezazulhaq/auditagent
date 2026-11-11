@@ -131,16 +131,16 @@ Controllers translate HTTP into application operations. `ApiSecurityFilter` hand
 
 ### Orchestration
 
-`RemediationWorkflowService`, `ScanOrchestratorService`, `ProjectUploadService`, `RepositoryAccessService`, and `PullRequestLifecycleService` coordinate the scan and remediation flows. They delegate workflow orchestration to LangGraph4j via `RemediationWorkflowGraph`, which manages the stateful transitions between workspace cloning, agent remediation loops, and autonomous pull request publication. The remediation loop itself can run either in a single-agent mode (`RemediationGraph`) or a multi-agent mode (`MultiAgentRemediationGraph`), where specialized sub-agents handle Triage, Patching, and Verification. Webhooks from GitHub process PR events independently and `useRemediationController` handles UI polling for updates. `ProjectUploadService` and `ZipArchiveExtractor` provide sandboxed archive extraction and Semgrep scanning for manual project uploads, streaming progress via SSE and persisting reports without requiring GitHub repository identity. `OrchestratorService` remains in the codebase as a legacy local-path coordinator but is not used by current shared controllers. Future shared features should use managed repository identity or authenticated project uploads, not revive local-path authorization.
+`RemediationWorkflowService`, `ScanOrchestratorService`, `ProjectUploadService`, `RepositoryAccessService`, and `PullRequestLifecycleService` coordinate the scan and remediation flows. They delegate workflow orchestration to LangGraph4j via `RemediationWorkflowGraph`, which manages the stateful transitions between workspace cloning, agent remediation loops, and autonomous pull request publication. The remediation loop itself can run either in a single-agent mode (`RemediationGraph`) or a multi-agent mode (`MultiAgentRemediationGraph`), where specialized sub-agents handle Triage, Patching, and Verification. Webhooks from GitHub process PR events independently and `useRemediationController` handles UI polling for updates. `ProjectUploadService` and `ZipArchiveExtractor` provide sandboxed archive extraction and scanner execution for manual project uploads, streaming progress via SSE and persisting reports without requiring GitHub repository identity. Obsolete `OrchestratorService` has been retired in favor of `ScanOrchestratorService` and `RemediationWorkflowService`. Future shared features should use managed repository identity or authenticated project uploads, not revive local-path authorization.
 
 ### Integration services
 
 - `GitHubAuthService`: OAuth, sessions, refresh.
 - `GitHubApiClient`: GitHub HTTP API and App JWT.
 - `GitHubProvider`: JGit workspace and publication operations.
-- `ScannerService`: Semgrep.
-- `LlmService`: OpenAI chat and remediation loop.
-- `AgentToolService`: constrained repository tools.
+- `SecurityScanner` & `ScannerRegistry`: Polymorphic scanner strategy interface (`SecurityScanner`) and Spring registry (`ScannerRegistry`) resolving scanner engines dynamically by name (`semgrep`, etc.), adhering to OCP and DIP. `ScannerService` provides the default Semgrep implementation.
+- `LlmService`: Core LLM chat and tool-calling remediation loop, implementing `ChatService` and delegating token tracking to `LlmTokenTracker` (SRP/ISP).
+- `AgentToolService`: Constrained repository tool suite implementing segregated role interfaces (`WorkspaceInspector`, `WorkspacePatcher`, `WorkspaceBuildVerifier`, `WorkspaceRescanner`).
 - `TaskProducerService`: RabbitMQ asynchronous task dispatcher with message priority and dead-letter routing.
 - `ScanTaskConsumer` & `RemediationTaskConsumer`: background worker listeners enforcing concurrency backpressure (`prefetch = 2` for scans, `prefetch = 1` for remediations).
 - `PostgresKnowledgeBaseService`: PostgreSQL-backed memory search using native `tsvector`, GIN indexing, and metadata ranking (retiring embedded DuckDB).
@@ -159,7 +159,7 @@ The persistence layer follows Domain-Driven Design (DDD) with bidirectional JPA 
 
 ### Presentation
 
-`ReporterService` creates the persisted Markdown and legacy standalone HTML representations. For the current product experience, `PdfReportRenderer` uses Apache PDFBox to generate a paginated PDF in memory from the authorized persisted report when requested. React fetches that protected artifact for viewing and offers PDF and Markdown downloads; no generated report HTML is executed by the current UI.
+`ReporterService` acts as a strategy facade implementing `ReportGenerator`, delegating format generation to dedicated `ReportExporter` implementations: `MarkdownReportExporter`, `HtmlReportExporter`, and `PdfReportExporter`. Security metrics (severity distributions, risk posture text, and compliance guidance) are computed by `SecurityMetricsCalculator` (SRP/OCP). For enterprise PDF exports, `PdfReportExporter` leverages `PdfReportRenderer` (Apache PDFBox) to generate paginated PDFs in memory from authorized reports. React fetches protected artifacts for viewing and offers PDF and Markdown downloads; no generated report HTML is executed by the current UI.
 
 ## Frontend layers
 
