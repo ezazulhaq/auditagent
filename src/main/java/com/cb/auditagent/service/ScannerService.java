@@ -19,14 +19,26 @@ import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
+import com.cb.auditagent.service.scanner.SecurityScanner;
+
 @Service
-public class ScannerService {
+public class ScannerService implements SecurityScanner {
     private static final Logger logger = LoggerFactory.getLogger(ScannerService.class);
     private final ObjectMapper objectMapper;
     private final ManagedProcessRunner processRunner;
     private final ScannerConfig scannerConfig;
     private final MemoryRedactor redactor;
     private final String rulesDir = "rules";
+
+    @Override
+    public String getScannerName() {
+        return "semgrep";
+    }
+
+    @Override
+    public boolean supports(String targetPath) {
+        return true;
+    }
 
     public ScannerService(ObjectMapper objectMapper, ManagedProcessRunner processRunner,
             ScannerConfig scannerConfig, MemoryRedactor redactor) {
