@@ -144,6 +144,9 @@ npm test
 - `LlmConfigForm`: tests provider toggle between OpenRouter and OpenAI-compatible, model presets selection, custom model input, key visibility toggle, live connection testing states, and form validation.
 - `LlmOnboardingModal`: verifies mandatory non-closable onboarding modal rendering when user keys are missing, saving credentials, and completing onboarding.
 - `UserProfileModal`: tests opening from user dropdown, viewing masked credentials, updating configuration, and dismissing modal.
+- `Contexts.test.jsx`: tests domain context providers (`ApiProvider`, `AuthProvider`, `WorkspaceProvider`, `ModalProvider`) and hooks (`useApi`, `useAuth`, `useWorkspace`, `useModals`).
+- Component isolation tests: covers decomposed sub-components (`RepoBranchSelector`, `UploadDropzone`, `ScanProgressTracker`, `FindingsToolbar`, `FindingRow`, `FileGroup`, `BulkActionBar`, `RemediationTimeline`, `ApprovalPackageViewer`, `RemediationDecisionBar`, `ProviderSelector`, `SystemOneSettings`).
+- `renderWithProviders` (`src/test/test-utils.jsx`): standardized test harness wrapping components in `ToastProvider` and `AppProviders` with injectable mock API clients adhering to LSP.
 
 ## Test design patterns
 
