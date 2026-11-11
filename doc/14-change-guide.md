@@ -128,6 +128,23 @@ All frontend modifications must strictly follow `.agents/rules/solid-principles-
    - Write tests using the standardized `renderWithProviders` harness (`src/test/test-utils.jsx`).
    - Validate that `npm run test:run` passes 100% and `npm run lint` reports 0 errors.
 
+### Add or modify a backend feature (SOLID Compliance)
+
+All backend modifications must strictly follow `.agents/rules/solid-principles-policy.md`:
+
+1. **SRP (Single Responsibility)**:
+   - Separate persistence (`data/*`), orchestration (`ScanOrchestratorService`, `RemediationWorkflowService`), token tracking (`LlmTokenTracker`), and metrics calculation (`SecurityMetricsCalculator`) into focused services.
+   - Decompose large tool implementations into segregated role classes under `com.cb.auditagent.service.tool`.
+2. **OCP (Open/Closed Principle)**:
+   - For new vulnerability or security scanners, implement `SecurityScanner` and register with `ScannerRegistry`. Do not hardcode engine branches into orchestrators.
+   - For new export formats (SARIF, CSV, JSON-LD), implement `ReportExporter` and register the strategy in `com.cb.auditagent.service.reporting`.
+3. **ISP (Interface Segregation Principle)**:
+   - Consumers must depend only on narrow role interfaces: `WorkspaceInspector` for reading/searching, `WorkspacePatcher` for patching/rollback, `WorkspaceBuildVerifier` for compiling/testing, `WorkspaceRescanner` for verification, and `ChatService` for conversational triage.
+4. **DIP (Dependency Inversion Principle)**:
+   - Controllers and workflow nodes must inject domain abstractions (`SecurityScanner`, `ReportGenerator`, `ChatService`, `SourceControlProvider`, `DatabaseService`) rather than concrete process runners or CLI executors.
+5. **LSP & Verification**:
+   - Validate full test suite execution with zero regressions (`mvn test`).
+
 ### Change frontend scan state
 
 - Preserve normalized result shape.

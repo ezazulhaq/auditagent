@@ -33,14 +33,14 @@ public class IssueLifecycleService {
     private final DatabaseService database;
     private final GitHubApiClient github;
     private final RemediationWorkflowService remediationWorkflow;
-    private final LlmService llm;
+    private final ChatService llm;
     private final ObjectMapper objectMapper;
 
     public IssueLifecycleService(
             DatabaseService database,
             GitHubApiClient github,
             RemediationWorkflowService remediationWorkflow,
-            LlmService llm,
+            ChatService llm,
             ObjectMapper objectMapper) {
         this.database = database;
         this.github = github;
