@@ -1,434 +1,127 @@
-import { useCallback, useEffect, useMemo, useRef, useState, startTransition } from 'react';
 import { auditApi } from './api/auditApi';
-import { AppHeader } from './components/AppHeader';
-import { Modal } from './components/Modal';
-import { ConfirmDialog } from './components/ConfirmDialog';
-import { OnboardingTour } from './components/OnboardingTour';
-import { SkeletonApp } from './components/SkeletonApp';
-import { useToast } from './components/Toast';
-import { LoginPage } from './features/auth/LoginPage';
-import { ChatWidget } from './features/chat/ChatWidget';
-import { useChatController } from './features/chat/useChatController';
-import { useChatState } from './features/chat/useChatState';
-import { DashboardView } from './features/dashboard/DashboardView';
-import { FindingsView } from './features/findings/FindingsView';
-import { IssuesView } from './features/issues/IssuesView';
-import { FindingDrawer } from './features/remediation/FindingDrawer';
-import { useRemediationController } from './features/remediation/useRemediationController';
-import { ReportView } from './features/report/ReportView';
-import { WorkspaceTabs } from './features/report/WorkspaceTabs';
-import { ScanPanel } from './features/scan/ScanPanel';
-import { useScanController } from './features/scan/useScanController';
-import { useMemoryThread } from './features/session/useMemoryThread';
-import { severityCounts } from './utils/auditSelectors';
+import { AppProviders } from './context/AppProviders';
+import { useApi } from './context/ApiContext';
+import { useAuth } from './context/AuthContext';
+import { useWorkspace } from './context/WorkspaceContext';
+import { useAudit } from './context/AuditContext';
+import { useModals } from './context/ModalContext';
 import { useTheme } from './utils/useTheme';
 import { useKeyboardShortcuts } from './utils/useKeyboardShortcuts';
-import { DocsView } from './features/docs/DocsView';
-import { TokenUsageLayout } from './features/observability/TokenUsageLayout';
-import { LlmOnboardingModal } from './features/profile/LlmOnboardingModal';
-import { UserProfileModal } from './features/profile/UserProfileModal';
+import { SkeletonApp } from './components/SkeletonApp';
+import { LoginPage } from './features/auth/LoginPage';
+import { AppHeader } from './components/AppHeader';
+import { ScanPanel } from './features/scan/ScanPanel';
+import { WorkspaceContainer } from './features/navigation/WorkspaceContainer';
+import { ModalManager } from './components/ModalManager';
 
-const initialConfig = { repositoryId: '', branch: '', scannerName: 'semgrep', forceRescan: false };
-
-export default function App({ api = auditApi }) {
+/**
+ * AppShell renders the main workspace layout, header, navigation, and sidebar.
+ * Strictly adheres to Single Responsibility Principle (SRP) by delegating business logic
+ * and workflows to domain providers (Auth, Workspace, Audit, Modals).
+ */
+function AppShell() {
   const { theme, toggleTheme } = useTheme();
-  const [authSession, setAuthSession] = useState(null);
-  const [authError, setAuthError] = useState('');
-  const [config, setConfig] = useState(initialConfig);
-  const [repositories, setRepositories] = useState([]);
-  const [branches, setBranches] = useState([]);
-  const [loadingRepositories, setLoadingRepositories] = useState(true);
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [issues, setIssues] = useState([]);
-  const [loadingIssues, setLoadingIssues] = useState(false);
-  const [restoredSession, setRestoredSession] = useState(null);
-  const [scanHistory, setScanHistory] = useState([]);
-  const selectedKeyRef = useRef('');
-  const chat = useChatState();
-  const toast = useToast();
-  const [confirmAction, setConfirmAction] = useState(null);
-  const [isTourOpen, setIsTourOpen] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isViewingDocs, setIsViewingDocs] = useState(false);
-  const [isViewingTokenUsage, setIsViewingTokenUsage] = useState(false);
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const handleOpenProfileSettings = useCallback(() => setIsProfileModalOpen(true), []);
-  const handleCloseProfileSettings = useCallback(() => setIsProfileModalOpen(false), []);
-  const { addMessage, resetMessages, restoreMessages } = chat;
+  const api = useApi();
+  const auth = useAuth();
+  const workspace = useWorkspace();
+  const audit = useAudit();
+  const modals = useModals();
 
-  const needsLlmOnboarding = Boolean(authSession?.authenticated && authSession?.userKeysRequired && !authSession?.llmConfigured);
-  const handleLlmOnboardingComplete = useCallback(() => {
-    setAuthSession(prev => prev ? ({ ...prev, llmConfigured: true }) : prev);
-    toast.success('AI credentials configured successfully!');
-  }, [toast]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    api.authSession(controller.signal).then(setAuthSession).catch(error => {
-      if (error.name !== 'AbortError') { setAuthError(error.message); setAuthSession({ configured: false, authenticated: false }); }
-    });
-    return () => controller.abort();
-  }, [api]);
-
-  const handleThreadRestore = useCallback(data => setRestoredSession(data), []);
-  const session = useMemoryThread({ api, onRestore: handleThreadRestore });
-  const { ensureThread, forgetThread, restoreThread, threadId } = session;
-  const handleScanSuccess = useCallback(() => setActiveTab('report'), []);
-  const scan = useScanController({ api, ensureThread, onMessage: addMessage, onSuccess: handleScanSuccess });
-  const { cancel: cancelScan, replaceResult, result, startScan: runScan, startUploadScan: runUploadScan } = scan;
-  const isUploadScan = result?.source === 'upload';
-
-  const handleFindings = useCallback((findings) => {
-    if (result) replaceResult({ ...result, findings });
-  }, [replaceResult, result]);
-  const handleRemediationReport = useCallback((nextResult, silent = false) => {
-    replaceResult(nextResult);
-    if (!silent) setActiveTab('report');
-  }, [replaceResult]);
-  const remediation = useRemediationController({
-    api,
-    toast,
-    onMessage: addMessage,
-    onReport: handleRemediationReport,
-    onFindings: handleFindings,
-    repositoryId: config.repositoryId,
-    branch: config.branch,
-    threadId,
-    onOpenProfileSettings: handleOpenProfileSettings
-  });
-  const { activeRun, runs, analyze, approvalPreview, awaitingApproval, decide, discard, hydrate, isAnalyzing,
-    isPublishing, loadApprovalPreview, publication, resetForScan, resume, retryPublish,
-    selectedFinding, setSelectedFinding, graphSteps,
-    analyzeBatch, cancelBatch, batchState, isAnalyzingMap } = remediation;
-
-  useEffect(() => {
-    if (!authSession?.authenticated) return undefined;
-    const controller = new AbortController();
-    api.repositories(controller.signal).then(setRepositories).catch(error => {
-      if (error.name !== 'AbortError') toast.error(`Unable to load installed repositories: ${error.message}`);
-    }).finally(() => { if (!controller.signal.aborted) setLoadingRepositories(false); });
-    return () => controller.abort();
-  }, [api, authSession?.authenticated, toast]);
-
-  useEffect(() => {
-    if (!config.repositoryId) return undefined;
-    const controller = new AbortController();
-    api.branches(config.repositoryId, controller.signal).then(items => {
-      setBranches(items);
-      const repository = repositories.find(item => String(item.repositoryId) === String(config.repositoryId));
-      const preferred = items.includes(repository?.defaultBranch) ? repository.defaultBranch : items[0] ?? '';
-      setConfig(previous => previous.repositoryId === config.repositoryId ? { ...previous, branch: preferred } : previous);
-    }).catch(error => { if (error.name !== 'AbortError') toast.error(`Unable to load branches: ${error.message}`); });
-    return () => controller.abort();
-  }, [api, cancelScan, config.repositoryId, replaceResult, repositories, resetForScan, toast]);
-
-  useEffect(() => {
-    if (!authSession?.authenticated || !config.repositoryId || !config.branch) return undefined;
-    const key = `${config.repositoryId}:${config.branch}`;
-    if (selectedKeyRef.current === key) return undefined;
-    selectedKeyRef.current = key;
-    const controller = new AbortController();
-    restoreThread(config.repositoryId, config.branch, controller.signal).catch(error => {
-      if (error.name !== 'AbortError') toast.error(`Memory restore failed: ${error.message}`);
-    });
-    api.getReport(config.repositoryId, config.branch, controller.signal).then(replaceResult).catch(error => {
-      if (error.name === 'AbortError') return;
-      if (!error.message.includes('404')) {
-        toast.error(`Report restore failed: ${error.message}`);
-      }
-    });
-    api.getReportHistory(config.repositoryId, config.branch, controller.signal).then(setScanHistory).catch(error => {
-      if (error.name !== 'AbortError') console.error(`Scan history restore failed: ${error.message}`);
-    });
-    return () => controller.abort();
-  }, [api, authSession?.authenticated, config, replaceResult, resetForScan, restoreThread, runScan, toast]);
-
-  const refreshReport = useCallback(() => {
-    if (config.repositoryId && config.branch && remediation.refreshReport) {
-      if (threadId && api.getThread) {
-        api.getThread(threadId).then(threadData => {
-          if (threadData) hydrate(threadData);
-        }).catch(() => {});
-      }
-      remediation.refreshReport(config.repositoryId, config.branch, true).catch(error => {
-        if (!error?.message?.includes('404')) toast.error(`Report restore failed: ${error.message}`);
-      });
-    }
-  }, [config.repositoryId, config.branch, remediation, toast, threadId, api, hydrate]);
-
-  const loadIssues = useCallback((signal) => {
-    if (!config.repositoryId || typeof api?.issues !== 'function') {
-      return Promise.resolve();
-    }
-    return api.issues(config.repositoryId, signal)
-      .then(items => {
-        setIssues(Array.isArray(items) ? items : []);
-      })
-      .catch(error => {
-        if (error.name !== 'AbortError') {
-          console.error(`Issues load failed: ${error.message}`);
-        }
-      })
-      .finally(() => setLoadingIssues(false));
-  }, [api, config.repositoryId]);
-
-  useEffect(() => {
-    if (!config.repositoryId) {
-      return undefined;
-    }
-    const controller = new AbortController();
-    loadIssues(controller.signal);
-    return () => {
-      controller.abort();
-      setIssues([]);
-    };
-  }, [config.repositoryId, loadIssues]);
-
-  useEffect(() => {
-    if (scan.finishedAt && config.repositoryId && config.branch) {
-      const controller = new AbortController();
-      api.getReportHistory(config.repositoryId, config.branch, controller.signal).then(setScanHistory).catch(error => {
-        if (error.name !== 'AbortError') console.error(`Scan history fetch failed: ${error.message}`);
-      });
-      return () => controller.abort();
-    }
-  }, [api, config.branch, config.repositoryId, scan.finishedAt]);
-
-  useEffect(() => {
-    if (!restoredSession) return;
-    restoreMessages(restoredSession.messages);
-    hydrate(restoredSession);
-  }, [hydrate, restoreMessages, restoredSession]);
-
-  const updateConfig = useCallback((name, value) => {
-    if (name === 'repositoryId') {
-      selectedKeyRef.current = '';
-      cancelScan(); replaceResult(null); resetForScan(); setBranches([]); setScanHistory([]);
-    }
-    if (name === 'branch') {
-      selectedKeyRef.current = '';
-      setScanHistory([]);
-    }
-    setConfig(previous => ({ ...previous, [name]: value, ...(name === 'repositoryId' ? { branch: '' } : {}) }));
-  }, [cancelScan, replaceResult, resetForScan]);
-  const startScan = useCallback(async () => { resetForScan(); return runScan(config); }, [config, resetForScan, runScan]);
-  const startUploadScan = useCallback(async (file, projectName) => {
-    resetForScan();
-    return runUploadScan({ file, projectName, scannerName: config.scannerName });
-  }, [config.scannerName, resetForScan, runUploadScan]);
-  const analyzeFinding = useCallback(finding => analyze(finding, config.repositoryId, config.branch, threadId), [analyze, config.branch, config.repositoryId, threadId]);
-  const submitDecision = useCallback((decision, reason) => decide(decision, config.repositoryId, config.branch, reason), [config.branch, config.repositoryId, decide]);
-  const retry = useCallback(() => retryPublish(config.repositoryId, config.branch), [config.branch, config.repositoryId, retryPublish]);
-
-  const { submitChat, cancelStream } = useChatController({
-    api, chat, repositoryId: config.repositoryId, branch: config.branch,
-    threadId, findings: result?.findings ?? [], onScan: startScan, onAnalyze: analyzeFinding
-  });
-
-  const forgetConversation = useCallback(async () => {
-    if (!threadId) return;
-    setConfirmAction({
-      title: 'Forget conversation',
-      message: 'Forget this conversation and its unpublished run details?',
-      confirmText: 'Forget',
-      style: 'danger',
-      action: async () => {
-        try { await forgetThread(config.repositoryId, config.branch); resetMessages(); hydrate({}); toast.success('Conversation forgotten.'); }
-        catch (error) { toast.error(`Unable to forget conversation: ${error.message}`); }
-      }
-    });
-  }, [config.branch, config.repositoryId, forgetThread, hydrate, resetMessages, threadId, toast]);
-  const forgetRepository = useCallback(async () => {
-    if (!config.repositoryId || !config.branch) return;
-    setConfirmAction({
-      title: 'Forget repository memory',
-      message: 'Forget approved remediation memory for this repository branch?',
-      confirmText: 'Forget',
-      style: 'danger',
-      action: async () => {
-        try { await api.forgetRepository(config.repositoryId, config.branch); toast.success('Approved repository remediation memory was forgotten.'); }
-        catch (error) { toast.error(`Unable to forget repository memory: ${error.message}`); }
-      }
-    });
-  }, [api, config.branch, config.repositoryId, toast]);
-
-  const clearScanHistory = useCallback(async () => {
-    if (!config.repositoryId || !config.branch) return;
-    setConfirmAction({
-      title: 'Clear scan history',
-      message: 'Permanently delete all scan reports, findings, and history for this repository branch?',
-      confirmText: 'Clear History',
-      style: 'danger',
-      action: async () => {
-        try {
-          await api.clearScanHistory(config.repositoryId, config.branch);
-          toast.success('Scan history cleared successfully.');
-          scan.replaceResult(null);
-          setScanHistory([]);
-        } catch (error) {
-          toast.error(`Failed to clear scan history: ${error.message}`);
-        }
-      }
-    });
-  }, [api, config.branch, config.repositoryId, toast, scan]);
-  const logout = useCallback(async () => {
-    try { await api.logout(); } finally { setAuthSession(previous => ({ ...previous, authenticated: false, user: null })); }
-  }, [api]);
-
-  const findings = useMemo(() => result?.findings ?? [], [result]);
-  const metadata = result?.metadata ?? null;
-  const counts = useMemo(() => severityCounts(findings), [findings]);
-  const selectedRepository = repositories.find(item => String(item.repositoryId) === String(config.repositoryId));
-
-
-  const handleBulkAction = useCallback((action, selectedIds) => {
-    chat.setIsOpen(true);
-    if (action === 'analyze') {
-      const selectedFindings = findings.filter(f => selectedIds.includes(f.id));
-      chat.addMessage('system', `Bulk analyze started for ${selectedFindings.length} vulnerabilities.`);
-      analyzeBatch(selectedFindings, config.repositoryId, config.branch, threadId);
-    } else if (action === 'ignore') {
-      chat.addMessage('system', `Bulk ignore requested for ${selectedIds.length} findings. (Backend batch processing pending)`);
-    }
-  }, [findings, analyzeBatch, config.repositoryId, config.branch, threadId, chat]);
-
-  const [activeModal, setActiveModal] = useState(null);
-
-  const handleShowObservability = useCallback(() => setIsViewingTokenUsage(true), []);
-  const handleCloseObservability = useCallback(() => setIsViewingTokenUsage(false), []);
-  const handleTourClick = useCallback(() => setIsTourOpen(true), []);
-  const handleTourClose = useCallback(() => setIsTourOpen(false), []);
-  const handleShowDocs = useCallback(() => setIsViewingDocs(true), []);
-  const handleCloseDocs = useCallback(() => setIsViewingDocs(false), []);
-  const handleToggleSidebar = useCallback(() => setIsSidebarOpen(prev => !prev), []);
-  const handleCloseSidebar = useCallback(() => setIsSidebarOpen(false), []);
-  const handleShowFindings = useCallback((title, modalFindings) => setActiveModal({ title, findings: modalFindings }), []);
-  const handleCloseModal = useCallback(() => setActiveModal(null), []);
-  const handleSelectFinding = useCallback((finding) => {
-    startTransition(() => {
-      setSelectedFinding(finding);
-    });
-  }, [setSelectedFinding]);
-  const handleCloseFindingDrawer = useCallback(() => setSelectedFinding(null), [setSelectedFinding]);
-  const handleTabChange = useCallback((tab) => {
-    startTransition(() => {
-      setActiveTab(tab);
-    });
-  }, []);
-
-  const handleClose = useCallback(() => {
-    if (confirmAction !== null) { setConfirmAction(null); return; }
-    if (activeModal !== null) { setActiveModal(null); return; }
-    if (isTourOpen) { setIsTourOpen(false); return; }
-    if (selectedFinding !== null) { setSelectedFinding(null); return; }
-    if (chat.isOpen) { chat.setIsOpen(false); return; }
-  }, [confirmAction, activeModal, isTourOpen, selectedFinding, chat, setSelectedFinding]);
+  const { authSession, authError, logout, loginUrl } = auth;
+  const { config, updateConfig, repositories, branches, loadingRepositories } = workspace;
+  const {
+    metadata, counts, findings, startScan, startUploadScan, scan,
+    handleTabChange, selectedFinding, handleCloseFindingDrawer, chat
+  } = audit;
+  const {
+    isSidebarOpen, toggleSidebar, closeSidebar, openObservability,
+    openFindingsModal, openTour, openDocs, openProfile, handleTopLevelClose
+  } = modals;
 
   useKeyboardShortcuts({
     onSearch: () => {
       const select = document.querySelector('select');
       if (select) select.focus();
     },
-    onClose: handleClose,
+    onClose: () => handleTopLevelClose({
+      isFindingDrawerOpen: Boolean(selectedFinding),
+      onCloseFindingDrawer: handleCloseFindingDrawer,
+      isChatOpen: Boolean(chat.isOpen),
+      onCloseChat: () => chat.setIsOpen(false),
+    }),
     onTabChange: handleTabChange,
     onChatToggle: chat.toggle
   });
 
-  if (!authSession) return <SkeletonApp />;
-  if (!authSession.authenticated) return <LoginPage configured={authSession.configured} error={authError} onLogin={() => window.location.assign(api.loginUrl())} />;
+  if (!authSession) {
+    return <SkeletonApp />;
+  }
 
-  return <div className="app-shell flex min-h-dvh flex-col text-slate-200 lg:h-dvh lg:overflow-hidden relative">
-    <AppHeader
-      api={api}
-      metadata={metadata}
-      counts={counts}
-      user={authSession.user}
-      onLogout={logout}
-      findings={findings}
-      onShowObservability={handleShowObservability}
-      onShowFindings={handleShowFindings}
-      theme={theme}
-      onToggleTheme={toggleTheme}
-      onTourClick={handleTourClick}
-      onShowDocs={handleShowDocs}
-      onToggleSidebar={handleToggleSidebar}
-      isSidebarOpen={isSidebarOpen}
-      onOpenProfileSettings={handleOpenProfileSettings}
-    />
-    <div className="relative mx-auto flex w-full max-w-450 flex-1 flex-col lg:min-h-0 lg:flex-row">
-      {/* Mobile overlay */}
-      {isSidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-slate-900/60 backdrop-blur-sm lg:hidden"
-          onClick={handleCloseSidebar}
-          aria-hidden="true"
-        />
-      )}
-      <ScanPanel
-        config={config}
-        onConfigChange={updateConfig}
-        onScan={startScan}
-        onUploadScan={startUploadScan}
-        scan={scan}
-        repositories={repositories}
-        branches={branches}
-        loadingRepositories={loadingRepositories}
-        installationUrl={authSession.installationUrl}
-        isOpen={isSidebarOpen}
-        onToggle={handleToggleSidebar}
+  if (!authSession.authenticated) {
+    return (
+      <LoginPage
+        configured={authSession.configured}
+        error={authError}
+        onLogin={() => window.location.assign(loginUrl())}
       />
-      <main className="workspace-surface min-w-0 flex-1 lg:flex lg:min-h-0 lg:flex-col">
-        <WorkspaceTabs activeTab={activeTab} onChange={handleTabChange} findingCount={findings.length} issueCount={issues.length} />
-        <div className="min-h-0 flex-1 overflow-auto scroll-smooth">
-          {activeTab === 'dashboard' && <DashboardView metadata={metadata} findings={findings} counts={counts} scanHistory={scanHistory} repositoryLabel={isUploadScan ? `${result?.projectName || 'Project'} (Manual Upload)` : (result?.repository || selectedRepository?.fullName || '')} onSelect={handleSelectFinding} onShowFindings={handleShowFindings} onClearHistory={clearScanHistory} />}
-          {activeTab === 'findings' && <FindingsView findings={findings} runs={runs} onSelect={handleSelectFinding} onBulkAction={handleBulkAction} onRefresh={refreshReport} batchState={batchState} onCancelBatch={cancelBatch} isAnalyzingMap={isAnalyzingMap} isUploadScan={isUploadScan} />}
-          {activeTab === 'issues' && <IssuesView issues={issues} loading={loadingIssues} onRefresh={() => {
-            setLoadingIssues(true);
-            loadIssues();
-          }} onSelectFinding={id => {
-            const f = findings.find(x => x.id === id);
-            if (f) handleSelectFinding(f);
-          }} repository={selectedRepository} />}
-          {activeTab === 'report' && <ReportView key={isUploadScan ? `upload:${result?.uploadId}` : `${config.repositoryId}:${config.branch}`} api={api} repositoryId={config.repositoryId} branch={config.branch} uploadId={isUploadScan ? result?.uploadId : null}
-            reportAvailable={result?.reportAvailable ?? Boolean(result?.htmlReport)} projectName={metadata?.projectName || result?.projectName || selectedRepository?.name} />}
-        </div>
-      </main>
-    </div>
-    {isViewingDocs && <DocsView api={api} theme={theme} onClose={handleCloseDocs} />}
-    <FindingDrawer finding={selectedFinding} isAnalyzing={isAnalyzing} isPublishing={isPublishing}
-      awaitingApproval={awaitingApproval} approvalPreview={approvalPreview} publication={publication}
-      activeRun={activeRun} graphSteps={graphSteps} onClose={handleCloseFindingDrawer} onAnalyze={() => analyzeFinding(selectedFinding)}
-      onLoadPreview={loadApprovalPreview} onDecision={submitDecision} onRetryPublish={retry} theme={theme} isUploadScan={isUploadScan} />
-    <ChatWidget chat={chat} onSubmit={submitChat} onCancel={cancelStream} activeRun={activeRun} publication={publication}
-      onResume={() => publication?.approvedAt ? retry() : resume(threadId)} onDiscard={discard} onRetryPublish={retry}
-      onForgetConversation={forgetConversation} onForgetRepository={forgetRepository} />
-    {isViewingTokenUsage && <TokenUsageLayout api={api} theme={theme} onClose={handleCloseObservability} />}
-    <Modal isOpen={activeModal !== null} onClose={handleCloseModal} title={activeModal?.title || 'Findings'}>
-      {activeModal && <FindingsView findings={activeModal.findings} runs={runs} onSelect={(finding) => { handleCloseModal(); handleSelectFinding(finding); }} onBulkAction={(action, ids) => { handleCloseModal(); handleBulkAction(action, ids); }} onRefresh={refreshReport} batchState={batchState} onCancelBatch={cancelBatch} isAnalyzingMap={isAnalyzingMap} />}
-    </Modal>
-    <ConfirmDialog
-      isOpen={confirmAction !== null}
-      onClose={() => setConfirmAction(null)}
-      onConfirm={confirmAction?.action || (() => { })}
-      title={confirmAction?.title}
-      message={confirmAction?.message}
-      confirmText={confirmAction?.confirmText}
-      confirmStyle={confirmAction?.style}
-    />
-    <OnboardingTour isOpen={isTourOpen} onClose={handleTourClose} />
-    <UserProfileModal
-      isOpen={isProfileModalOpen}
-      onClose={handleCloseProfileSettings}
-      user={authSession?.user}
-      api={api}
-      toast={toast}
-    />
-    {needsLlmOnboarding && (
-      <LlmOnboardingModal
+    );
+  }
+
+  return (
+    <div className="app-shell flex min-h-dvh flex-col text-slate-200 lg:h-dvh lg:overflow-hidden relative">
+      <AppHeader
         api={api}
-        onComplete={handleLlmOnboardingComplete}
+        metadata={metadata}
+        counts={counts}
+        user={authSession.user}
         onLogout={logout}
+        findings={findings}
+        onShowObservability={openObservability}
+        onShowFindings={openFindingsModal}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        onTourClick={openTour}
+        onShowDocs={openDocs}
+        onToggleSidebar={toggleSidebar}
+        isSidebarOpen={isSidebarOpen}
+        onOpenProfileSettings={openProfile}
       />
-    )}
-  </div>;
+      <div className="relative mx-auto flex w-full max-w-450 flex-1 flex-col lg:min-h-0 lg:flex-row">
+        {/* Mobile overlay */}
+        {isSidebarOpen && (
+          <div
+            className="fixed inset-0 z-30 bg-slate-900/60 backdrop-blur-sm lg:hidden"
+            onClick={closeSidebar}
+            aria-hidden="true"
+          />
+        )}
+        <ScanPanel
+          config={config}
+          onConfigChange={updateConfig}
+          onScan={startScan}
+          onUploadScan={startUploadScan}
+          scan={scan}
+          repositories={repositories}
+          branches={branches}
+          loadingRepositories={loadingRepositories}
+          installationUrl={authSession.installationUrl}
+          isOpen={isSidebarOpen}
+          onToggle={toggleSidebar}
+        />
+        <WorkspaceContainer />
+      </div>
+      <ModalManager theme={theme} />
+    </div>
+  );
+}
+
+/**
+ * Root App component injecting domain providers (DIP) and preserving backward-compatible props.
+ */
+export default function App({ api = auditApi }) {
+  return (
+    <AppProviders api={api}>
+      <AppShell />
+    </AppProviders>
+  );
 }

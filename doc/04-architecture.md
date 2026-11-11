@@ -164,14 +164,20 @@ The persistence layer follows Domain-Driven Design (DDD) with bidirectional JPA 
 ## Frontend layers
 
 ```text
-App.jsx
-  +-- authentication and selection orchestration
-  +-- useMemoryThread
-  +-- useScanController -> scanReducer
-  +-- useRemediationController
-  +-- useChatState + useChatController
-  +-- presentational feature components
-  +-- auditApi -> fetch + SSE parser
+App (Backward-compatible entrypoint & composition root)
+  v
+AppProviders
+  +-- ApiProvider (useApi -> DIP API client abstraction)
+  +-- AuthProvider (useAuth -> session, CSRF, login/logout, LLM onboarding)
+  +-- WorkspaceProvider (useWorkspace -> repository discovery, branches, target configuration)
+  +-- ModalProvider (useModals -> centralized overlays, confirmation dialogs, drawer)
+  +-- AuditProvider (useAudit -> scan & remediation controllers, findings, memory threads)
+        v
+AppShell (Lean layout orchestrator)
+  +-- AppHeader (identity, counts, search, menu)
+  +-- ScanPanel (RepoBranchSelector, UploadDropzone, ScanProgressTracker)
+  +-- WorkspaceContainer (Declarative tab router driven by WORKSPACE_TABS: Dashboard, Findings, Issues, Report)
+  +-- ModalManager (Centralized modal root consuming useModals)
 ```
 
 State that must survive reload lives in PostgreSQL. Ephemeral view state—open tab, selected row, timer, chat visibility—lives in React.
