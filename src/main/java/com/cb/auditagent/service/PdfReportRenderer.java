@@ -26,8 +26,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
-final class PdfReportRenderer {
-    private static final float PAGE_WIDTH = PDRectangle.A4.getWidth();
+public final class PdfReportRenderer {
+    public static final float PAGE_WIDTH = PDRectangle.A4.getWidth();
     private static final float PAGE_HEIGHT = PDRectangle.A4.getHeight();
     private static final float MARGIN = 48;
     private static final float CONTENT_WIDTH = PAGE_WIDTH - (MARGIN * 2);
@@ -52,7 +52,10 @@ final class PdfReportRenderer {
     private static final DateTimeFormatter GENERATED_AT = DateTimeFormatter
             .ofPattern("uuuu-MM-dd HH:mm 'UTC'").withZone(ZoneOffset.UTC);
 
-    byte[] render(List<Vulnerability> rawFindings, ScanMetadata metadata, String repository,
+    public PdfReportRenderer() {
+    }
+
+    public byte[] render(List<Vulnerability> rawFindings, ScanMetadata metadata, String repository,
             String branch, String baseSha) {
         List<Vulnerability> findings = rawFindings == null ? List.of() : rawFindings;
         try (PDDocument document = new PDDocument(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
