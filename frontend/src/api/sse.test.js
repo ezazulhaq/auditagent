@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseSseFrame, readJsonSse, SseProtocolError } from './sse';
+import { parseSseFrame, readJsonSse } from './sse';
 
 const streamFrom = (...chunks) => new ReadableStream({
   start(controller) {

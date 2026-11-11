@@ -22,6 +22,7 @@ This document provides comprehensive context for AI assistants working on the **
   2. *Documentation Guard*: Hard-blocks any commit modifying implementation, configuration, rules, skills, scripts, or build files without an accompanying staged `doc/*.md` update.
 - **Commit & Push Policy**: Always present proposed changes, diffs, and test results to the user. Never run `git commit` or `git push` without receiving explicit user confirmation.
 - **Strict Pull Request Target**: All Pull Requests MUST target `--base dev`. Never open PRs directly against `master` or `main`.
+- **Strict Adherence to SOLID Principles**: All future enhancements, refactors, and feature additions MUST strictly follow the SOLID principles defined in `.agents/rules/solid-principles-policy.md`. Monolithic god-components, deep prop-drilling, and direct presentation coupling to concrete APIs are strictly prohibited; developers and AI assistants must leverage granular domain providers (`src/context/`), declarative registries (`workspaceTabs.jsx`, `ModalManager.jsx`), and extracted custom hooks.
 
 ---
 

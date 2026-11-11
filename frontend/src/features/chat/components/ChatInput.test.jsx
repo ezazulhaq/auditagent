@@ -29,7 +29,7 @@ describe('ChatInput', () => {
 
   it('shows Stop button when isStreaming=true and calls onCancel on click', () => {
     const onCancel = vi.fn();
-    const { container } = render(<ChatInput input="" setInput={vi.fn()} onSubmit={vi.fn()} isStreaming={true} onCancel={onCancel} />);
+    render(<ChatInput input="" setInput={vi.fn()} onSubmit={vi.fn()} isStreaming={true} onCancel={onCancel} />);
     
     const btn = screen.getByRole('button');
     fireEvent.click(btn);

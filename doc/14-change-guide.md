@@ -113,6 +113,21 @@ Preserve:
 - merge-only `FIXED`;
 - webhook HMAC/replay.
 
+### Add or modify a frontend feature (SOLID Compliance)
+
+All frontend modifications must strictly follow `.agents/rules/solid-principles-policy.md`:
+
+1. **SRP (Single Responsibility)**: Decompose monolithic components into focused sub-components (<200 lines target) and custom hooks. Keep presentation components separated from API streaming and data manipulation.
+2. **OCP (Open/Closed)**:
+   - For new workspace tabs or main panel views, register an entry in `src/features/navigation/workspaceTabs.jsx` (`WORKSPACE_TABS`). Do not add hardcoded switch/case blocks in `App.jsx`.
+   - For new dialogs or overlays, extend `ModalContext` (`src/context/ModalContext.jsx`) and mount the component within `src/components/ModalManager.jsx`. Do not add inline modal states to `App.jsx`.
+3. **ISP & DIP (Interface Segregation & Dependency Inversion)**:
+   - Consume granular domain hooks (`useAuth`, `useWorkspace`, `useAudit`, `useModals`, `useApi`) rather than passing monolithic parent states or 10+ prop callbacks down component hierarchies.
+   - Route all network calls through `useApi()`.
+4. **LSP & Testing**:
+   - Write tests using the standardized `renderWithProviders` harness (`src/test/test-utils.jsx`).
+   - Validate that `npm run test:run` passes 100% and `npm run lint` reports 0 errors.
+
 ### Change frontend scan state
 
 - Preserve normalized result shape.

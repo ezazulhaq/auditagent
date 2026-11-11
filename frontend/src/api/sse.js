@@ -29,7 +29,7 @@ export const parseSseFrame = (frame) => {
   }
   try {
     return JSON.parse(payload);
-  } catch (error) {
+  } catch {
     // If it's not valid JSON (e.g. a plain text token from streaming), return as a token event
     return { type: 'token', content: payload };
   }

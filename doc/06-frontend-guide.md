@@ -11,32 +11,66 @@ The frontend uses React 19, Vite 5, Tailwind CSS 4, Lucide React, Vitest, Testin
 - Fonts imported in `frontend/index.html`: Plus Jakarta Sans (400-800) and JetBrains Mono (400-700) with preconnect links.
 - `App.css` contains older starter-style rules and is not imported by the current `App.jsx`.
 
-## Application orchestration
+## Context Architecture & Composition Root
 
-`App.jsx` owns:
+The frontend strictly implements **SOLID principles** using a Context-Driven Domain Architecture, eliminating monolithic "god-component" antipatterns and deep prop-drilling:
 
-- authentication session and configuration errors;
-- repository and branch lists;
-- selected repository, branch, scanner, and force-rescan;
-- active workspace tab;
-- scan timer;
-- sidebar expansion state;
-- latest restored thread payload;
-- composition of scan, remediation, memory, and chat controllers.
+```text
+App (Backward-compatible entrypoint)
+  v
+AppProviders (Composition Root)
+  +-- ApiProvider (DIP: Injects auditApi client, consumed via useApi())
+  +-- AuthProvider (SRP: Session, CSRF, login/logout, LLM onboarding state via useAuth())
+  +-- WorkspaceProvider (SRP: Repository discovery, branch selection, configuration via useWorkspace())
+  +-- ModalProvider (SRP/OCP: Centralized dialogs, confirmation modals, drawer state via useModals())
+  +-- AuditProvider (SRP: Scan execution, remediation workflows, findings, memory threads via useAudit())
+        v
+AppShell (Lean layout orchestrator)
+  +-- AppHeader
+  +-- ScanPanel (Collapsible sidebar, RepoBranchSelector, UploadDropzone, ScanProgressTracker)
+  +-- WorkspaceContainer (OCP: Declarative workspace tab router consuming WORKSPACE_TABS)
+  +-- ModalManager (OCP: Centralized dialog & overlay manager)
+```
+
+### Domain Context Hierarchy
+
+1. **`ApiContext` (`src/context/ApiContext.jsx`)**:
+   Provides the dependency-injected API client (`useApi()`) to the entire component tree, satisfying the **Dependency Inversion Principle (DIP)** and enabling seamless mocking for unit tests (**Liskov Substitution Principle (LSP)**).
+
+2. **`AuthContext` (`src/context/AuthContext.jsx`)**:
+   Encapsulates user identity, OAuth session verification (`/api/auth/session`), CSRF tokens, login/logout transitions, and AI credential onboarding state (`needsLlmOnboarding`).
+
+3. **`WorkspaceContext` (`src/context/WorkspaceContext.jsx`)**:
+   Encapsulates installed GitHub repository discovery, branch selection, default branch fallback logic, and scan scope configuration (`config`, `updateConfig`).
+
+4. **`ModalContext` (`src/context/ModalContext.jsx`)**:
+   Centralizes visibility and payloads for all modal dialogs, drawers, sidebars, and confirmation alerts (`activeModal`, `confirmAction`, `isTourOpen`, `isViewingDocs`, `isViewingTokenUsage`, `isProfileModalOpen`). Implements priority-based Escape key dismissals (`handleTopLevelClose`).
+
+5. **`AuditContext` (`src/context/AuditContext.jsx`)**:
+   Bridges scan lifecycle (`useScanController`), autonomous remediation (`useRemediationController`), AI chat assistant (`useChatController`), and durable memory thread synchronization (`useMemoryThread`). Provides memoized finding statistics, severity counts, and bulk action dispatches.
+
+6. **`AppProviders` (`src/context/AppProviders.jsx`)**:
+   Assembles the providers in strict dependency order (`ApiProvider` → `AuthProvider` → `WorkspaceProvider` → `ModalProvider` → `AuditProvider`).
+
+### Declarative Extension Points (OCP)
+
+- **Workspace Tab Registry (`src/features/navigation/workspaceTabs.jsx`)**:
+  Tabs are declared as objects in `WORKSPACE_TABS` (id, label, icon, badge calculator, and view renderer). `WorkspaceContainer.jsx` dynamically renders the active tab. Adding new operational views requires registering an item in the array without modifying `App.jsx` or layout containers.
+- **Modal Manager (`src/components/ModalManager.jsx`)**:
+  All overlays (`DocsView`, `FindingDrawer`, `ChatWidget`, `TokenUsageLayout`, `FindingsModal`, `ConfirmDialog`, `OnboardingTour`, `UserProfileModal`, `LlmOnboardingModal`) are mounted within a dedicated modal root driven by `useModals()`, isolating dialog markup from workspace layout panels.
 
 ### Startup
 
-1. Fetch `/api/auth/session`.
-2. Show loading state, login page, or authenticated application.
-3. Check LLM configuration: if `session.userKeysRequired && !session.llmConfigured`, display the mandatory, unclosable `LlmOnboardingModal` prompting the user to configure credentials before starting AI operations.
-4. When authenticated, fetch repositories.
-5. When repository changes, fetch branches and prefer the default.
-6. When repository/branch is complete, restore thread and report in parallel.
-7. Hydrate chat and remediation state from the thread response.
+1. `AuthProvider` calls `/api/auth/session`.
+2. `AppShell` displays `<SkeletonApp />` while loading, `<LoginPage />` if unauthenticated, or the authenticated workspace shell.
+3. If `authSession.userKeysRequired && !authSession.llmConfigured`, `ModalManager` renders the mandatory, unclosable `<LlmOnboardingModal />`.
+4. When authenticated, `WorkspaceProvider` loads installed repositories and branches.
+5. When `repositoryId:branch` selection stabilizes, `AuditProvider` restores thread memory and cached report in parallel.
+6. Chat and remediation states hydrate from durable storage.
 
 ### Selection race control
 
-`selectedKeyRef` prevents duplicate restore for the same repository/branch. Request aborts and the memory hook's monotonic request counter prevent a slower old selection from overwriting a newer one.
+`repositoryKeyRef` in `WorkspaceContext` and `AuditContext` prevents duplicate restore calls for the same repository/branch. Request abort controllers and monotonic request IDs prevent stale asynchronous responses from winning.
 
 ## API client
 
@@ -144,10 +178,11 @@ Shows brand and enterprise context, secure-session status, responsive repository
 
 ### `ScanPanel`
 
-Supports two scan modes: **GitHub repository scan** and **Manual project upload**. A toggle button beside the collapse chevron switches between modes.
-- In GitHub mode: shows repository/permission, branch, scanner, force-rescan toggle, run button, installation help, elapsed time, accessible progress state, stage timeline, message, and error.
-- In Upload mode: provides a drag-and-drop zone and file picker for `.zip` project archives (max 50MB), filename/size card with remove button, editable project name input, and "Scan ZIP Archive" button.
-- Elapsed time is derived from start/finish timestamps and the current wall clock, so delayed browser interval callbacks cannot undercount a long scan. It is a desktop rail and a full-width mobile section. It supports expanding and collapsing via a state managed by `App.jsx` to maximize workspace area, rendering a narrow icon-only bar when collapsed.
+Coordinates audit scope selection, file upload dropzone, and real-time progress tracking. Decomposed into three focused sub-components adhering to SRP:
+- `RepoBranchSelector`: Handles installed repository and branch selection, scanner engine configuration, force-rescan toggle, and scan launch.
+- `UploadDropzone`: Provides drag-and-drop file uploading and validation for `.zip` project archives (max 50MB), filename and size card with remove action, editable project name input, and ZIP scan initiation.
+- `ScanProgressTracker`: Displays real-time progress bar, wall-clock timer, and stage checklist (`SCAN_STEPS`) with explicit terminal error handling.
+- Expand/collapse rail state is controlled via `ModalContext` (`toggleSidebar`), rendering an icon-only collapse bar on desktop.
 
 ### `DashboardView`
 
@@ -159,17 +194,16 @@ Provide the in-app documentation viewing experience. `DocsSidebar` fetches the l
 
 ### `FindingsView`
 
-Performs local sorting and filtering, then reports the original selected finding object to the parent so drawer and remediation actions remain unchanged. `filterFindings()` creates a new array, preserves scanner order within each severity, and applies the fixed priority `HIGH`, `MEDIUM`, `LOW`, `INFO`.
-
-Search is null-safe, case-insensitive, whitespace-trimmed, and uses AND semantics for multiple terms across ID, type, path, description, rule ID, language, severity, and status. Severity buttons show counts for all four levels. The lifecycle-status selector is derived from statuses present in the current audit and ordered through the remediation lifecycle, including intermediate and failure states. Terminal finding statuses (`FIXED`, `IGNORED`) are strictly preserved and never masked by stale in-flight run states. Search, severity, and status compose; Reset and the no-match recovery action clear all three.
-
-The responsive inventory presents severity, type, ID, filename/line, directory, and lifecycle status with horizontally scrollable severity controls, stacked mobile filters, mobile card rows, and a desktop table layout. Result-count changes are announced through a polite live region. A manual refresh button on the top right triggers a silent report and thread synchronization, ensuring that merged PR findings transition to `FIXED` immediately without redirecting away from the findings tab.
-
-It features checkbox multi-selection with header select-all and per-file grouping controls. When items are selected, a floating action bar allows triggering bulk "Analyze" (invoking `analyzeBatch`) and deferred "Ignore". During batch execution, the floating bar morphs into a live progress indicator (`Analyzing X of Y vulnerabilities...`) with a percentage bar, failed counter, and a "Cancel Batch" button that aborts the pipeline. Finding rows actively being remediated display an inline spinning `LoaderCircle` next to their status badge.
+Displays and manages the security findings inventory. Decomposed into focused modules under SRP and ISP:
+- `useFindingsFilter`: Custom hook encapsulating search query, severity, status, grouping mode (`list` vs `grouped`), and multi-selection logic.
+- `FindingsToolbar`: Renders search input, lifecycle status dropdown, severity badge pills, view mode switcher, and filter reset.
+- `FindingRow`: Memoized individual row component presenting severity badges, false positive triaged tags, status badge, code location, and row selection checkbox.
+- `FileGroup`: Collapsible directory/file group header with select-all for files.
+- `BulkActionBar`: Floating batch analysis progress bar with cancel action, or selection toolbar providing bulk "Analyze" and "Ignore" actions.
 
 ### `WorkspaceTabs`
 
-Sticky workspace tab navigation bar positioned at the top of the main panel providing seamless switching between **Dashboard**, **Findings**, **Issues**, and **Audit Report**. Features tabular count badges for active findings and tracked GitHub issues.
+Sticky workspace tab navigation bar positioned at the top of the main panel providing seamless switching between **Dashboard**, **Findings**, **Issues**, and **Audit Report**. Driven by `WorkspaceContainer` and the extensible `WORKSPACE_TABS` registry (OCP).
 
 ### `IssuesView`
 
@@ -183,30 +217,23 @@ Presents an executive and operational dashboard for GitHub issues tagged for aut
 
 ### `FindingDrawer`
 
-The most security-sensitive UI:
-
-- Quick-copy finding ID: A dedicated copy button beside the finding ID in the drawer header enables one-click copying of the identifier to the clipboard for chat triage or external tracking, displaying temporary visual feedback (`Copied!`).
-- `UPLOAD_SCAN`: when the active finding originates from a manual ZIP upload (`isUploadScan = true`), autonomous PR creation is disabled and an informational banner is displayed explaining that PR remediation requires a connected GitHub repository.
-- `DETECTED`: allows analysis for connected GitHub repositories.
-- `PUBLISHED` / `PR_OPEN`: The UI polls the backend API `/api/reports` and `/api/memory/threads/{threadId}` every 5 seconds to catch GitHub webhook state changes (e.g., `FIXED` upon merge) without needing a page refresh, or updates immediately via the FindingsView refresh control. Background polling preserves user UI focus and never forcibly reopens a closed finding drawer.
-- `AWAITING_APPROVAL`: Automatically overridden by autonomous PR creation, though structurally preserved for legacy compatibility.
-- `PUBLISH_FAILED`: shows retry.
-- `PR_OPEN`: links the PR and explains merge is pending.
-- `FIXED`: states that GitHub merge fixed it, displaying the "Fix merged" step in the remediation timeline and the "Merged on GitHub · finding fixed" action banner.
-
-The approve button is not rendered until the preview is loaded. The drawer uses a full-screen mobile layout, focuses its close control when opened, and supports Escape dismissal without changing any decision callback or value.
+Presents finding details, code diffs, AI timeline, and approval flow. Decomposed under SRP into:
+- `RemediationTimeline`: 5-step lifecycle progress tracker (Detected, Analyzing & fixing, Verified & awaiting approval, Pull request created, Fix merged).
+- `VulnerableCodeViewer`: Syntax-highlighted code snippet viewer with line indicators and clipboard copy.
+- `ApprovalPackageViewer`: Displays verified fix details, base commit, planned branch, changed files list, verification evidence, and `DiffViewer`.
+- `RemediationDecisionBar`: Sticky bottom action bar handling diff review, approve & create PR, rejection with reason, and retry publishing.
+- Quick-copy finding ID: A dedicated copy button beside the finding ID in the drawer header enables one-click copying of the identifier to the clipboard.
+- Drawer width is adjustable via a draggable edge resizer on desktop.
 
 ### `Profile & LLM Configuration Components`
 
 Located in `frontend/src/features/profile/`:
 
-- **`LlmConfigForm`**: Reusable configuration form used across both onboarding and profile settings. Supports:
-  - Switching between **OpenRouter (Default)** and **OpenAI-Compatible** providers.
-  - Custom **API Base URL** input when OpenAI-compatible mode is active.
-  - API key input with show/hide password toggle and "Replace existing key" mode when an encrypted key is already stored.
-  - Curated model presets (`openai/gpt-4o`, `openai/gpt-4o-mini`, `anthropic/claude-sonnet-5.5`, `google/gemini-2.5-flash`, `glm-5.3-flash`, `deepseek-chat`) plus custom model input.
-  - Advanced settings toggle for optional supervisor model customization.
-  - Live connection testing with real-time status banners and error diagnostics via `POST /api/user/llm-config/test`.
+- **`LlmConfigForm`**: Modular form coordinating LLM provider credentials, model selection, SystemOne decision engine, and live connection testing. Decomposed into:
+  - `useLlmConfigForm`: Custom hook encapsulating loading, state changes, testing, and saving.
+  - `ProviderSelector`: Radio card grid for selecting between OpenRouter, OpenAI, Groq, DeepSeek, Ollama, and OpenAI-compatible providers.
+  - `SystemOneSettings`: Non-autoregressive SystemOne (TypeSafe Jev) fast decision engine configuration card.
+  - `llmProviders.js`: Provider metadata and model presets.
 - **`LlmOnboardingModal`**: A non-closable modal displayed immediately upon login if user keys are required but not yet configured, preventing users from attempting AI workflows with missing credentials.
 - **`UserProfileModal`**: Accessible from the user avatar dropdown menu in `AppHeader` ("Profile & LLM Keys"). Allows users to inspect their active GitHub identity, review their masked API key (`sk-or-••••••••3a8f`), update configurations, test connections, and save updates with automatic cache refresh.
 
