@@ -1,6 +1,5 @@
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 import { createContext, useContext, useState, useCallback, useMemo } from 'react';
-import { auditApi } from '../api/auditApi';
 
 const ToastContext = createContext(null);
 
