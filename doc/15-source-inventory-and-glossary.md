@@ -209,6 +209,13 @@
 | File | Purpose |
 |---|---|
 | `src/main.jsx` | React DOM bootstrap. |
+| `src/context/ApiContext.jsx` | Dependency inversion provider (`useApi`) for injecting API client instances. |
+| `src/context/AuthContext.jsx` | Authentication session, CSRF, login/logout, and LLM onboarding state provider (`useAuth`). |
+| `src/context/WorkspaceContext.jsx` | Repository discovery, branch selection, and scan target configuration provider (`useWorkspace`). |
+| `src/context/ModalContext.jsx` | Centralized modal and dialog manager (`useModals`, `MODAL_TYPES`) implementing OCP. |
+| `src/context/AuditContext.jsx` | Scan execution, remediation workflows, finding inventory, and persistent memory provider (`useAudit`). |
+| `src/context/AppProviders.jsx` | Context composition root assembling domain providers in dependency hierarchy. |
+| `src/test/test-utils.jsx` | Test harness utility providing `renderWithProviders` with mockable `ApiProvider`. |
 | `src/App.jsx` | Top-level orchestration and layout. |
 | `src/index.css` | Tailwind import and global helpers. |
 | `src/App.css` | Unused legacy starter styles. |
@@ -218,6 +225,9 @@
 | `src/components/AppHeader.jsx` | Brand, scan summary, identity, logout. |
 | `src/components/CopyButton.jsx` | Reusable clipboard copy button supporting multiple sizes, accessible labels, and feedback states. |
 | `src/components/NotificationDropdown.jsx` | Bell icon notification dropdown with unread badge and real-time updates. |
+| `src/components/ModalManager.jsx` | Centralized modal, drawer, and confirmation dialog container consuming `useModals()`. |
+| `src/features/navigation/workspaceTabs.jsx` | Declarative Workspace Tab Registry implementing Open/Closed Principle (OCP). |
+| `src/features/navigation/WorkspaceContainer.jsx` | Dynamic workspace tab router and view renderer driven by the tab registry. |
 | `src/features/observability/TokenUsageLayout.jsx` | User-level UI displaying aggregated token usage and observability metrics by repository name and model. |
 | `src/features/auth/LoginPage.jsx` | Login/configuration screen. |
 | `src/features/chat/ChatWidget.jsx` | Floating durable chat/recovery controls. |
@@ -235,15 +245,33 @@
 | `src/features/chat/useChatState.js` | Chat view state, unread behavior, and streaming status. |
 | `src/features/dashboard/DashboardView.jsx` | Scan summary/empty state. |
 | `src/features/findings/FindingsView.jsx` | Responsive severity-prioritized inventory, count-aware filters, search/reset controls, and finding selection. |
+| `src/features/findings/hooks/useFindingsFilter.js` | Custom hook encapsulating finding filters, search, grouping, and selection logic (SRP). |
+| `src/features/findings/constants/findingStyles.js` | Styling and status formatting utilities for finding severities and lifecycle states. |
+| `src/features/findings/components/FindingsToolbar.jsx` | Search input, lifecycle status dropdown, severity pills, and view mode switcher. |
+| `src/features/findings/components/FindingRow.jsx` | Individual finding row component with severity badge, false-positive badge, status badge, and location. |
+| `src/features/findings/components/FileGroup.jsx` | Collapsible directory/file group header and findings list. |
+| `src/features/findings/components/BulkActionBar.jsx` | Floating batch progress and bulk actions toolbar for batch analysis/ignoring. |
 | `src/features/issues/IssuesView.jsx` | Tracked GitHub issues view displaying webhook/label-triggered issues, remediation status, finding links, PR links, and search/filtering. |
-| `src/features/profile/LlmConfigForm.jsx` | Reusable form for configuring LLM provider (OpenRouter/OpenAI-compatible), API key, models, and live connection testing. |
+| `src/features/profile/LlmConfigForm.jsx` | Modular form coordinating LLM provider credentials, model selection, SystemOne decision engine, and live connection testing. |
+| `src/features/profile/constants/llmProviders.js` | Metadata and model presets for supported LLM providers (OpenRouter, OpenAI, Groq, DeepSeek, Ollama, OpenAI-compatible). |
+| `src/features/profile/hooks/useLlmConfigForm.js` | Custom hook encapsulating LLM configuration fetching, form state, connection tests, and persistence (SRP). |
+| `src/features/profile/components/ProviderSelector.jsx` | Radio cards grid for selecting LLM provider. |
+| `src/features/profile/components/SystemOneSettings.jsx` | Non-autoregressive SystemOne (TypeSafe Jev) fast decision engine configuration card. |
 | `src/features/profile/LlmOnboardingModal.jsx` | Unclosable onboarding modal displayed on login when user credentials are required and unconfigured. |
 | `src/features/profile/UserProfileModal.jsx` | User profile modal accessible from header menu for inspecting identity and updating LLM credentials. |
-| `src/features/remediation/FindingDrawer.jsx` | Evidence, diff, decisions, retry action for failed/PATCH_FAILED remediations, PR state. |
+| `src/features/remediation/FindingDrawer.jsx` | Coordinated remediation drawer presenting code diffs, AI timeline, and approval flow. |
+| `src/features/remediation/constants/remediationConstants.js` | Remediation stage timeline step definitions. |
+| `src/features/remediation/components/RemediationTimeline.jsx` | Multi-stage progress timeline tracking finding lifecycle from detection to GitHub merge. |
+| `src/features/remediation/components/VulnerableCodeViewer.jsx` | Syntax-highlighted code snippet viewer with line indicators and clipboard copy. |
+| `src/features/remediation/components/ApprovalPackageViewer.jsx` | Verified fix package viewer with changed files, verification evidence, and interactive DiffViewer. |
+| `src/features/remediation/components/RemediationDecisionBar.jsx` | Bottom action bar handling diff review, approve & create PR, rejection with feedback, and retry. |
 | `src/features/remediation/useRemediationController.js` | Run/publication browser state, SSE event dispatching, failed run hydration, and background PR polling. |
 | `src/features/report/ReportView.jsx` | Authenticated PDF viewer plus PDF/Markdown downloads, loading, retry, and Blob URL cleanup. |
 | `src/features/report/WorkspaceTabs.jsx` | Main tab navigation (Dashboard, Findings, Issues, Audit Report) with count badges. |
-| `src/features/scan/ScanPanel.jsx` | Selection, progress, errors, install guidance. |
+| `src/features/scan/ScanPanel.jsx` | Sidebar panel coordinating audit scope selection, ZIP archive upload dropzone, and progress tracking. |
+| `src/features/scan/components/RepoBranchSelector.jsx` | Repository/branch selection dropdowns, scanner engine, force fresh rescan toggle, and scan trigger. |
+| `src/features/scan/components/UploadDropzone.jsx` | Drag-and-drop ZIP archive upload dropzone with file size validation and project naming. |
+| `src/features/scan/components/ScanProgressTracker.jsx` | Real-time progress bar, wall-clock timer, and stage checklist. |
 | `src/features/scan/scanState.js` | Scan reducer and stale-event rules. |
 | `src/features/scan/useScanController.js` | Scan request/SSE lifecycle. |
 | `src/features/scan/useScanElapsedSeconds.js` | Wall-clock scan duration calculation and display tick. |
@@ -269,6 +297,7 @@
 | `.agents/skills/frontend-design/SKILL.md` | Developer assistant skill for distinctive UI design. |
 | `.agents/rules/git-commit-policy.md` | Developer workspace rule: Mandatory Step 0 Pre-Flight Reflex, branch protection, and explicit user approval prior to git commit and push. |
 | `.agents/rules/pr-merge-policy.md` | Developer workspace rule: Pull Requests must strictly target and merge into dev only. |
+| `.agents/rules/solid-principles-policy.md` | Developer workspace rule: Strict adherence to SOLID principles (Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, Dependency Inversion) across all future frontend and backend architectural additions. |
 | `pom.xml` | Java dependencies, versions, build plugin. |
 | `frontend/package.json` | Frontend dependencies and scripts. |
 | `frontend/vite.config.js` | plugins, backend proxy, production output. |
