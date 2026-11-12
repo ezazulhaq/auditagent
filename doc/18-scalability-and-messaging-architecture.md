@@ -337,3 +337,6 @@ When deploying via Docker Compose or PaaS orchestrators (like Dokploy) on Linux:
 3. **Phase 3: Worker integration:** Implement `ScanTaskConsumer` and `RemediationTaskConsumer`, adapt `ScanOrchestratorService` and `RemediationWorkflowService` to enqueue tasks and return `202 Accepted`.
 4. **Phase 4: Realtime and storage:** Implement `SupabaseStorageService` and `JobEventLogEntity`, connect React client to Supabase Realtime channel.
 5. **Phase 5: Verification and documentation:** Run end-to-end regression tests, verify worker crash recovery, and enforce `.githooks/pre-commit` compliance.
+
+> [!NOTE]
+> For the concrete engineering plan addressing RabbitMQ cross-pod event broadcasting, elimination of carrier-thread pinning synchronized locks, scan queue backpressure, and triage throttling, see [Concurrency and real-time stability plan](19-concurrency-and-realtime-stability-plan.md).
