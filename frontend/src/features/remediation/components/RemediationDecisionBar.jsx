@@ -25,6 +25,7 @@ export const RemediationDecisionBar = memo(function RemediationDecisionBar({
   finding,
   isAnalyzing,
   isPublishing,
+  isLoadingPreview = false,
   awaitingApproval,
   approvalPreview,
   activeRun,
@@ -55,11 +56,15 @@ export const RemediationDecisionBar = memo(function RemediationDecisionBar({
     <footer className={`shrink-0 border-t border-slate-700/30 p-4 sm:p-5 backdrop-blur ${theme === 'light' ? 'bg-[#081421]/60' : 'bg-[#081421]/96'}`}>
       {awaitingApproval && !approvalPreview && (
         <button
-          disabled={isAnalyzing}
+          disabled={isAnalyzing || isLoadingPreview}
           onClick={onLoadPreview}
           className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-cyan-400/35 bg-cyan-400/7 px-4 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/12 disabled:opacity-50"
         >
-          <FileDiff size={16} /> Review verified diff
+          {isLoadingPreview ? (
+            <><LoaderCircle size={16} className="animate-spin" /> Loading verified diff...</>
+          ) : (
+            <><FileDiff size={16} /> Review verified diff</>
+          )}
         </button>
       )}
 

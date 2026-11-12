@@ -10,6 +10,7 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
 
   const [isAnalyzingMap, setIsAnalyzingMap] = useState({});
   const [isPublishingMap, setIsPublishingMap] = useState({});
+  const [isLoadingPreviewMap, setIsLoadingPreviewMap] = useState({});
   const [graphStepsMap, setGraphStepsMap] = useState({});
   const [batchState, setBatchState] = useState(null);
 
@@ -52,7 +53,20 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
 
     setRuns(newRuns);
     setPublications(newPubs);
-    setPreviews({});
+    setPreviews(prev => {
+      const next = {};
+      Object.entries(prev).forEach(([vulnId, preview]) => {
+        const matchingRun = newRuns[vulnId];
+        // Preserve loaded verified diffs as long as the run exists and its runId has not changed
+        if (matchingRun && (!preview?.runId || preview.runId === matchingRun.runId)) {
+          next[vulnId] = preview;
+        }
+      });
+      if (data.previews) {
+        Object.assign(next, data.previews);
+      }
+      return next;
+    });
 
     if (isPoll) {
       // During background polling: never open a closed finding drawer!
@@ -416,6 +430,7 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
   const loadApprovalPreview = useCallback(async (vulnId) => {
     const runId = runs[vulnId]?.runId;
     if (!runId) return null;
+    setIsLoadingPreviewMap(prev => ({ ...prev, [vulnId]: true }));
     try {
       const preview = await api.approvalPreview(runId);
       setPreviews(prev => ({ ...prev, [vulnId]: preview }));
@@ -423,6 +438,8 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
     } catch (error) {
       toast?.error(error.message || 'Failed to load preview');
       return null;
+    } finally {
+      setIsLoadingPreviewMap(prev => ({ ...prev, [vulnId]: false }));
     }
   }, [runs, api, toast]);
 
@@ -568,13 +585,14 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
   const activeRunId = activeRun?.runId ?? null;
   const isAnalyzing = selectedFinding ? isAnalyzingMap[selectedFinding.id] : false;
   const isPublishing = selectedFinding ? isPublishingMap[selectedFinding.id] : false;
+  const isLoadingPreview = selectedFinding ? Boolean(isLoadingPreviewMap[selectedFinding.id]) : false;
   const awaitingApproval = activeRun?.status === 'AWAITING_APPROVAL';
-  const approvalPreview = selectedFinding ? previews[selectedFinding.id] : null;
+  const approvalPreview = selectedFinding ? (previews[selectedFinding.id] ?? null) : null;
   const publication = selectedFinding ? publications[selectedFinding.id] : null;
   const graphSteps = selectedFinding ? graphStepsMap[selectedFinding.id] : [];
 
   return {
-    selectedFinding, setSelectedFinding, isAnalyzing, isPublishing, awaitingApproval,
+    selectedFinding, setSelectedFinding, isAnalyzing, isPublishing, isLoadingPreview, awaitingApproval,
     approvalPreview, loadApprovalPreview: () => selectedFinding && loadApprovalPreview(selectedFinding.id),
     activeRun, activeRunId, publication, graphSteps, runs, isAnalyzingMap,
     hydrate, resetForScan, analyze, analyzeBatch, cancelBatch, batchState,

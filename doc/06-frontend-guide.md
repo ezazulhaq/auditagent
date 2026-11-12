@@ -221,7 +221,7 @@ Presents finding details, code diffs, AI timeline, and approval flow. Decomposed
 - `RemediationTimeline`: 5-step lifecycle progress tracker (Detected, Analyzing & fixing, Verified & awaiting approval, Pull request created, Fix merged).
 - `VulnerableCodeViewer`: Syntax-highlighted code snippet viewer with line indicators and clipboard copy.
 - `ApprovalPackageViewer`: Displays verified fix details, base commit, planned branch, changed files list, verification evidence, and `DiffViewer`.
-- `RemediationDecisionBar`: Sticky bottom action bar handling diff review, approve & create PR, rejection with reason, and retry publishing.
+- `RemediationDecisionBar`: Sticky bottom action bar handling diff review, approve & create PR, rejection with reason, and retry publishing. Features a non-blocking `isLoadingPreview` spinner while loading verified diffs, and retains loaded diff previews across background thread reconciliation polling intervals so approval buttons never flicker or revert to the review prompt prematurely.
 - Quick-copy finding ID: A dedicated copy button beside the finding ID in the drawer header enables one-click copying of the identifier to the clipboard.
 - Drawer width is adjustable via a draggable edge resizer on desktop.
 

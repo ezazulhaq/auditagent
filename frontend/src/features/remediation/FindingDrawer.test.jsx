@@ -43,6 +43,16 @@ describe('FindingDrawer structured approval', () => {
     expect(screen.queryByRole('button', { name: /Approve & create PR/i })).not.toBeInTheDocument();
   });
 
+  it('disables the review button and displays a loading spinner when isLoadingPreview is true', () => {
+    render(<FindingDrawer finding={finding} awaitingApproval isLoadingPreview
+      activeRun={{ runId: preview.runId, status: 'AWAITING_APPROVAL' }}
+      onClose={vi.fn()} onLoadPreview={vi.fn()} />);
+
+    const button = screen.getByRole('button', { name: /Loading verified diff/i });
+    expect(button).toBeInTheDocument();
+    expect(button).toBeDisabled();
+  });
+
   it('displays fixed and merged status when finding is FIXED even if publication prUrl is present', () => {
     const fixedFinding = { ...finding, status: 'FIXED' };
     const pub = { pullRequestNumber: 42, pullRequestUrl: 'https://github.com/org/repo/pull/42' };

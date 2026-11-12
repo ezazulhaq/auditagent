@@ -85,7 +85,7 @@ export function AuditProvider({ children }) {
 
   const {
     activeRun, runs, analyze, approvalPreview, awaitingApproval, decide, discard, hydrate, isAnalyzing,
-    isPublishing, loadApprovalPreview, publication, resetForScan, resume, retryPublish,
+    isPublishing, isLoadingPreview, loadApprovalPreview, publication, resetForScan, resume, retryPublish,
     selectedFinding, setSelectedFinding, graphSteps,
     analyzeBatch, cancelBatch, batchState, isAnalyzingMap
   } = remediation;
@@ -173,7 +173,7 @@ export function AuditProvider({ children }) {
     if (config.repositoryId && config.branch && remediation.refreshReport) {
       if (threadId && api.getThread) {
         api.getThread(threadId).then(threadData => {
-          if (threadData) hydrate(threadData);
+          if (threadData) hydrate(threadData, { isPoll: true });
         }).catch(() => {});
       }
       remediation.refreshReport(config.repositoryId, config.branch, true).catch(error => {
@@ -331,6 +331,7 @@ export function AuditProvider({ children }) {
     handleCloseFindingDrawer,
     isAnalyzing,
     isPublishing,
+    isLoadingPreview,
     awaitingApproval,
     approvalPreview,
     loadApprovalPreview,
@@ -380,6 +381,7 @@ export function AuditProvider({ children }) {
     handleCloseFindingDrawer,
     isAnalyzing,
     isPublishing,
+    isLoadingPreview,
     awaitingApproval,
     approvalPreview,
     loadApprovalPreview,
