@@ -27,6 +27,11 @@ public class RunPublicationController {
         return remediationWorkflow.approvalPreview(auth.requireUser(exchange), runId);
     }
 
+    @GetMapping("/vulnerability/{vulnId}")
+    public java.util.Map<String, Object> getActiveRunForVulnerability(@PathVariable String vulnId, ServerWebExchange exchange) {
+        return remediationWorkflow.findActiveRunForVulnerability(auth.requireUser(exchange), vulnId);
+    }
+
     @PostMapping(value = "/{runId}/decision", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<String> decision(@PathVariable String runId, @RequestBody RunDecisionRequest request,
             ServerWebExchange exchange) {

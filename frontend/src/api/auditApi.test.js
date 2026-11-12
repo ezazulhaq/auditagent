@@ -122,4 +122,21 @@ describe('audit API scan adapter', () => {
 
     window.removeEventListener('notification-added', eventListener);
   });
+
+  it('requests active run for vulnerability via GET /api/runs/vulnerability/{vulnId}', async () => {
+    const runData = { run: { runId: 'run-1', status: 'AWAITING_APPROVAL' }, publication: null };
+    const fetchImpl = vi.fn().mockResolvedValue(new Response(JSON.stringify(runData), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    }));
+    const api = createAuditApi({ fetchImpl });
+
+    const result = await api.getActiveRunForVulnerability('VULN-000042');
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      '/api/runs/vulnerability/VULN-000042',
+      expect.objectContaining({ credentials: 'include' }),
+    );
+    expect(result).toEqual(runData);
+  });
 });

@@ -265,6 +265,13 @@ public class RemediationDataService {
                 .stream().map(this::mapToAgentRunRecord).toList();
     }
 
+    public Optional<AgentRunRecord> findActiveRunForVulnerability(String vulnId) {
+        return agentRunRepository
+                .findFirstByVulnerabilityIdAndStatusInOrderByUpdatedAtDesc(vulnId, List.of(
+                        "ACTIVE", "INTERRUPTED", "AWAITING_APPROVAL", "PUBLISHING", "PUBLISH_FAILED", "PR_OPEN"))
+                .map(this::mapToAgentRunRecord);
+    }
+
     @Transactional
     public boolean appendAgentStep(String runId, int iteration, String action, String toolName, String arguments,
             String result, String resultStatus, long durationMs, String idempotencyKey) {

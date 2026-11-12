@@ -276,6 +276,10 @@ public class DatabaseService {
         return remediationDataService.findRecoverableRuns(threadId);
     }
 
+    public Optional<AgentRunRecord> findActiveRunForVulnerability(String vulnId) {
+        return remediationDataService.findActiveRunForVulnerability(vulnId);
+    }
+
     @Transactional
     public boolean appendAgentStep(String runId, int iteration, String action, String toolName, String arguments,
             String result, String resultStatus, long durationMs, String idempotencyKey) {

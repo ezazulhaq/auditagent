@@ -43,6 +43,16 @@ describe('FindingDrawer structured approval', () => {
     expect(screen.queryByRole('button', { name: /Approve & create PR/i })).not.toBeInTheDocument();
   });
 
+  it('disables the review button and displays a loading spinner when isLoadingPreview is true', () => {
+    render(<FindingDrawer finding={finding} awaitingApproval isLoadingPreview
+      activeRun={{ runId: preview.runId, status: 'AWAITING_APPROVAL' }}
+      onClose={vi.fn()} onLoadPreview={vi.fn()} />);
+
+    const button = screen.getByRole('button', { name: /Loading verified diff/i });
+    expect(button).toBeInTheDocument();
+    expect(button).toBeDisabled();
+  });
+
   it('displays fixed and merged status when finding is FIXED even if publication prUrl is present', () => {
     const fixedFinding = { ...finding, status: 'FIXED' };
     const pub = { pullRequestNumber: 42, pullRequestUrl: 'https://github.com/org/repo/pull/42' };
@@ -66,5 +76,26 @@ describe('FindingDrawer structured approval', () => {
 
     expect(writeText).toHaveBeenCalledWith(finding.id);
     expect(await screen.findByRole('button', { name: /Copied to clipboard/i })).toBeInTheDocument();
+  });
+
+  it('disables the review button and displays checking run spinner when isLoadingRun is true', () => {
+    render(<FindingDrawer finding={{ ...finding, status: 'AWAITING_APPROVAL' }} awaitingApproval isLoadingRun
+      onClose={vi.fn()} onLoadPreview={vi.fn()} />);
+
+    const button = screen.getByRole('button', { name: /Checking remediation run/i });
+    expect(button).toBeInTheDocument();
+    expect(button).toBeDisabled();
+  });
+
+  it('renders re-analyze fallback when finding is AWAITING_APPROVAL but no active run exists and not loading', () => {
+    const onAnalyze = vi.fn();
+    render(<FindingDrawer finding={{ ...finding, status: 'AWAITING_APPROVAL' }} awaitingApproval={false} isLoadingRun={false}
+      activeRun={null} onClose={vi.fn()} onAnalyze={onAnalyze} />);
+
+    expect(screen.getByText(/Previous remediation run is no longer available/i)).toBeInTheDocument();
+    const reAnalyzeBtn = screen.getByRole('button', { name: /Re-analyze in isolated workspace/i });
+    expect(reAnalyzeBtn).toBeInTheDocument();
+    fireEvent.click(reAnalyzeBtn);
+    expect(onAnalyze).toHaveBeenCalledOnce();
   });
 });

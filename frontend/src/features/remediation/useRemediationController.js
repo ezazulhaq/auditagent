@@ -10,11 +10,15 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
 
   const [isAnalyzingMap, setIsAnalyzingMap] = useState({});
   const [isPublishingMap, setIsPublishingMap] = useState({});
+  const [isLoadingPreviewMap, setIsLoadingPreviewMap] = useState({});
+  const [isLoadingRunMap, setIsLoadingRunMap] = useState({});
+  const [hasCheckedRunMap, setHasCheckedRunMap] = useState({});
   const [graphStepsMap, setGraphStepsMap] = useState({});
   const [batchState, setBatchState] = useState(null);
 
   const abortRefs = useRef({});
   const batchAbortRef = useRef(null);
+  const loadingRunVulnsRef = useRef(new Set());
 
   useEffect(() => () => {
     Object.values(abortRefs.current).forEach(c => c?.abort());
@@ -52,7 +56,20 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
 
     setRuns(newRuns);
     setPublications(newPubs);
-    setPreviews({});
+    setPreviews(prev => {
+      const next = {};
+      Object.entries(prev).forEach(([vulnId, preview]) => {
+        const matchingRun = newRuns[vulnId];
+        // Preserve loaded verified diffs as long as the run exists and its runId has not changed
+        if (matchingRun && (!preview?.runId || preview.runId === matchingRun.runId)) {
+          next[vulnId] = preview;
+        }
+      });
+      if (data.previews) {
+        Object.assign(next, data.previews);
+      }
+      return next;
+    });
 
     if (isPoll) {
       // During background polling: never open a closed finding drawer!
@@ -80,7 +97,8 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
   const resetForScan = useCallback(() => {
     setSelectedFinding(null);
     setRuns({}); setPublications({}); setPreviews({});
-    setIsAnalyzingMap({}); setIsPublishingMap({}); setGraphStepsMap({});
+    setIsAnalyzingMap({}); setIsPublishingMap({}); setIsLoadingPreviewMap({}); setIsLoadingRunMap({}); setHasCheckedRunMap({}); setGraphStepsMap({});
+    loadingRunVulnsRef.current.clear();
   }, []);
 
   const notify = useCallback((type, message) => {
@@ -174,6 +192,8 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
     if (!vulnId) { toast?.error?.('No vulnerability selected.'); return; }
 
     setSelectedFinding(finding);
+    setHasCheckedRunMap(prev => { const n = { ...prev }; delete n[vulnId]; return n; });
+    loadingRunVulnsRef.current.delete(vulnId);
     setIsAnalyzingMap(prev => ({ ...prev, [vulnId]: true }));
     setPreviews(prev => ({ ...prev, [vulnId]: null }));
     updateRun(vulnId, null);
@@ -297,7 +317,15 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
 
     setIsAnalyzingMap(prev => {
       const next = { ...prev };
-      vulnIds.forEach(id => { next[id] = true; });
+      vulnIds.forEach(id => {
+        next[id] = true;
+        loadingRunVulnsRef.current.delete(id);
+      });
+      return next;
+    });
+    setHasCheckedRunMap(prev => {
+      const next = { ...prev };
+      vulnIds.forEach(id => { delete next[id]; });
       return next;
     });
     setPreviews(prev => {
@@ -413,9 +441,67 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
     }
   }, [api, onMessage, toast, refreshReport, repositoryId, branch, updateRun, notify]);
 
+  // Fallback run association: when an active finding has a status suggesting remediation state
+  // (e.g. AWAITING_APPROVAL, PR_OPEN, PUBLISH_FAILED, ACTIVE) but no run is present in memory,
+  // query the backend for the active run and publication.
+  useEffect(() => {
+    if (!selectedFinding?.id || !api?.getActiveRunForVulnerability) return undefined;
+    const vulnId = selectedFinding.id;
+    if (runs[vulnId] || hasCheckedRunMap[vulnId] || loadingRunVulnsRef.current.has(vulnId)) return undefined;
+
+    if (['AWAITING_APPROVAL', 'PR_OPEN', 'PUBLISH_FAILED', 'PUBLISHING', 'ACTIVE'].includes(selectedFinding.status)) {
+      let isCurrent = true;
+      loadingRunVulnsRef.current.add(vulnId);
+      api.getActiveRunForVulnerability(vulnId)
+        .then(data => {
+          if (!isCurrent) return;
+          if (data?.run) {
+            const run = data.run;
+            if (!run.vulnerabilityId && run.vulnerability_id) run.vulnerabilityId = run.vulnerability_id;
+            if (!run.runId && run.run_id) run.runId = run.run_id;
+            if (!run.vulnerabilityId) run.vulnerabilityId = vulnId;
+            setRuns(prev => ({ ...prev, [vulnId]: run }));
+            if (data.publication) {
+              setPublications(prev => ({ ...prev, [vulnId]: data.publication }));
+            }
+          }
+        })
+        .catch(err => {
+          console.warn(`Failed to fetch active run for finding ${vulnId}:`, err);
+        })
+        .finally(() => {
+          loadingRunVulnsRef.current.delete(vulnId);
+          if (isCurrent) {
+            setHasCheckedRunMap(prev => ({ ...prev, [vulnId]: true }));
+            setIsLoadingRunMap(prev => ({ ...prev, [vulnId]: false }));
+          }
+        });
+
+      return () => { isCurrent = false; };
+    }
+    return undefined;
+  }, [selectedFinding?.id, selectedFinding?.status, runs, hasCheckedRunMap, api]);
+
   const loadApprovalPreview = useCallback(async (vulnId) => {
-    const runId = runs[vulnId]?.runId;
+    let runId = runs[vulnId]?.runId;
+    if (!runId && api?.getActiveRunForVulnerability) {
+      try {
+        const data = await api.getActiveRunForVulnerability(vulnId);
+        if (data?.run?.runId) {
+          runId = data.run.runId;
+          const run = data.run;
+          if (!run.vulnerabilityId && run.vulnerability_id) run.vulnerabilityId = run.vulnerability_id;
+          if (!run.runId && run.run_id) run.runId = run.run_id;
+          if (!run.vulnerabilityId) run.vulnerabilityId = vulnId;
+          setRuns(prev => ({ ...prev, [vulnId]: run }));
+          if (data.publication) setPublications(prev => ({ ...prev, [vulnId]: data.publication }));
+        }
+      } catch (err) {
+        console.warn('Failed fallback run lookup in loadApprovalPreview:', err);
+      }
+    }
     if (!runId) return null;
+    setIsLoadingPreviewMap(prev => ({ ...prev, [vulnId]: true }));
     try {
       const preview = await api.approvalPreview(runId);
       setPreviews(prev => ({ ...prev, [vulnId]: preview }));
@@ -423,6 +509,8 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
     } catch (error) {
       toast?.error(error.message || 'Failed to load preview');
       return null;
+    } finally {
+      setIsLoadingPreviewMap(prev => ({ ...prev, [vulnId]: false }));
     }
   }, [runs, api, toast]);
 
@@ -564,17 +652,30 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
   }, [runs, api, onMessage, updateRun]);
 
   // Provide derived values for the currently selected finding to keep App.jsx happy
-  const activeRun = selectedFinding ? runs[selectedFinding.id] : null;
+  const activeRun = selectedFinding ? (runs[selectedFinding.id] ?? null) : null;
   const activeRunId = activeRun?.runId ?? null;
   const isAnalyzing = selectedFinding ? isAnalyzingMap[selectedFinding.id] : false;
   const isPublishing = selectedFinding ? isPublishingMap[selectedFinding.id] : false;
-  const awaitingApproval = activeRun?.status === 'AWAITING_APPROVAL';
-  const approvalPreview = selectedFinding ? previews[selectedFinding.id] : null;
+  const isLoadingPreview = selectedFinding ? Boolean(isLoadingPreviewMap[selectedFinding.id]) : false;
+  const isCheckingRun = Boolean(
+    selectedFinding?.status === 'AWAITING_APPROVAL' &&
+    !runs[selectedFinding.id] &&
+    !hasCheckedRunMap[selectedFinding.id]
+  );
+  const isLoadingRun = selectedFinding
+    ? (Boolean(isLoadingRunMap[selectedFinding.id]) || isCheckingRun)
+    : false;
+  const awaitingApproval = Boolean(
+    activeRun?.status === 'AWAITING_APPROVAL' ||
+    (Boolean(activeRun?.runId) && selectedFinding?.status === 'AWAITING_APPROVAL') ||
+    (selectedFinding?.status === 'AWAITING_APPROVAL' && isLoadingRun)
+  );
+  const approvalPreview = selectedFinding ? (previews[selectedFinding.id] ?? null) : null;
   const publication = selectedFinding ? publications[selectedFinding.id] : null;
   const graphSteps = selectedFinding ? graphStepsMap[selectedFinding.id] : [];
 
   return {
-    selectedFinding, setSelectedFinding, isAnalyzing, isPublishing, awaitingApproval,
+    selectedFinding, setSelectedFinding, isAnalyzing, isPublishing, isLoadingPreview, isLoadingRun, awaitingApproval,
     approvalPreview, loadApprovalPreview: () => selectedFinding && loadApprovalPreview(selectedFinding.id),
     activeRun, activeRunId, publication, graphSteps, runs, isAnalyzingMap,
     hydrate, resetForScan, analyze, analyzeBatch, cancelBatch, batchState,

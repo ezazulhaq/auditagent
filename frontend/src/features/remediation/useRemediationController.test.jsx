@@ -208,4 +208,160 @@ describe('useRemediationController', () => {
     expect(result.current.selectedFinding.status).toBe('FIXED');
     expect(result.current.selectedFinding.title).toBe('Updated Title');
   });
+
+  it('preserves loaded approval preview across background polling hydrations when runId matches', async () => {
+    const preview = {
+      runId: 'run-1',
+      vulnerabilityId: 'VULN-000001',
+      diff: 'diff --git a/src/App.java',
+      approvalDigest: 'digest-1',
+    };
+    const api = {
+      approvalPreview: vi.fn().mockResolvedValue(preview),
+      getReport: vi.fn().mockResolvedValue({ findings: [], metadata: null }),
+    };
+
+    const { result } = renderHook(() => useRemediationController({
+      api, onMessage: vi.fn(), onReport: vi.fn(), onFindings: vi.fn()
+    }));
+
+    // 1. Initial hydration sets run in AWAITING_APPROVAL
+    act(() => {
+      result.current.hydrate({
+        activeRuns: [{ runId: 'run-1', status: 'AWAITING_APPROVAL', vulnerabilityId: 'VULN-000001' }],
+        activeFinding: { id: 'VULN-000001', status: 'AWAITING_APPROVAL' }
+      });
+    });
+
+    expect(result.current.awaitingApproval).toBe(true);
+    expect(result.current.approvalPreview).toBeNull();
+
+    // 2. User loads approval preview
+    await act(async () => {
+      await result.current.loadApprovalPreview();
+    });
+
+    expect(result.current.approvalPreview).toEqual(preview);
+
+    // 3. Background polling arrives with activeRuns (run-1 still present)
+    act(() => {
+      result.current.hydrate({
+        activeRuns: [{ runId: 'run-1', status: 'AWAITING_APPROVAL', vulnerabilityId: 'VULN-000001' }],
+        activeFinding: { id: 'VULN-000001', status: 'AWAITING_APPROVAL' }
+      }, { isPoll: true });
+    });
+
+    // Preview must be retained! Not wiped out to null!
+    expect(result.current.approvalPreview).toEqual(preview);
+
+    // 4. If a hydration arrives with a NEW runId, the stale preview is discarded
+    act(() => {
+      result.current.hydrate({
+        activeRuns: [{ runId: 'run-2', status: 'AWAITING_APPROVAL', vulnerabilityId: 'VULN-000001' }],
+        activeFinding: { id: 'VULN-000001', status: 'AWAITING_APPROVAL' }
+      }, { isPoll: true });
+    });
+
+    expect(result.current.approvalPreview).toBeNull();
+  });
+
+  it('manages isLoadingPreview state while loading approval preview', async () => {
+    let resolvePreview;
+    const previewPromise = new Promise(resolve => {
+      resolvePreview = resolve;
+    });
+    const api = {
+      approvalPreview: vi.fn(() => previewPromise),
+      getReport: vi.fn().mockResolvedValue({ findings: [], metadata: null }),
+    };
+
+    const { result } = renderHook(() => useRemediationController({
+      api, onMessage: vi.fn(), onReport: vi.fn(), onFindings: vi.fn()
+    }));
+
+    act(() => {
+      result.current.hydrate({
+        activeRuns: [{ runId: 'run-1', status: 'AWAITING_APPROVAL', vulnerabilityId: 'VULN-000001' }],
+        activeFinding: { id: 'VULN-000001', status: 'AWAITING_APPROVAL' }
+      });
+    });
+
+    expect(result.current.isLoadingPreview).toBe(false);
+
+    let loadPromise;
+    act(() => {
+      loadPromise = result.current.loadApprovalPreview();
+    });
+
+    expect(result.current.isLoadingPreview).toBe(true);
+
+    await act(async () => {
+      resolvePreview({ runId: 'run-1', vulnerabilityId: 'VULN-000001', diff: 'sample diff' });
+      await loadPromise;
+    });
+
+    expect(result.current.isLoadingPreview).toBe(false);
+    expect(result.current.approvalPreview).toEqual(expect.objectContaining({ diff: 'sample diff' }));
+  });
+
+  it('fetches active run via fallback when finding is AWAITING_APPROVAL and run is not yet in memory', async () => {
+    let resolveRun;
+    const runPromise = new Promise(resolve => { resolveRun = resolve; });
+    const api = {
+      getActiveRunForVulnerability: vi.fn(() => runPromise),
+      getReport: vi.fn().mockResolvedValue({ findings: [], metadata: null }),
+    };
+
+    const { result } = renderHook(() => useRemediationController({
+      api, onMessage: vi.fn(), onReport: vi.fn(), onFindings: vi.fn()
+    }));
+
+    act(() => {
+      result.current.setSelectedFinding({ id: 'VULN-000042', status: 'AWAITING_APPROVAL' });
+    });
+
+    expect(result.current.isLoadingRun).toBe(true);
+    expect(result.current.awaitingApproval).toBe(true);
+    expect(api.getActiveRunForVulnerability).toHaveBeenCalledWith('VULN-000042');
+
+    await act(async () => {
+      resolveRun({
+        run: { runId: 'run-recovered', status: 'AWAITING_APPROVAL', vulnerabilityId: 'VULN-000042' },
+        publication: { pullRequestNumber: null }
+      });
+      await runPromise;
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(result.current.isLoadingRun).toBe(false);
+    expect(result.current.awaitingApproval).toBe(true);
+    expect(result.current.activeRun.runId).toBe('run-recovered');
+    expect(result.current.runs['VULN-000042'].runId).toBe('run-recovered');
+  });
+
+  it('marks awaitingApproval false and isLoadingRun false when fallback run lookup yields no run', async () => {
+    const api = {
+      getActiveRunForVulnerability: vi.fn().mockResolvedValue({ run: null, publication: null }),
+      getReport: vi.fn().mockResolvedValue({ findings: [], metadata: null }),
+    };
+
+    const { result } = renderHook(() => useRemediationController({
+      api, onMessage: vi.fn(), onReport: vi.fn(), onFindings: vi.fn()
+    }));
+
+    act(() => {
+      result.current.setSelectedFinding({ id: 'VULN-000042', status: 'AWAITING_APPROVAL' });
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(api.getActiveRunForVulnerability).toHaveBeenCalledWith('VULN-000042');
+    expect(result.current.isLoadingRun).toBe(false);
+    expect(result.current.awaitingApproval).toBe(false);
+    expect(result.current.activeRun).toBeNull();
+  });
 });

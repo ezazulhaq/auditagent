@@ -22,6 +22,8 @@ export const FindingDrawer = memo(function FindingDrawer({
   finding,
   isAnalyzing,
   isPublishing,
+  isLoadingPreview = false,
+  isLoadingRun = false,
   awaitingApproval,
   approvalPreview,
   publication,
@@ -229,6 +231,8 @@ export const FindingDrawer = memo(function FindingDrawer({
           finding={finding}
           isAnalyzing={isAnalyzing}
           isPublishing={isPublishing}
+          isLoadingPreview={isLoadingPreview}
+          isLoadingRun={isLoadingRun}
           awaitingApproval={awaitingApproval}
           approvalPreview={approvalPreview}
           activeRun={activeRun}

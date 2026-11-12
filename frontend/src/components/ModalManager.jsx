@@ -38,7 +38,7 @@ export const ModalManager = memo(function ModalManager({ theme }) {
   } = modals;
 
   const {
-    selectedFinding, handleCloseFindingDrawer, isAnalyzing, isPublishing,
+    selectedFinding, handleCloseFindingDrawer, isAnalyzing, isPublishing, isLoadingPreview, isLoadingRun,
     awaitingApproval, approvalPreview, publication, activeRun, graphSteps,
     analyzeFinding, loadApprovalPreview, submitDecision, retry, isUploadScan,
     chat, submitChat, cancelStream, resume, threadId, discard,
@@ -63,6 +63,8 @@ export const ModalManager = memo(function ModalManager({ theme }) {
         finding={selectedFinding}
         isAnalyzing={isAnalyzing}
         isPublishing={isPublishing}
+        isLoadingPreview={isLoadingPreview}
+        isLoadingRun={isLoadingRun}
         awaitingApproval={awaitingApproval}
         approvalPreview={approvalPreview}
         publication={publication}
