@@ -18,6 +18,13 @@ public interface AgentRunRepository extends JpaRepository<AgentRun, String> {
         return findByThreadIdAndStatusInOrderByUpdatedAtDesc(threadId, statuses).stream().findFirst();
     }
 
+    @Query("SELECT r FROM AgentRun r WHERE r.vulnerability.id = :vulnId AND r.status IN :statuses ORDER BY r.updatedAt DESC")
+    List<AgentRun> findByVulnerabilityIdAndStatusInOrderByUpdatedAtDesc(@Param("vulnId") String vulnId, @Param("statuses") Collection<String> statuses);
+
+    default Optional<AgentRun> findFirstByVulnerabilityIdAndStatusInOrderByUpdatedAtDesc(String vulnId, Collection<String> statuses) {
+        return findByVulnerabilityIdAndStatusInOrderByUpdatedAtDesc(vulnId, statuses).stream().findFirst();
+    }
+
     @Query("SELECT r FROM AgentRun r WHERE (r.thread.threadId = :threadId OR r.repoPath = :repoPath) AND r.status IN :statuses")
     List<AgentRun> findActiveRunsByThreadOrRepo(@Param("threadId") String threadId, @Param("repoPath") String repoPath,
             @Param("statuses") Collection<String> statuses);

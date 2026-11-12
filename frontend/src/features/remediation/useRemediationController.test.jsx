@@ -303,4 +303,65 @@ describe('useRemediationController', () => {
     expect(result.current.isLoadingPreview).toBe(false);
     expect(result.current.approvalPreview).toEqual(expect.objectContaining({ diff: 'sample diff' }));
   });
+
+  it('fetches active run via fallback when finding is AWAITING_APPROVAL and run is not yet in memory', async () => {
+    let resolveRun;
+    const runPromise = new Promise(resolve => { resolveRun = resolve; });
+    const api = {
+      getActiveRunForVulnerability: vi.fn(() => runPromise),
+      getReport: vi.fn().mockResolvedValue({ findings: [], metadata: null }),
+    };
+
+    const { result } = renderHook(() => useRemediationController({
+      api, onMessage: vi.fn(), onReport: vi.fn(), onFindings: vi.fn()
+    }));
+
+    act(() => {
+      result.current.setSelectedFinding({ id: 'VULN-000042', status: 'AWAITING_APPROVAL' });
+    });
+
+    expect(result.current.isLoadingRun).toBe(true);
+    expect(result.current.awaitingApproval).toBe(true);
+    expect(api.getActiveRunForVulnerability).toHaveBeenCalledWith('VULN-000042');
+
+    await act(async () => {
+      resolveRun({
+        run: { runId: 'run-recovered', status: 'AWAITING_APPROVAL', vulnerabilityId: 'VULN-000042' },
+        publication: { pullRequestNumber: null }
+      });
+      await runPromise;
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(result.current.isLoadingRun).toBe(false);
+    expect(result.current.awaitingApproval).toBe(true);
+    expect(result.current.activeRun.runId).toBe('run-recovered');
+    expect(result.current.runs['VULN-000042'].runId).toBe('run-recovered');
+  });
+
+  it('marks awaitingApproval false and isLoadingRun false when fallback run lookup yields no run', async () => {
+    const api = {
+      getActiveRunForVulnerability: vi.fn().mockResolvedValue({ run: null, publication: null }),
+      getReport: vi.fn().mockResolvedValue({ findings: [], metadata: null }),
+    };
+
+    const { result } = renderHook(() => useRemediationController({
+      api, onMessage: vi.fn(), onReport: vi.fn(), onFindings: vi.fn()
+    }));
+
+    act(() => {
+      result.current.setSelectedFinding({ id: 'VULN-000042', status: 'AWAITING_APPROVAL' });
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(api.getActiveRunForVulnerability).toHaveBeenCalledWith('VULN-000042');
+    expect(result.current.isLoadingRun).toBe(false);
+    expect(result.current.awaitingApproval).toBe(false);
+    expect(result.current.activeRun).toBeNull();
+  });
 });

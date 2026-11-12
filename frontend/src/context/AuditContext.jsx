@@ -85,7 +85,7 @@ export function AuditProvider({ children }) {
 
   const {
     activeRun, runs, analyze, approvalPreview, awaitingApproval, decide, discard, hydrate, isAnalyzing,
-    isPublishing, isLoadingPreview, loadApprovalPreview, publication, resetForScan, resume, retryPublish,
+    isPublishing, isLoadingPreview, isLoadingRun, loadApprovalPreview, publication, resetForScan, resume, retryPublish,
     selectedFinding, setSelectedFinding, graphSteps,
     analyzeBatch, cancelBatch, batchState, isAnalyzingMap
   } = remediation;
@@ -332,6 +332,7 @@ export function AuditProvider({ children }) {
     isAnalyzing,
     isPublishing,
     isLoadingPreview,
+    isLoadingRun,
     awaitingApproval,
     approvalPreview,
     loadApprovalPreview,
@@ -382,6 +383,7 @@ export function AuditProvider({ children }) {
     isAnalyzing,
     isPublishing,
     isLoadingPreview,
+    isLoadingRun,
     awaitingApproval,
     approvalPreview,
     loadApprovalPreview,

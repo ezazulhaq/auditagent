@@ -58,7 +58,7 @@
 | `MemoryController.java` | Thread restore/forget and run resume/discard. |
 | `NotificationController.java` | User notification retrieval, creation, and mark-read endpoints. |
 | `ProjectUploadController.java` | Multipart upload scan, upload report restore, and export APIs. |
-| `RunPublicationController.java` | Preview, structured decision, publication retry. |
+| `RunPublicationController.java` | Preview, structured decision, publication retry, active run lookup by vulnerability. |
 | `UserLlmConfigController.java` | User Bring-Your-Own-Key LLM configuration endpoints (fetch, save, live test). |
 
 ### `dto`
@@ -337,7 +337,7 @@
 
 ### Backend
 
-`AuditagentApplicationTests`, `ApiSecurityFilterTest`, `AuditControllerReportExportTest`, `GitHubWebhookControllerTest`, `GitHubRepositoryControllerTest`, `IssueLifecycleServiceTest`, `AgentToolServiceSecurityTest`, `ConversationMemoryServiceTest`, `DatabaseMemoryServiceTest`, `FindingTriageServiceTest`, `GitHubAuthServiceTest`, `GitHubProviderIntegrationTest`, `JevClientTest`, `LlmErrorClassifierTest`, `LlmServiceAgentLoopTest`, `ManagedProcessRunnerTest`, `ProjectUploadControllerTest`, `ProjectUploadServiceTest`, `RabbitMqTaskQueueTest`, `RemediationWorkflowPreparationTest`, `ScanOrchestratorReportExportTest`, `ScanOrchestratorServiceTest`, `ReporterServiceTest`, `ScannerServiceTest`, `SupabaseStorageServiceTest`, `SupervisorNodeTest`, `TokenCipherTest`, `UserLlmClientFactoryTest`, `UserLlmConfigControllerTest`, `UserLlmConfigServiceTest`, and `ZipArchiveExtractorTest`.
+`AuditagentApplicationTests`, `ApiSecurityFilterTest`, `AuditControllerReportExportTest`, `GitHubWebhookControllerTest`, `GitHubRepositoryControllerTest`, `IssueLifecycleServiceTest`, `AgentToolServiceSecurityTest`, `ConversationMemoryServiceTest`, `DatabaseMemoryServiceTest`, `FindingTriageServiceTest`, `GitHubAuthServiceTest`, `GitHubProviderIntegrationTest`, `JevClientTest`, `LlmErrorClassifierTest`, `LlmServiceAgentLoopTest`, `ManagedProcessRunnerTest`, `ProjectUploadControllerTest`, `ProjectUploadServiceTest`, `RabbitMqTaskQueueTest`, `RemediationWorkflowPreparationTest`, `RunPublicationControllerTest`, `ScanOrchestratorReportExportTest`, `ScanOrchestratorServiceTest`, `ReporterServiceTest`, `ScannerServiceTest`, `SupabaseStorageServiceTest`, `SupervisorNodeTest`, `TokenCipherTest`, `UserLlmClientFactoryTest`, `UserLlmConfigControllerTest`, `UserLlmConfigServiceTest`, and `ZipArchiveExtractorTest`.
 
 ### Frontend
 

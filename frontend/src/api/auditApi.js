@@ -243,6 +243,12 @@ export function createAuditApi({ baseUrl = API_BASE_URL, fetchImpl = fetch } = {
       return response.json();
     },
 
+    async getActiveRunForVulnerability(vulnId, signal) {
+      const response = await request(`/runs/vulnerability/${encodeURIComponent(vulnId)}`, { signal });
+      if (!response.ok) throw await errorFor(response);
+      return response.json();
+    },
+
     decide(runId, payload, onEvent, signal) {
       return stream(`/runs/${encodeURIComponent(runId)}/decision`, {
         method: 'POST', signal, headers: { 'Content-Type': 'application/json' },

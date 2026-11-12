@@ -641,6 +641,39 @@ public class RemediationWorkflowService {
         return buildApprovalPreview(user, runId, false);
     }
 
+    public Map<String, Object> findActiveRunForVulnerability(AuthenticatedUser user, String vulnId) {
+        if (vulnId == null || vulnId.isBlank()) {
+            return Map.of();
+        }
+        Optional<AgentRunRecord> runOpt = database.findActiveRunForVulnerability(vulnId);
+        if (runOpt.isEmpty()) {
+            return Map.of();
+        }
+        AgentRunRecord run = runOpt.get();
+        Optional<RunPublicationRecord> pubOpt = database.getRunPublication(run.runId());
+        if (pubOpt.isPresent()) {
+            RunPublicationRecord pub = pubOpt.get();
+            if (user != null && !"github-bot".equals(user.userId())) {
+                repositoryAccess.requireRepositoryAccess(user, pub.repositoryId());
+            }
+        } else if (run.repoPath() != null && run.repoPath().startsWith("github:")) {
+            String[] parts = run.repoPath().split(":");
+            if (parts.length >= 2 && !"general".equalsIgnoreCase(parts[1])) {
+                try {
+                    long repoId = Long.parseLong(parts[1]);
+                    if (user != null && !"github-bot".equals(user.userId())) {
+                        repositoryAccess.requireRepositoryAccess(user, repoId);
+                    }
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("run", run);
+        result.put("publication", pubOpt.orElse(null));
+        return result;
+    }
+
     public Flux<String> decide(AuthenticatedUser user, String runId, String vulnerabilityId,
             String decision, String suppliedDigest, String reason) {
         Sinks.Many<String> sink = Sinks.many().unicast().onBackpressureBuffer();

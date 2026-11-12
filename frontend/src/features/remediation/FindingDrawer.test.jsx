@@ -77,4 +77,25 @@ describe('FindingDrawer structured approval', () => {
     expect(writeText).toHaveBeenCalledWith(finding.id);
     expect(await screen.findByRole('button', { name: /Copied to clipboard/i })).toBeInTheDocument();
   });
+
+  it('disables the review button and displays checking run spinner when isLoadingRun is true', () => {
+    render(<FindingDrawer finding={{ ...finding, status: 'AWAITING_APPROVAL' }} awaitingApproval isLoadingRun
+      onClose={vi.fn()} onLoadPreview={vi.fn()} />);
+
+    const button = screen.getByRole('button', { name: /Checking remediation run/i });
+    expect(button).toBeInTheDocument();
+    expect(button).toBeDisabled();
+  });
+
+  it('renders re-analyze fallback when finding is AWAITING_APPROVAL but no active run exists and not loading', () => {
+    const onAnalyze = vi.fn();
+    render(<FindingDrawer finding={{ ...finding, status: 'AWAITING_APPROVAL' }} awaitingApproval={false} isLoadingRun={false}
+      activeRun={null} onClose={vi.fn()} onAnalyze={onAnalyze} />);
+
+    expect(screen.getByText(/Previous remediation run is no longer available/i)).toBeInTheDocument();
+    const reAnalyzeBtn = screen.getByRole('button', { name: /Re-analyze in isolated workspace/i });
+    expect(reAnalyzeBtn).toBeInTheDocument();
+    fireEvent.click(reAnalyzeBtn);
+    expect(onAnalyze).toHaveBeenCalledOnce();
+  });
 });

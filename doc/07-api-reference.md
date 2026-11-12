@@ -484,6 +484,42 @@ Events:
 - `batch_error`: `{ "type": "batch_error", "vulnId": "VULN-DEF456", "error": "...", "completed": 1, "failed": 1, "total": 2 }`
 - `batch_complete`: `{ "type": "batch_complete", "total": 2, "completed": 1, "failed": 1, "message": "Batch analysis finished." }`
 
+### `GET /api/runs/vulnerability/{vulnId}`
+
+Returns the latest active or recoverable `AgentRun` and its associated `RunPublication` for the requested vulnerability across threads (e.g. after conversation reload, cross-thread switching, or finding triage).
+
+Response:
+
+```json
+{
+  "run": {
+    "runId": "uuid",
+    "threadId": "thread-uuid",
+    "vulnerabilityId": "VULN-ABC123",
+    "findingFingerprint": "...",
+    "repoPath": "/workspace/...",
+    "phase": "AWAITING_APPROVAL",
+    "status": "AWAITING_APPROVAL",
+    "iteration": 1,
+    "patchApplied": true,
+    "compilePassed": true,
+    "rescanPassed": true,
+    "testsPassed": true,
+    "updatedAt": "2026-04-12T10:30:00"
+  },
+  "publication": {
+    "runId": "uuid",
+    "repositoryId": 42,
+    "baseBranch": "main",
+    "branchName": "auditagent/fix-vuln-abc123-12345678",
+    "pullRequestNumber": null,
+    "pullRequestUrl": null
+  }
+}
+```
+
+If no active run exists for the vulnerability, returns `{}` or empty run mapping.
+
 ### `GET /api/runs/{runId}/approval-preview` (Legacy/Debugging)
 
 Response:

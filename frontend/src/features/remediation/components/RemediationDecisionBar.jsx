@@ -26,6 +26,7 @@ export const RemediationDecisionBar = memo(function RemediationDecisionBar({
   isAnalyzing,
   isPublishing,
   isLoadingPreview = false,
+  isLoadingRun = false,
   awaitingApproval,
   approvalPreview,
   activeRun,
@@ -56,11 +57,13 @@ export const RemediationDecisionBar = memo(function RemediationDecisionBar({
     <footer className={`shrink-0 border-t border-slate-700/30 p-4 sm:p-5 backdrop-blur ${theme === 'light' ? 'bg-[#081421]/60' : 'bg-[#081421]/96'}`}>
       {awaitingApproval && !approvalPreview && (
         <button
-          disabled={isAnalyzing || isLoadingPreview}
+          disabled={isAnalyzing || isLoadingPreview || isLoadingRun}
           onClick={onLoadPreview}
           className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-cyan-400/35 bg-cyan-400/7 px-4 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/12 disabled:opacity-50"
         >
-          {isLoadingPreview ? (
+          {isLoadingRun ? (
+            <><LoaderCircle size={16} className="animate-spin" /> Checking remediation run...</>
+          ) : isLoadingPreview ? (
             <><LoaderCircle size={16} className="animate-spin" /> Loading verified diff...</>
           ) : (
             <><FileDiff size={16} /> Review verified diff</>
@@ -159,21 +162,43 @@ export const RemediationDecisionBar = memo(function RemediationDecisionBar({
         </div>
       )}
 
-      {!isUploadScan && !awaitingApproval && !publishFailed && !openPr && (finding.status === 'DETECTED' || finding.status === 'PATCH_FAILED' || activeRun?.status === 'FAILED') && (
-        <button
-          disabled={isAnalyzing}
-          onClick={onAnalyze}
-          className="primary-action flex w-full items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold"
-        >
-          {isAnalyzing ? (
-            <><LoaderCircle size={16} className="animate-spin" /> Analyzing</>
-          ) : (
-            <><ShieldCheck size={16} /> {finding.status === 'PATCH_FAILED' || activeRun?.status === 'FAILED' ? 'Retry analysis in isolated workspace' : 'Analyze in isolated workspace'}</>
+      {!isUploadScan && !awaitingApproval && !publishFailed && !openPr && (
+        finding.status === 'DETECTED' ||
+        finding.status === 'PATCH_FAILED' ||
+        activeRun?.status === 'FAILED' ||
+        (finding.status === 'AWAITING_APPROVAL' && !activeRun && !isLoadingRun)
+      ) && (
+        <div className="flex flex-col gap-2">
+          {finding.status === 'AWAITING_APPROVAL' && !activeRun && !isLoadingRun && (
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-center text-xs text-amber-200">
+              Previous remediation run is no longer available. Re-run analysis to generate and verify a new patch.
+            </div>
           )}
-        </button>
+          <button
+            disabled={isAnalyzing}
+            onClick={onAnalyze}
+            className="primary-action flex w-full items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold"
+          >
+            {isAnalyzing ? (
+              <><LoaderCircle size={16} className="animate-spin" /> Analyzing</>
+            ) : (
+              <><ShieldCheck size={16} /> {
+                finding.status === 'AWAITING_APPROVAL'
+                  ? 'Re-analyze in isolated workspace'
+                  : (finding.status === 'PATCH_FAILED' || activeRun?.status === 'FAILED')
+                    ? 'Retry analysis in isolated workspace'
+                    : 'Analyze in isolated workspace'
+              }</>
+            )}
+          </button>
+        </div>
       )}
 
-      {!awaitingApproval && !publishFailed && !openPr && finding.status !== 'DETECTED' && finding.status !== 'PATCH_FAILED' && activeRun?.status !== 'FAILED' && (
+      {!awaitingApproval && !publishFailed && !openPr &&
+        finding.status !== 'DETECTED' &&
+        finding.status !== 'PATCH_FAILED' &&
+        activeRun?.status !== 'FAILED' &&
+        !(finding.status === 'AWAITING_APPROVAL' && !activeRun && !isLoadingRun) && (
         <div className={`rounded-xl border p-3.5 text-center text-xs font-semibold ${statusTone(finding.status)}`}>
           {finding.status === 'FIXED' ? (
             <span className="inline-flex items-center gap-2">
