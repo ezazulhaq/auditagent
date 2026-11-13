@@ -36,7 +36,7 @@ The implementation in `src/`, `frontend/src/`, `rules/`, and `.auditagent/skills
 16. [Skill catalog](16-skill-catalog.md) — runtime remediation skills, developer workspace skills, and playbook format.
 17. [LangGraph4j orchestration](17-langgraph4j-orchestration.md) — dedicated state machine orchestration guide for agentic loops and workflows.
 18. [Scalability and messaging architecture](18-scalability-and-messaging-architecture.md) — architectural roadmap for horizontal scaling, task queuing via RabbitMQ, and unified persistence with self-hosted Supabase.
-19. [Concurrency and real-time stability plan](19-concurrency-and-realtime-stability-plan.md) — architectural implementation plan for RabbitMQ cross-pod event broadcasting, striped ReentrantLock concurrency, scan queue backpressure, semaphore-bounded triage, and LangGraph4j checkpoint isolation.
+19. [Scalability, stability, and maintainability roadmap (Phases 1–6)](19-concurrency-and-realtime-stability-plan.md) — comprehensive multi-phase architectural roadmap covering Phase 1 concurrency/real-time stability (implemented in v2.7.0), Phase 2 database & storage hardening, Phase 3 AI framework consolidation, Phase 4 multi-agent supervisor hardening, Phase 5 workspace & sandbox decoupling, and Phase 6 frontend state unification.
 
 ## Documentation conventions
 
