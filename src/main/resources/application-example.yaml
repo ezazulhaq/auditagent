@@ -82,7 +82,7 @@ auditagent:
   database:
     path: ${AUDITAGENT_DB_PATH:audit_reports.duckdb}
   scanner:
-    queue-priority: ${AUDITAGENT_SCAN_PRIORITY:5}
+    queue-priority: ${AUDITAGENT_SCANNER_QUEUE_PRIORITY:5}
     timeout-seconds: ${AUDITAGENT_SCANNER_TIMEOUT_SECONDS:900}
     heartbeat-seconds: ${AUDITAGENT_SCANNER_HEARTBEAT_SECONDS:15}
     max-target-bytes: ${AUDITAGENT_SCANNER_MAX_TARGET_BYTES:500000}
