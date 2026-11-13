@@ -62,7 +62,7 @@ public class AuditController {
         if (request.getRepositoryId() == null || request.getBranch() == null || request.getBranch().isBlank()) {
             throw new IllegalArgumentException("repositoryId and branch are required; local paths are disabled");
         }
-        Flux<String> stream = scanOrchestrator.scan(auth.requireUser(exchange), request.getThreadId(),
+        Flux<String> stream = scanOrchestrator.enqueueAndStreamScan(auth.requireUser(exchange), request.getThreadId(),
                 request.getRepositoryId(), request.getBranch(), request.getScannerName(), request.isForceRescan());
         return ResponseEntity.ok().header(HttpHeaders.CONTENT_TYPE, MediaType.TEXT_EVENT_STREAM_VALUE).body(stream);
     }

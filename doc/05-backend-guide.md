@@ -21,7 +21,7 @@
 
 ### `AuditController`
 
-- `/scan`: requires repository ID and nonblank branch; local paths are explicitly disabled.
+- `/scan`: requires repository ID and nonblank branch; local paths are explicitly disabled. Coordinates scanning via `ScanOrchestratorService.enqueueAndStreamScan`, checking cache snapshots and dispatching background tasks to `auditagent.scan.queue` with real-time SSE progress streamed over RabbitMQ fanout `auditagent.events`.
 - `/analyze`: requires repository ID and branch and starts managed remediation.
 - `/reports`: restores the latest repository/branch report.
 - `/skills`: lists dynamically discovered local skills.
@@ -116,7 +116,15 @@ Centralizes access control logic. It verifies whether an authenticated user has 
 
 ### `ScanOrchestratorService`
 
-Coordinates the repository scanning workflow. It handles cache checks, scan execution via `ScannerService`, processing results, generating reports via `ReporterService`, and storing snapshots.
+Coordinates the repository scanning workflow via `enqueueAndStreamScan`. It handles commit cache checks, background task dispatching to RabbitMQ (`auditagent.scan.queue`), scan execution via `ScannerService`, finding triage via `FindingTriageService`, generating reports via `ReporterService`, persisting snapshots, and streaming progress and complete events over `EventBroadcastService`. The terminal `complete` event packages the full report contract (`html_report`, `findings`, `metadata`, `report_available`, `repositoryId`) so both cached hits and background scan executions hydrate the frontend findings view and HTML report immediately.
+
+### `FindingTriageService`
+
+Provides bounded finding triage against LLM endpoints during scan execution. Enforces configurable `Semaphore` concurrency (`auditagent.jev.triage.concurrency: 8`) and exponential backoff retry on HTTP 429 rate limit errors (500ms, 1500ms, 3500ms + jitter). When retries are exhausted, findings are gracefully retained as `UNVERIFIED` without failing the scan.
+
+### `EventBroadcastService`
+
+Bridges lifecycle events across pods using the RabbitMQ `auditagent.events` Fanout exchange. Emits enriched payloads containing `jobId`, `runId`, and `type`, persists events in PostgreSQL `job_event_log`, and matches incoming events to local ephemeral queue listeners (`EventIngressListener`) on web pods, streaming directly into Reactor SSE Flux sinks.
 
 ### `ProjectUploadService` and `ZipArchiveExtractor`
 

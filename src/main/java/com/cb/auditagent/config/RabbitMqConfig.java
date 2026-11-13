@@ -25,6 +25,7 @@ public class RabbitMqConfig {
     public static final String REMEDIATION_QUEUE = "auditagent.remediation.queue";
     public static final String DLX_EXCHANGE = "auditagent.dlx";
     public static final String DLQ_NAME = "auditagent.dlq";
+    public static final String EVENTS_EXCHANGE = "auditagent.events";
 
     public static final String ROUTING_KEY_SCAN = "task.scan";
     public static final String ROUTING_KEY_REMEDIATION = "task.remediation";
@@ -37,6 +38,21 @@ public class RabbitMqConfig {
     @Bean
     public FanoutExchange deadLetterExchange() {
         return new FanoutExchange(DLX_EXCHANGE, true, false);
+    }
+
+    @Bean
+    public FanoutExchange eventsExchange() {
+        return new FanoutExchange(EVENTS_EXCHANGE, true, false);
+    }
+
+    @Bean
+    public Queue eventIngressQueue() {
+        return new AnonymousQueue();
+    }
+
+    @Bean
+    public Binding eventIngressBinding(Queue eventIngressQueue, FanoutExchange eventsExchange) {
+        return BindingBuilder.bind(eventIngressQueue).to(eventsExchange);
     }
 
     @Bean

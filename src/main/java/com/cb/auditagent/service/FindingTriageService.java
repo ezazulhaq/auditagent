@@ -30,6 +30,7 @@ public class FindingTriageService {
     private final MeterRegistry meterRegistry;
     private final LlmService llmService;
     private final UserLlmClientFactory clientFactory;
+    private final java.util.concurrent.Semaphore triageSemaphore;
 
     @Autowired
     public FindingTriageService(
@@ -43,6 +44,10 @@ public class FindingTriageService {
         this.meterRegistry = meterRegistry;
         this.llmService = llmService;
         this.clientFactory = clientFactory;
+        int concurrency = (jevProperties != null && jevProperties.getTriage() != null)
+                ? jevProperties.getTriage().getConcurrency()
+                : 8;
+        this.triageSemaphore = new java.util.concurrent.Semaphore(Math.max(1, Math.min(32, concurrency)));
     }
 
     public FindingTriageService(
@@ -51,6 +56,10 @@ public class FindingTriageService {
             MeterRegistry meterRegistry,
             LlmService llmService) {
         this(jevClient, jevProperties, meterRegistry, llmService, null);
+    }
+
+    public java.util.concurrent.Semaphore getTriageSemaphore() {
+        return triageSemaphore;
     }
 
     public List<Vulnerability> triageFindings(List<Vulnerability> findings, String workspacePath) {
@@ -106,6 +115,14 @@ public class FindingTriageService {
 
     public void triageSingleFinding(Vulnerability v, String userId) {
         try {
+            triageSemaphore.acquire();
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            logger.warn("Finding triage interrupted for finding {}", v.getId());
+            return;
+        }
+
+        try {
             StringBuilder prompt = new StringBuilder();
             prompt.append("Rule ID: ").append(v.getRuleId() != null ? v.getRuleId() : "N/A").append("\n");
             prompt.append("Vulnerability Type: ").append(v.getVulnType() != null ? v.getVulnType() : "Security Finding").append("\n");
@@ -148,41 +165,87 @@ public class FindingTriageService {
                     List.of(actionabilityQuestion)
             );
 
-            JevResponse response = (apiKey != null || baseUrl != null)
-                    ? jevClient.execute(request, "finding_triage", apiKey, baseUrl)
-                    : jevClient.execute(request, "finding_triage");
-            String result = response.getAnswerValue("actionability");
-            Double confidence = response.getAnswerConfidence("actionability");
-            if (confidence == null) {
-                confidence = 0.5;
-            }
+            int maxRetries = (jevProperties != null && jevProperties.getTriage() != null)
+                    ? jevProperties.getTriage().getMaxRetries()
+                    : 3;
+            long initialBackoff = (jevProperties != null && jevProperties.getTriage() != null)
+                    ? jevProperties.getTriage().getBackoffInitialMs()
+                    : 500L;
+            long[] backoffs = {initialBackoff, initialBackoff * 3, initialBackoff * 7};
 
-            if (response.getUsage() != null && response.getUsage().getTotalTokens() != null && llmService != null) {
-                llmService.recordTokens(jevProperties.getModelName(), response.getUsage().getTotalTokens(), null, null, v.getId());
-            }
+            for (int attempt = 0; attempt <= maxRetries; attempt++) {
+                try {
+                    JevResponse response = (apiKey != null || baseUrl != null)
+                            ? jevClient.execute(request, "finding_triage", apiKey, baseUrl)
+                            : jevClient.execute(request, "finding_triage");
+                    String result = response.getAnswerValue("actionability");
+                    Double confidence = response.getAnswerConfidence("actionability");
+                    if (confidence == null) {
+                        confidence = 0.5;
+                    }
 
-            double requiredConfidence = (v.getSeverity() == Severity.HIGH)
-                    ? jevProperties.getTriage().getCriticalConfidenceThreshold()
-                    : jevProperties.getTriage().getConfidenceThreshold();
+                    if (response.getUsage() != null && response.getUsage().getTotalTokens() != null && llmService != null) {
+                        llmService.recordTokens(jevProperties.getModelName(), response.getUsage().getTotalTokens(), null, null, v.getId());
+                    }
 
-            if ("ACTIONABLE_VULNERABILITY".equalsIgnoreCase(result)) {
-                v.setTriageActionable(true);
-                v.setTriageClassification("ACTIONABLE_VULNERABILITY");
-                v.setTriageConfidence(confidence);
-            } else if (("FALSE_POSITIVE".equalsIgnoreCase(result) || "TEST_MOCK_FIXTURE".equalsIgnoreCase(result)) && confidence >= requiredConfidence) {
-                v.setTriageActionable(false);
-                v.setTriageClassification(result);
-                v.setTriageConfidence(confidence);
-            } else {
-                v.setTriageActionable(true);
-                v.setTriageClassification("ACTIONABLE_LOW_CONFIDENCE");
-                v.setTriageConfidence(confidence);
+                    double requiredConfidence = (v.getSeverity() == Severity.HIGH)
+                            ? jevProperties.getTriage().getCriticalConfidenceThreshold()
+                            : jevProperties.getTriage().getConfidenceThreshold();
+
+                    if ("ACTIONABLE_VULNERABILITY".equalsIgnoreCase(result)) {
+                        v.setTriageActionable(true);
+                        v.setTriageClassification("ACTIONABLE_VULNERABILITY");
+                        v.setTriageConfidence(confidence);
+                    } else if (("FALSE_POSITIVE".equalsIgnoreCase(result) || "TEST_MOCK_FIXTURE".equalsIgnoreCase(result)) && confidence >= requiredConfidence) {
+                        v.setTriageActionable(false);
+                        v.setTriageClassification(result);
+                        v.setTriageConfidence(confidence);
+                    } else {
+                        v.setTriageActionable(true);
+                        v.setTriageClassification("ACTIONABLE_LOW_CONFIDENCE");
+                        v.setTriageConfidence(confidence);
+                    }
+                    return;
+                } catch (Exception e) {
+                    if (isRateLimitError(e) && attempt < maxRetries) {
+                        long delay = (attempt < backoffs.length) ? backoffs[attempt] : 3500L;
+                        delay += java.util.concurrent.ThreadLocalRandom.current().nextInt(0, 250);
+                        logger.warn("HTTP 429 Rate limited during triage of finding {} (attempt {}/{}), backing off {}ms: {}",
+                                v.getId(), attempt + 1, maxRetries, delay, e.getMessage());
+                        try {
+                            Thread.sleep(delay);
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            break;
+                        }
+                        continue;
+                    }
+
+                    logger.warn("Failed to triage finding {}: {}", v.getId(), e.getMessage());
+                    v.setTriageActionable(true);
+                    if (isRateLimitError(e)) {
+                        v.setTriageClassification("UNVERIFIED");
+                    } else {
+                        v.setTriageClassification("TRIAGE_FALLBACK");
+                    }
+                    v.setTriageConfidence(0.0);
+                    return;
+                }
             }
-        } catch (Exception e) {
-            logger.warn("Failed to triage finding {}: {}", v.getId(), e.getMessage());
-            v.setTriageActionable(true);
-            v.setTriageClassification("TRIAGE_FALLBACK");
-            v.setTriageConfidence(0.0);
+        } finally {
+            triageSemaphore.release();
         }
+    }
+
+    private boolean isRateLimitError(Throwable t) {
+        if (t == null) return false;
+        String msg = t.getMessage();
+        if (msg != null) {
+            String lower = msg.toLowerCase();
+            if (lower.contains("429") || lower.contains("too many requests") || lower.contains("rate limit")) {
+                return true;
+            }
+        }
+        return t.getCause() != null && isRateLimitError(t.getCause());
     }
 }

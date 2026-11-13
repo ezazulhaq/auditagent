@@ -331,13 +331,13 @@
 | `scripts/install-git-hooks.ps1`                 | Configures repository hooks path to `.githooks` for PowerShell/Windows users. |
 | `scripts/install-git-hooks.sh`                  | Configures repository hooks path to `.githooks` and executable bit on Unix-like systems. |
 | `.devcontainer/devcontainer.json`               | Temurin Java 21, Node.js 24 & Python 3.12 development container. |
-| `release_notes/*.md`                            | Versioned release notes tracking product, tooling, and infrastructure updates (v2.0.0, v2.0.1, v2.1.0, v2.1.1, v2.2.0, v2.2.1, v2.3.0, v2.3.1, v2.3.2, v2.3.3, v2.4.0, v2.4.1, v2.5.0, v2.6.0, v2.6.1). |
+| `release_notes/*.md`                            | Versioned release notes tracking product, tooling, and infrastructure updates (v2.0.0, v2.0.1, v2.1.0, v2.1.1, v2.2.0, v2.2.1, v2.3.0, v2.3.1, v2.3.2, v2.3.3, v2.4.0, v2.4.1, v2.5.0, v2.6.0, v2.6.1, v2.7.0). |
 
 ## Test file map
 
 ### Backend
 
-`AuditagentApplicationTests`, `ApiSecurityFilterTest`, `AuditControllerReportExportTest`, `GitHubWebhookControllerTest`, `GitHubRepositoryControllerTest`, `IssueLifecycleServiceTest`, `AgentToolServiceSecurityTest`, `ConversationMemoryServiceTest`, `DatabaseMemoryServiceTest`, `FindingTriageServiceTest`, `GitHubAuthServiceTest`, `GitHubProviderIntegrationTest`, `JevClientTest`, `LlmErrorClassifierTest`, `LlmServiceAgentLoopTest`, `ManagedProcessRunnerTest`, `ProjectUploadControllerTest`, `ProjectUploadServiceTest`, `RabbitMqTaskQueueTest`, `RemediationWorkflowPreparationTest`, `RunPublicationControllerTest`, `ScanOrchestratorReportExportTest`, `ScanOrchestratorServiceTest`, `ReporterServiceTest`, `ScannerServiceTest`, `SupabaseStorageServiceTest`, `SupervisorNodeTest`, `TokenCipherTest`, `UserLlmClientFactoryTest`, `UserLlmConfigControllerTest`, `UserLlmConfigServiceTest`, and `ZipArchiveExtractorTest`.
+`AuditagentApplicationTests`, `ApiSecurityFilterTest`, `AuditControllerReportExportTest`, `GitHubWebhookControllerTest`, `GitHubRepositoryControllerTest`, `IssueLifecycleServiceTest`, `AgentToolServiceSecurityTest`, `ConversationMemoryServiceTest`, `DatabaseMemoryServiceTest`, `FindingTriageServiceTest`, `FindingTriageConcurrencyTest`, `GitHubAuthServiceTest`, `GitHubAuthServiceConcurrencyTest`, `GitHubProviderIntegrationTest`, `JevClientTest`, `LlmErrorClassifierTest`, `LlmServiceAgentLoopTest`, `ManagedProcessRunnerTest`, `ProjectUploadControllerTest`, `ProjectUploadServiceTest`, `RabbitMqTaskQueueTest`, `RemediationWorkflowPreparationTest`, `CloneWorkspaceNodeConcurrencyTest`, `EventBroadcastServiceRabbitMqTest`, `RunPublicationControllerTest`, `ScanOrchestratorReportExportTest`, `ScanOrchestratorServiceTest`, `ReporterServiceTest`, `ScannerServiceTest`, `SupabaseStorageServiceTest`, `SupervisorNodeTest`, `TokenCipherTest`, `UserLlmClientFactoryTest`, `UserLlmConfigControllerTest`, `UserLlmConfigServiceTest`, and `ZipArchiveExtractorTest`.
 
 ### Frontend
 

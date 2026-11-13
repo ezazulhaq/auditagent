@@ -84,6 +84,9 @@ public class JevProperties {
         private double confidenceThreshold = 0.75;
         private double criticalConfidenceThreshold = 0.95;
         private int maxBatchSize = 10;
+        private int concurrency = 8;
+        private int maxRetries = 3;
+        private int backoffInitialMs = 500;
 
         public boolean isEnabled() {
             return enabled;
@@ -115,6 +118,30 @@ public class JevProperties {
 
         public void setMaxBatchSize(int maxBatchSize) {
             this.maxBatchSize = maxBatchSize;
+        }
+
+        public int getConcurrency() {
+            return concurrency;
+        }
+
+        public void setConcurrency(int concurrency) {
+            this.concurrency = Math.max(1, Math.min(32, concurrency));
+        }
+
+        public int getMaxRetries() {
+            return maxRetries;
+        }
+
+        public void setMaxRetries(int maxRetries) {
+            this.maxRetries = maxRetries;
+        }
+
+        public int getBackoffInitialMs() {
+            return backoffInitialMs;
+        }
+
+        public void setBackoffInitialMs(int backoffInitialMs) {
+            this.backoffInitialMs = backoffInitialMs;
         }
     }
 

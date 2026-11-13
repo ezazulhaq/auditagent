@@ -13,7 +13,7 @@ The implementation in `src/`, `frontend/src/`, `rules/`, and `.auditagent/skills
 | New developer                                    | [Architecture](04-architecture.md)                                            | [Backend](05-backend-guide.md), [Frontend](06-frontend-guide.md), [Doc navigator](../.agents/skills/doc-navigator/SKILL.md) |
 | API integrator                                   | [API reference](07-api-reference.md)                                          | [Security model](10-security-model.md)                           |
 | Database or memory maintainer                    | [Data and persistence](08-data-and-persistence.md)                            | [AI and remediation](09-ai-and-remediation.md)                   |
-| DevOps or platform engineer                      | [Setup, configuration, and operations](11-setup-configuration-operations.md) | [Security model](10-security-model.md), [Scalability & messaging](18-scalability-and-messaging-architecture.md) |
+| DevOps or platform engineer                      | [Setup, configuration, and operations](11-setup-configuration-operations.md) | [Security model](10-security-model.md), [Scalability & messaging](18-scalability-and-messaging-architecture.md), [Concurrency & stability](19-concurrency-and-realtime-stability-plan.md) |
 | Test engineer                                    | [Testing and quality](12-testing-and-quality.md)                              | [Change guide](14-change-guide.md)                               |
 
 ## Complete document set
@@ -36,6 +36,7 @@ The implementation in `src/`, `frontend/src/`, `rules/`, and `.auditagent/skills
 16. [Skill catalog](16-skill-catalog.md) — runtime remediation skills, developer workspace skills, and playbook format.
 17. [LangGraph4j orchestration](17-langgraph4j-orchestration.md) — dedicated state machine orchestration guide for agentic loops and workflows.
 18. [Scalability and messaging architecture](18-scalability-and-messaging-architecture.md) — architectural roadmap for horizontal scaling, task queuing via RabbitMQ, and unified persistence with self-hosted Supabase.
+19. [Scalability, stability, and maintainability roadmap (Phases 1–6)](19-concurrency-and-realtime-stability-plan.md) — comprehensive multi-phase architectural roadmap covering Phase 1 concurrency/real-time stability (implemented in v2.7.0), Phase 2 database & storage hardening, Phase 3 AI framework consolidation, Phase 4 multi-agent supervisor hardening, Phase 5 workspace & sandbox decoupling, and Phase 6 frontend state unification.
 
 ## Documentation conventions
 

@@ -29,6 +29,8 @@ management:
       enabled: false
 
 auditagent:
+  messaging:
+    events-exchange: auditagent.events
   database:
     path: test.duckdb
   memory:

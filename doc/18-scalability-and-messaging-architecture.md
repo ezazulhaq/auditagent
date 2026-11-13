@@ -63,11 +63,13 @@ auditagent:
 
 ### Topology
 
-* **Exchange:** `auditagent.direct` (`DirectExchange`, durable)
+* **Task Exchange:** `auditagent.direct` (`DirectExchange`, durable)
+* **Events Exchange:** `auditagent.events` (`FanoutExchange`, durable, cross-pod real-time streaming)
 * **Queues:**
   - `auditagent.scan.queue` (routing key: `task.scan`, durable, `x-max-priority: 10`, `x-dead-letter-exchange: auditagent.dlx`)
   - `auditagent.remediation.queue` (routing key: `task.remediation`, durable, `x-max-priority: 10`, `x-dead-letter-exchange: auditagent.dlx`)
   - `auditagent.dlq` (Dead Letter Queue, durable)
+  - `eventIngressQueue` (ephemeral `AnonymousQueue`, exclusive, auto-delete, declared by each web ingress pod bound to `auditagent.events`)
 * **Dead Letter Exchange:** `auditagent.dlx` (`FanoutExchange`)
 
 ```text
@@ -87,23 +89,51 @@ auditagent:
              [Scan Task Consumer]               [Remediation Task Consumer]
                       |                                   |
                       +------- on failure (max retries) --+
-                                          |
-                                          v
-                               +---------------------+
-                               | auditagent.dlx      |
-                               +---------------------+
-                                          |
-                                          v
-                               +---------------------+
-                               | auditagent.dlq      |
-                               +---------------------+
+                      |                   |
+                      |                   v
+                      |        +---------------------+
+                      |        | auditagent.dlx      |
+                      |        +---------------------+
+                      |                   |
+                      |                   v
+                      |        +---------------------+
+                      |        | auditagent.dlq      |
+                      |        +---------------------+
+                      v
+       +------------------------------------+
+       | auditagent.events (Fanout Exchange)|
+       +------------------------------------+
+               /                      \
+              v                        v
+   [Ephemeral Web Queue 1]   [Ephemeral Web Queue 2]
+              |                        |
+              v                        v
+      [Web Ingress Pod 1]      [Web Ingress Pod 2]
+              |                        |
+         (jobSinks)                (jobSinks)
+              v                        v
+        Client 1 (SSE)           Client 2 (SSE)
 ```
 
 ### Backpressure and concurrency controls
 
 To prevent worker host starvation:
-* `auditagent.scan.queue` enforces `prefetchCount = 2`. Each worker pod executes a maximum of two Semgrep AST scans concurrently.
+* `auditagent.scan.queue` enforces `prefetchCount = 2`. Each worker pod executes a maximum of two Semgrep AST scans concurrently. Scans are prioritized via `auditagent.scanner.queue-priority` (default: 5).
 * `auditagent.remediation.queue` enforces `prefetchCount = 1`. Each worker executes a single 16-stage LangGraph4j remediation loop at a time to prevent LLM rate-limit saturation and compiler lock contention.
+* **Non-pinning striped concurrency:** Java 21 carrier-thread pinning from global `synchronized` locks has been eliminated:
+  - `GitHubAuthService.accessToken(userId)` employs identifier-striped `ReentrantLock` keyed by `userId`, enabling virtual threads to unmount during network token refreshes and preventing User A from blocking User B.
+  - `CloneWorkspaceNode` applies identifier-striped `ReentrantLock` keyed by `repositoryId:branch:fingerprint`, serializing only overlapping runs for the identical finding while allowing distinct findings to clone and prepare concurrently.
+* **Bounded finding triage:** `FindingTriageService` protects external LLM APIs with a configurable `Semaphore` (`auditagent.jev.triage.concurrency: 8`) and exponential backoff retry on HTTP 429 (`500ms`, `1500ms`, `3500ms` + jitter). Findings exhausting retries default gracefully to `UNVERIFIED` rather than aborting scans.
+* **Namespaced graph checkpoints:** `MultiAgentRemediationGraph` scopes sub-agent checkpoints by `String.format("%s:%s:%s", threadId, runId, stage.name())`, eliminating multi-tenant collision on the `"default"` checkpoint key in PostgreSQL.
+
+### Cross-pod real-time event pipeline
+
+In multi-pod deployments, Server-Sent Events (SSE) connections remain bound to specific web ingress pods. To deliver lifecycle events emitted by background worker pods back to the exact web ingress pod serving the client:
+1. `auditagent.events` Fanout exchange routes serialized event JSON to all active web ingress pods.
+2. Each web pod binds an ephemeral, exclusive `AnonymousQueue` on startup.
+3. `EventBroadcastService.broadcastEvent` enriches the event payload with `jobId`, `runId`, and `type`, persists it to PostgreSQL `job_event_log`, and publishes to `auditagent.events`.
+4. `EventBroadcastService.EventIngressListener` consumes the event on the web pod. If `jobSinks.containsKey(jobId)`, the payload is pushed to the client's local Reactor `Sink`. If `jobId` is not present locally, it is discarded in $O(1)$.
+5. When RabbitMQ is unconfigured or unavailable, `EventBroadcastService` falls back gracefully to local in-memory sink delivery.
 
 ### Message payloads
 
@@ -305,6 +335,9 @@ services:
     # ...
     environment:
       AUDITAGENT_MODE: ${AUDITAGENT_MODE:-all}
+      AUDITAGENT_MESSAGING_EVENTS_EXCHANGE: ${AUDITAGENT_EVENTS_EXCHANGE:-auditagent.events}
+      AUDITAGENT_SCANNER_QUEUE_PRIORITY: ${AUDITAGENT_SCANNER_QUEUE_PRIORITY:-5}
+      AUDITAGENT_JEV_TRIAGE_CONCURRENCY: ${AUDITAGENT_JEV_TRIAGE_CONCURRENCY:-8}
       RABBITMQ_HOST: ${RABBITMQ_HOST:-rabbitmq}
       RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
       RABBITMQ_USER: ${RABBITMQ_USER:-auditagent}
@@ -337,3 +370,6 @@ When deploying via Docker Compose or PaaS orchestrators (like Dokploy) on Linux:
 3. **Phase 3: Worker integration:** Implement `ScanTaskConsumer` and `RemediationTaskConsumer`, adapt `ScanOrchestratorService` and `RemediationWorkflowService` to enqueue tasks and return `202 Accepted`.
 4. **Phase 4: Realtime and storage:** Implement `SupabaseStorageService` and `JobEventLogEntity`, connect React client to Supabase Realtime channel.
 5. **Phase 5: Verification and documentation:** Run end-to-end regression tests, verify worker crash recovery, and enforce `.githooks/pre-commit` compliance.
+
+> [!NOTE]
+> For the concrete engineering plan addressing RabbitMQ cross-pod event broadcasting, elimination of carrier-thread pinning synchronized locks, scan queue backpressure, and triage throttling, see [Concurrency and real-time stability plan](19-concurrency-and-realtime-stability-plan.md).

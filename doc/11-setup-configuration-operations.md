@@ -325,13 +325,18 @@ complete boundary against malicious build scripts.
 
 ## Application settings
 
-### Scanner
+### Scanner and Messaging
 
 | Property | Default | Meaning |
 |---|---:|---|
 | `auditagent.scanner.timeout-seconds` | 900 | Maximum wall-clock duration for one Semgrep process. |
 | `auditagent.scanner.heartbeat-seconds` | 15 | Interval between Semgrep liveness progress events. |
 | `auditagent.scanner.rule-timeout-seconds` | 2 | Maximum seconds Semgrep will spend evaluating a single rule on a single file. |
+| `auditagent.scanner.queue-priority` | 5 | Default priority for queued scan tasks in RabbitMQ (`auditagent.scan.queue`). |
+| `auditagent.messaging.events-exchange` | `auditagent.events` | RabbitMQ Fanout exchange name for cross-pod real-time SSE streaming. |
+| `auditagent.jev.triage.concurrency` | 8 | Maximum concurrent virtual-thread triage requests (bounded by Semaphore, 1–32). |
+| `auditagent.jev.triage.max-retries` | 3 | Maximum retry attempts on HTTP 429 rate limit responses from the LLM provider. |
+| `auditagent.jev.triage.backoff-initial-ms` | 500 | Initial backoff duration in milliseconds before jitter for HTTP 429 retries. |
 
 Semgrep also requires a short, writable JVM OS-temp root (`java.io.tmpdir`), especially on Windows. AuditAgent creates one random `aa-*` child per scan and removes it after Semgrep and its observed RPC descendants stop. Do not redirect the JVM OS-temp root into the deeply nested managed scan workspace; Windows Semgrep can fail native RPC `socketpair` creation there. No repository path or credential is used in the temp name.
 
@@ -491,7 +496,7 @@ The production `Dockerfile` builds a Debian-based container equipped with the fu
    ```bash
    cp .env.example .env
    ```
-   Edit `.env` to configure your PostgreSQL connection parameters (`POSTGRES_HOSTNAME`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` or `POSTGRES_URL`), RabbitMQ broker host (`RABBITMQ_HOST=rabbitmq` for Docker Compose / Dokploy on Linux instances; `RABBITMQ_HOST=localhost` only for bare-metal host development), RabbitMQ credentials (`RABBITMQ_USER`, `RABBITMQ_PASSWORD`), deployment mode (`AUDITAGENT_MODE=all|web|worker`), Supabase integration settings (`SUPABASE_URL`, `SUPABASE_SERVICE_KEY`), OpenAI/OpenRouter credentials, TypeSafe Jev triage/supervisor settings (`AUDITAGENT_JEV_*`), and GitHub App keys.
+   Edit `.env` to configure your PostgreSQL connection parameters (`POSTGRES_HOSTNAME`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` or `POSTGRES_URL`), RabbitMQ broker host (`RABBITMQ_HOST=rabbitmq` for Docker Compose / Dokploy on Linux instances; `RABBITMQ_HOST=localhost` only for bare-metal host development), RabbitMQ credentials (`RABBITMQ_USER`, `RABBITMQ_PASSWORD`), deployment mode (`AUDITAGENT_MODE=all|web|worker`), cross-pod event exchange (`AUDITAGENT_EVENTS_EXCHANGE=auditagent.events`), scan priority (`AUDITAGENT_SCANNER_QUEUE_PRIORITY=5`), Supabase integration settings (`SUPABASE_URL`, `SUPABASE_SERVICE_KEY`), OpenAI/OpenRouter credentials, TypeSafe Jev triage/supervisor settings (`AUDITAGENT_JEV_*`, `AUDITAGENT_JEV_TRIAGE_CONCURRENCY=8`), and GitHub App keys.
 
 2. **Start the application and messaging infrastructure**:
    ```bash

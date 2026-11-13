@@ -29,6 +29,7 @@ public class GitHubAuthService {
     private final DatabaseService database;
     private final TokenCipher cipher;
     private final GitHubApiClient api;
+    private final java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.locks.ReentrantLock> userAuthLocks = new java.util.concurrent.ConcurrentHashMap<>();
 
     public GitHubAuthService(GitHubAppConfig config, DatabaseService database,
             TokenCipher cipher, GitHubApiClient api) {
@@ -99,21 +100,27 @@ public class GitHubAuthService {
         return authenticate(exchange).orElseThrow(() -> new SecurityException("Authentication required"));
     }
 
-    public synchronized String accessToken(String userId) {
-        GitHubAuthorization authorization = database.getGitHubAuthorization(userId)
-                .orElseThrow(() -> new SecurityException("GitHub authorization is missing"));
-        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC).plusMinutes(1);
-        if (authorization.accessExpiresAt() == null || authorization.accessExpiresAt().isAfter(now)) {
-            return cipher.decrypt(authorization.accessTokenEncrypted());
+    public String accessToken(String userId) {
+        java.util.concurrent.locks.ReentrantLock lock = userAuthLocks.computeIfAbsent(userId, k -> new java.util.concurrent.locks.ReentrantLock());
+        lock.lock();
+        try {
+            GitHubAuthorization authorization = database.getGitHubAuthorization(userId)
+                    .orElseThrow(() -> new SecurityException("GitHub authorization is missing"));
+            LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC).plusMinutes(1);
+            if (authorization.accessExpiresAt() == null || authorization.accessExpiresAt().isAfter(now)) {
+                return cipher.decrypt(authorization.accessTokenEncrypted());
+            }
+            if (authorization.refreshTokenEncrypted() == null || authorization.refreshExpiresAt() == null
+                    || !authorization.refreshExpiresAt().isAfter(now)) {
+                throw new SecurityException("GitHub authorization expired; sign in again");
+            }
+            GitHubApiClient.OAuthTokens refreshed = api.refresh(cipher.decrypt(authorization.refreshTokenEncrypted()));
+            database.saveGitHubAuthorization(new GitHubAuthorization(userId, cipher.encrypt(refreshed.accessToken()),
+                    refreshed.accessExpiresAt(), cipher.encrypt(refreshed.refreshToken()), refreshed.refreshExpiresAt()));
+            return refreshed.accessToken();
+        } finally {
+            lock.unlock();
         }
-        if (authorization.refreshTokenEncrypted() == null || authorization.refreshExpiresAt() == null
-                || !authorization.refreshExpiresAt().isAfter(now)) {
-            throw new SecurityException("GitHub authorization expired; sign in again");
-        }
-        GitHubApiClient.OAuthTokens refreshed = api.refresh(cipher.decrypt(authorization.refreshTokenEncrypted()));
-        database.saveGitHubAuthorization(new GitHubAuthorization(userId, cipher.encrypt(refreshed.accessToken()),
-                refreshed.accessExpiresAt(), cipher.encrypt(refreshed.refreshToken()), refreshed.refreshExpiresAt()));
-        return refreshed.accessToken();
     }
 
     public void logout(ServerWebExchange exchange) {

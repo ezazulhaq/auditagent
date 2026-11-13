@@ -131,21 +131,22 @@ Controllers translate HTTP into application operations. `ApiSecurityFilter` hand
 
 ### Orchestration
 
-`RemediationWorkflowService`, `ScanOrchestratorService`, `ProjectUploadService`, `RepositoryAccessService`, and `PullRequestLifecycleService` coordinate the scan and remediation flows. They delegate workflow orchestration to LangGraph4j via `RemediationWorkflowGraph`, which manages the stateful transitions between workspace cloning, agent remediation loops, and autonomous pull request publication. The remediation loop itself can run either in a single-agent mode (`RemediationGraph`) or a multi-agent mode (`MultiAgentRemediationGraph`), where specialized sub-agents handle Triage, Patching, and Verification. Webhooks from GitHub process PR events independently and `useRemediationController` handles UI polling for updates. `ProjectUploadService` and `ZipArchiveExtractor` provide sandboxed archive extraction and scanner execution for manual project uploads, streaming progress via SSE and persisting reports without requiring GitHub repository identity. Obsolete `OrchestratorService` has been retired in favor of `ScanOrchestratorService` and `RemediationWorkflowService`. Future shared features should use managed repository identity or authenticated project uploads, not revive local-path authorization.
+`RemediationWorkflowService`, `ScanOrchestratorService`, `ProjectUploadService`, `RepositoryAccessService`, and `PullRequestLifecycleService` coordinate the scan and remediation flows. `ScanOrchestratorService` executes scans via `enqueueAndStreamScan`, checking cache snapshots and dispatching background tasks to `auditagent.scan.queue` with real-time progress streamed over `auditagent.events`. `RemediationWorkflowService` delegates workflow orchestration to LangGraph4j via `RemediationWorkflowGraph`, which manages the stateful transitions between workspace cloning, agent remediation loops, and autonomous pull request publication. The remediation loop itself can run either in a single-agent mode (`RemediationGraph`) or a multi-agent mode (`MultiAgentRemediationGraph`), where specialized sub-agents handle Triage, Patching, and Verification with namespaced checkpoints. Webhooks from GitHub process PR events independently and `useRemediationController` handles UI polling for updates. `ProjectUploadService` and `ZipArchiveExtractor` provide sandboxed archive extraction and scanner execution for manual project uploads, streaming progress via SSE and persisting reports without requiring GitHub repository identity. Obsolete `OrchestratorService` has been retired in favor of `ScanOrchestratorService` and `RemediationWorkflowService`. Future shared features should use managed repository identity or authenticated project uploads, not revive local-path authorization.
 
 ### Integration services
 
-- `GitHubAuthService`: OAuth, sessions, refresh.
+- `GitHubAuthService`: OAuth, sessions, token refresh with identifier-striped non-carrier-pinning `ReentrantLock` keyed by `userId`.
 - `GitHubApiClient`: GitHub HTTP API and App JWT.
 - `GitHubProvider`: JGit workspace and publication operations.
 - `SecurityScanner` & `ScannerRegistry`: Polymorphic scanner strategy interface (`SecurityScanner`) and Spring registry (`ScannerRegistry`) resolving scanner engines dynamically by name (`semgrep`, etc.), adhering to OCP and DIP. `ScannerService` provides the default Semgrep implementation.
 - `LlmService`: Core LLM chat and tool-calling remediation loop, implementing `ChatService` and delegating token tracking to `LlmTokenTracker` (SRP/ISP).
+- `FindingTriageService`: Bounded finding triage with configurable `Semaphore` concurrency (1–32) and exponential backoff retry on HTTP 429 rate limits.
 - `AgentToolService`: Constrained repository tool suite implementing segregated role interfaces (`WorkspaceInspector`, `WorkspacePatcher`, `WorkspaceBuildVerifier`, `WorkspaceRescanner`).
 - `TaskProducerService`: RabbitMQ asynchronous task dispatcher with message priority and dead-letter routing.
 - `ScanTaskConsumer` & `RemediationTaskConsumer`: background worker listeners enforcing concurrency backpressure (`prefetch = 2` for scans, `prefetch = 1` for remediations).
 - `PostgresKnowledgeBaseService`: PostgreSQL-backed memory search using native `tsvector`, GIN indexing, and metadata ranking (retiring embedded DuckDB).
 - `SupabaseStorageService`: offloads heavy unified diffs, SARIF dumps, and PDF reports to S3-compatible Supabase Storage.
-- `EventBroadcastService`: records progress in `job_event_log` for Supabase Realtime WebSocket client push.
+- `EventBroadcastService`: records progress in `job_event_log`, broadcasts events across pods via `auditagent.events` Fanout exchange, and bridges events to local web pod SSE client streams.
 
 ### Persistence
 
