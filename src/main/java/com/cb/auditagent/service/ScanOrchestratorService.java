@@ -39,6 +39,9 @@ public class ScanOrchestratorService {
     private final TaskProducerService taskProducerService;
     private final EventBroadcastService eventBroadcastService;
 
+    @org.springframework.beans.factory.annotation.Value("${auditagent.scanner.queue-priority:5}")
+    private int queuePriority = 5;
+
     public ScanOrchestratorService(
             DatabaseService database,
             SourceControlProvider sourceControl,
@@ -85,6 +88,70 @@ public class ScanOrchestratorService {
     }
 
     public Flux<String> scan(AuthenticatedUser user, String threadId, long repositoryId, String branch,
+            String scannerName, boolean forceRescan) {
+        return enqueueAndStreamScan(user, threadId, repositoryId, branch, scannerName, forceRescan);
+    }
+
+    public Flux<String> enqueueAndStreamScan(AuthenticatedUser user, String threadId, long repositoryId, String branch,
+            String scannerName, boolean forceRescan) {
+        requireThreadOwner(threadId, user);
+        ManagedRepository repository = repositoryAccess.requireRepositoryAccess(user, repositoryId);
+        String installationToken = github.installationToken(repository.installationId());
+        String baseSha = sourceControl.branchHead(repository, branch, installationToken);
+        String reportKey = reportKey(repositoryId, branch);
+        Optional<ScanSnapshot> latest = database.findLatestScanSnapshot(repositoryId, branch);
+        if (!forceRescan && latest.filter(snapshot -> snapshot.baseSha().equals(baseSha)).isPresent()) {
+            Optional<Report> cached = database.getReport(reportKey);
+            if (cached.isPresent()) {
+                try {
+                    com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                    String cachedJson = objectMapper.writeValueAsString(
+                            resultEvent("cached", cached.get(), repository, branch, baseSha,
+                                    "Loaded the scan for the current GitHub commit."));
+                    return Flux.just(cachedJson);
+                } catch (Exception e) {
+                    logger.warn("Failed to serialize cached scan report: {}", e.getMessage());
+                }
+            }
+        }
+
+        if (eventBroadcastService != null) {
+            String jobId = "scan-" + UUID.randomUUID();
+            Flux<String> stream = eventBroadcastService.listenEvents(jobId);
+
+            ScanTaskPayload payload = new ScanTaskPayload(
+                    jobId, user.userId(), threadId, repositoryId, branch, baseSha,
+                    scannerName, forceRescan, java.time.Instant.now()
+            );
+
+            eventBroadcastService.broadcastEvent(jobId, null, "queued", Map.of(
+                    "type", "queued",
+                    "jobId", jobId,
+                    "repository", repository.fullName(),
+                    "branch", branch,
+                    "baseSha", baseSha,
+                    "message", "Scan task queued."
+            ));
+
+            if (taskProducerService != null) {
+                try {
+                    taskProducerService.enqueueScan(payload, queuePriority);
+                } catch (Exception e) {
+                    logger.warn("Failed to enqueue scan to RabbitMQ for job [{}], falling back to local virtual thread: {}",
+                            jobId, e.getMessage());
+                    Thread.startVirtualThread(() -> executeScanTask(payload));
+                }
+            } else {
+                logger.warn("TaskProducerService not available; executing scan task [{}] locally", jobId);
+                Thread.startVirtualThread(() -> executeScanTask(payload));
+            }
+            return stream;
+        }
+
+        return scanDirect(user, threadId, repositoryId, branch, scannerName, forceRescan);
+    }
+
+    public Flux<String> scanDirect(AuthenticatedUser user, String threadId, long repositoryId, String branch,
             String scannerName, boolean forceRescan) {
         requireThreadOwner(threadId, user);
         Sinks.Many<String> sink = Sinks.many().unicast().onBackpressureBuffer();
@@ -293,8 +360,10 @@ public class ScanOrchestratorService {
         } catch (Exception e) {
             logger.error("Scan task execution failed for job {}: {}", task.jobId(), safeMessage(e));
             if (eventBroadcastService != null) {
+                String code = e instanceof ScanTimeoutException ? "SCAN_TIMEOUT" : "SCAN_FAILED";
                 eventBroadcastService.broadcastEvent(task.jobId(), null, "error", Map.of(
                         "type", "error",
+                        "code", code,
                         "message", safeMessage(e)
                 ));
             }

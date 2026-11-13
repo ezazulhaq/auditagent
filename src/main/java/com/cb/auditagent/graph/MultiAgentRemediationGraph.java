@@ -81,9 +81,13 @@ public class MultiAgentRemediationGraph {
                 subStateMap.put("maxIterations", config.getMaxIterations());
                 subStateMap.put("iteration", 0);
 
+                String subThreadId = String.format("%s:%s:%s", threadId, runId, stage.name());
+                RunnableConfig subConfig = RunnableConfig.builder()
+                        .threadId(subThreadId)
+                        .build();
+
                 RemediationState result = stageGraph
-                        .invoke(GraphInput.args(subStateMap),
-                                RunnableConfig.builder().build())
+                        .invoke(GraphInput.args(subStateMap), subConfig)
                         .orElse(new RemediationState(subStateMap));
 
                 // Track output for supervisor

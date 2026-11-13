@@ -279,14 +279,14 @@ auditagent:
 
 ## 8. Implementation and verification checklist
 
-- [ ] **RabbitMQ Event Topology**: Declare `auditagent.events` exchange and ephemeral queue listener in `RabbitMqConfig.java` and `EventBroadcastService.java`.
-- [ ] **Lock Refactoring**: Replace `synchronized` in `GitHubAuthService.java` and `CloneWorkspaceNode.java` with identifier-scoped `ReentrantLock` striping.
-- [ ] **Scan Orchestration**: Implement `enqueueAndStreamScan` in `ScanOrchestratorService.java` and update `AuditController.java`.
-- [ ] **Triage Throttling**: Add `Semaphore` concurrency bounding and 429 backoff retry in `FindingTriageService.java`.
-- [ ] **Checkpoint Scoping**: Pass scoped `threadId` in `MultiAgentRemediationGraph.java`.
-- [ ] **Automated Testing**:
+- [x] **RabbitMQ Event Topology**: Declare `auditagent.events` exchange and ephemeral queue listener in `RabbitMqConfig.java` and `EventBroadcastService.java`.
+- [x] **Lock Refactoring**: Replace `synchronized` in `GitHubAuthService.java` and `CloneWorkspaceNode.java` with identifier-scoped `ReentrantLock` striping.
+- [x] **Scan Orchestration**: Implement `enqueueAndStreamScan` in `ScanOrchestratorService.java` and update `AuditController.java`.
+- [x] **Triage Throttling**: Add `Semaphore` concurrency bounding and 429 backoff retry in `FindingTriageService.java`.
+- [x] **Checkpoint Scoping**: Pass scoped `threadId` in `MultiAgentRemediationGraph.java`.
+- [x] **Automated Testing**:
   - `GitHubAuthServiceConcurrencyTest`: Verify concurrent access token calls do not block across distinct users.
   - `CloneWorkspaceNodeConcurrencyTest`: Verify parallel remediation startups for distinct findings execute concurrently.
   - `EventBroadcastServiceRabbitMqTest`: Verify cross-pod event publishing routes to local sinks.
   - `FindingTriageConcurrencyTest`: Verify semaphore constraints active HTTP calls under load.
-- [ ] **Documentation Updates**: Synchronize `doc/04-architecture.md`, `doc/05-backend-guide.md`, and `doc/18-scalability-and-messaging-architecture.md`.
+- [x] **Documentation Updates**: Synchronize `doc/04-architecture.md`, `doc/05-backend-guide.md`, and `doc/18-scalability-and-messaging-architecture.md`.

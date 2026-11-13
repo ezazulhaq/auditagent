@@ -25,6 +25,7 @@ public class CloneWorkspaceNode implements NodeAction<WorkflowState> {
     private final SourceControlProvider sourceControl;
     private final GitHubApiClient github;
     private final AgentConfig agentConfig;
+    private final java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.locks.ReentrantLock> findingPreparationLocks = new java.util.concurrent.ConcurrentHashMap<>();
 
     public CloneWorkspaceNode(
             DatabaseService database,
@@ -62,7 +63,10 @@ public class CloneWorkspaceNode implements NodeAction<WorkflowState> {
         Path workspace = sourceControl.workspacePath(workspaceKey);
 
         com.cb.auditagent.domain.AgentRunRecord run;
-        synchronized (database) {
+        String lockKey = repositoryId + ":" + branch + ":" + fingerprint;
+        java.util.concurrent.locks.ReentrantLock lock = findingPreparationLocks.computeIfAbsent(lockKey, k -> new java.util.concurrent.locks.ReentrantLock());
+        lock.lock();
+        try {
             java.util.List<String> activeRuns = database.getActiveManagedRunIds(repositoryId, branch, fingerprint);
             for (String activeRunId : activeRuns) {
                 database.getRunPublication(activeRunId).ifPresent(pub -> {
@@ -98,11 +102,13 @@ public class CloneWorkspaceNode implements NodeAction<WorkflowState> {
 
             run = database.createManagedAgentRun(state.getThreadId(), vulnerability, workspace.toString(),
                     agentConfig.getMaxIterations());
-            String branchName = "auditagent/fix-" + vulnerability.getId() + "-" + run.runId().substring(0, 6);
+            String branchName = "auditagent/fix-" + vulnerability.getId() + "-" + run.runId().substring(0, Math.min(6, run.runId().length()));
             database.createRunPublication(new com.cb.auditagent.domain.RunPublicationRecord(run.runId(),
                     state.getAuthenticatedUser().userId(), repositoryId,
                     repository.installationId(), snapshot.reportKey(), branch, snapshot.baseSha(), workspace.toString(),
                     branchName, null, null, null, null, "NOT_STARTED", null, null, null, null));
+        } finally {
+            lock.unlock();
         }
 
         String installationToken = github.installationToken(repository.installationId());

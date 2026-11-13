@@ -325,13 +325,18 @@ complete boundary against malicious build scripts.
 
 ## Application settings
 
-### Scanner
+### Scanner and Messaging
 
 | Property | Default | Meaning |
 |---|---:|---|
 | `auditagent.scanner.timeout-seconds` | 900 | Maximum wall-clock duration for one Semgrep process. |
 | `auditagent.scanner.heartbeat-seconds` | 15 | Interval between Semgrep liveness progress events. |
 | `auditagent.scanner.rule-timeout-seconds` | 2 | Maximum seconds Semgrep will spend evaluating a single rule on a single file. |
+| `auditagent.scanner.queue-priority` | 5 | Default priority for queued scan tasks in RabbitMQ (`auditagent.scan.queue`). |
+| `auditagent.messaging.events-exchange` | `auditagent.events` | RabbitMQ Fanout exchange name for cross-pod real-time SSE streaming. |
+| `auditagent.jev.triage.concurrency` | 8 | Maximum concurrent virtual-thread triage requests (bounded by Semaphore, 1–32). |
+| `auditagent.jev.triage.max-retries` | 3 | Maximum retry attempts on HTTP 429 rate limit responses from the LLM provider. |
+| `auditagent.jev.triage.backoff-initial-ms` | 500 | Initial backoff duration in milliseconds before jitter for HTTP 429 retries. |
 
 Semgrep also requires a short, writable JVM OS-temp root (`java.io.tmpdir`), especially on Windows. AuditAgent creates one random `aa-*` child per scan and removes it after Semgrep and its observed RPC descendants stop. Do not redirect the JVM OS-temp root into the deeply nested managed scan workspace; Windows Semgrep can fail native RPC `socketpair` creation there. No repository path or credential is used in the temp name.
 

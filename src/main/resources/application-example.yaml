@@ -42,6 +42,8 @@ management:
 # Agentic remediation loop configuration
 auditagent:
   mode: ${AUDITAGENT_MODE:all} # all | web | worker
+  messaging:
+    events-exchange: ${AUDITAGENT_EVENTS_EXCHANGE:auditagent.events}
   worker:
     enabled: ${AUDITAGENT_WORKER_ENABLED:true}
   supabase:
@@ -71,12 +73,16 @@ auditagent:
       confidence-threshold: ${AUDITAGENT_JEV_TRIAGE_CONFIDENCE:0.75}
       critical-confidence-threshold: ${AUDITAGENT_JEV_TRIAGE_CRITICAL_CONFIDENCE:0.95}
       max-batch-size: 10
+      concurrency: ${AUDITAGENT_JEV_TRIAGE_CONCURRENCY:8}
+      max-retries: 3
+      backoff-initial-ms: 500
     supervisor:
       enabled: ${AUDITAGENT_JEV_SUPERVISOR_ENABLED:true}
       fallback-to-chat-model: true
   database:
     path: ${AUDITAGENT_DB_PATH:audit_reports.duckdb}
   scanner:
+    queue-priority: ${AUDITAGENT_SCAN_PRIORITY:5}
     timeout-seconds: ${AUDITAGENT_SCANNER_TIMEOUT_SECONDS:900}
     heartbeat-seconds: ${AUDITAGENT_SCANNER_HEARTBEAT_SECONDS:15}
     max-target-bytes: ${AUDITAGENT_SCANNER_MAX_TARGET_BYTES:500000}
