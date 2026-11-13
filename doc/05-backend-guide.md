@@ -116,7 +116,7 @@ Centralizes access control logic. It verifies whether an authenticated user has 
 
 ### `ScanOrchestratorService`
 
-Coordinates the repository scanning workflow via `enqueueAndStreamScan`. It handles commit cache checks, background task dispatching to RabbitMQ (`auditagent.scan.queue`), scan execution via `ScannerService`, finding triage via `FindingTriageService`, generating reports via `ReporterService`, persisting snapshots, and streaming progress and complete events over `EventBroadcastService`.
+Coordinates the repository scanning workflow via `enqueueAndStreamScan`. It handles commit cache checks, background task dispatching to RabbitMQ (`auditagent.scan.queue`), scan execution via `ScannerService`, finding triage via `FindingTriageService`, generating reports via `ReporterService`, persisting snapshots, and streaming progress and complete events over `EventBroadcastService`. The terminal `complete` event packages the full report contract (`html_report`, `findings`, `metadata`, `report_available`, `repositoryId`) so both cached hits and background scan executions hydrate the frontend findings view and HTML report immediately.
 
 ### `FindingTriageService`
 

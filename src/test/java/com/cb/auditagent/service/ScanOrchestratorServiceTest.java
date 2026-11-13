@@ -86,4 +86,54 @@ class ScanOrchestratorServiceTest {
                 verify(database, never()).saveScanSnapshot(any());
                 verify(source).cleanupWorkspace(workspace);
         }
+
+        @Test
+        void executeScanTaskBroadcastsCompleteEventWithFindingsAndHtmlReport() {
+                ReporterService reporter = mock(ReporterService.class);
+                when(reporter.generateHtml(any(), any(), any())).thenReturn("<html>findings report</html>");
+                when(reporter.generateMarkdown(any(), any(), any())).thenReturn("# Report");
+
+                com.cb.auditagent.service.realtime.EventBroadcastService eventBroadcastService =
+                                mock(com.cb.auditagent.service.realtime.EventBroadcastService.class);
+
+                GitHubAuthService auth = mock(GitHubAuthService.class);
+                RepositoryAccessService repoAccess = new RepositoryAccessService(database, source, auth);
+                GitHubApiClient github = mock(GitHubApiClient.class);
+                when(github.installationToken(9)).thenReturn("installation-token");
+
+                ScanOrchestratorService orchestrator = new ScanOrchestratorService(
+                                database, source, github, scanner, reporter, repoAccess,
+                                null, null, eventBroadcastService, null
+                );
+
+                com.cb.auditagent.domain.Vulnerability vuln = new com.cb.auditagent.domain.Vulnerability(
+                                "VULN-001", "App.java", 10, "query = ...", com.cb.auditagent.domain.Severity.HIGH,
+                                "SQL_INJECTION", "Vulnerable query", "java"
+                );
+                ScannerService.ScanResult result = new ScannerService.ScanResult(List.of(vuln), 3, 120, 0);
+                when(scanner.scan(eq(workspace.toString()), any())).thenReturn(result);
+
+                com.cb.auditagent.dto.queue.ScanTaskPayload task = new com.cb.auditagent.dto.queue.ScanTaskPayload(
+                                "job-101", user.userId(), "thread-1", 42, "main", "base-sha",
+                                "semgrep", true, java.time.Instant.now()
+                );
+
+                orchestrator.executeScanTask(task);
+
+                org.mockito.ArgumentCaptor<java.util.Map<String, Object>> payloadCaptor =
+                                org.mockito.ArgumentCaptor.forClass(java.util.Map.class);
+                verify(eventBroadcastService).broadcastEvent(
+                                eq("job-101"),
+                                org.mockito.ArgumentMatchers.isNull(),
+                                eq("complete"),
+                                payloadCaptor.capture()
+                );
+
+                java.util.Map<String, Object> payload = payloadCaptor.getValue();
+                org.junit.jupiter.api.Assertions.assertNotNull(payload.get("findings"), "findings must not be null in complete event");
+                org.junit.jupiter.api.Assertions.assertEquals(1, ((List<?>) payload.get("findings")).size());
+                org.junit.jupiter.api.Assertions.assertEquals("<html>findings report</html>", payload.get("html_report"));
+                org.junit.jupiter.api.Assertions.assertEquals(true, payload.get("report_available"));
+                org.junit.jupiter.api.Assertions.assertEquals(42L, payload.get("repositoryId"));
+        }
 }

@@ -296,6 +296,15 @@ public class ScanOrchestratorService {
             String workspaceKey = "scan-" + UUID.randomUUID();
             workspace = sourceControl.cloneAtCommit(repository, task.branch(), task.baseSha(), installationToken, workspaceKey);
 
+            if (eventBroadcastService != null) {
+                eventBroadcastService.broadcastEvent(task.jobId(), null, "workspace_prepared", Map.of(
+                        "type", "workspace_prepared",
+                        "repository", repository.fullName(),
+                        "branch", task.branch(),
+                        "baseSha", task.baseSha()
+                ));
+            }
+
             long started = System.currentTimeMillis();
             SecurityScanner activeScanner = (scannerRegistry != null)
                     ? scannerRegistry.getScanner(task.scannerName())
@@ -325,7 +334,7 @@ public class ScanOrchestratorService {
                             "message", "Triaging security findings with TypeSafe Jev..."
                     ));
                 }
-                findings = findingTriageService.triageFindings(findings, workspace.toString());
+                findings = findingTriageService.triageFindings(findings, workspace.toString(), task.userId());
             }
 
             String markdown = reporter.generateMarkdown(findings, metadata, repository.fullName());
@@ -347,15 +356,12 @@ public class ScanOrchestratorService {
             database.saveScanHistory(new ScanHistoryRecord(UUID.randomUUID().toString(), task.repositoryId(), task.branch(),
                     task.baseSha(), now, findings.size(), high, medium, low, info));
 
+            Report report = new Report(reportKey, markdown, html, findings, metadata);
             if (eventBroadcastService != null) {
-                eventBroadcastService.broadcastEvent(task.jobId(), null, "complete", Map.of(
-                        "type", "complete",
-                        "repository", repository.fullName(),
-                        "branch", task.branch(),
-                        "baseSha", task.baseSha(),
-                        "findingsCount", findings.size(),
-                        "message", "Scan complete at " + shortSha(task.baseSha()) + ". Found " + findings.size() + " issue(s)."
-                ));
+                Map<String, Object> completePayload = resultEvent("complete", report, repository,
+                        task.branch(), task.baseSha(),
+                        "Scan complete at " + shortSha(task.baseSha()) + ". Found " + findings.size() + " issue(s).");
+                eventBroadcastService.broadcastEvent(task.jobId(), null, "complete", completePayload);
             }
         } catch (Exception e) {
             logger.error("Scan task execution failed for job {}: {}", task.jobId(), safeMessage(e));
