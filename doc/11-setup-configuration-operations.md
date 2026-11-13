@@ -496,7 +496,7 @@ The production `Dockerfile` builds a Debian-based container equipped with the fu
    ```bash
    cp .env.example .env
    ```
-   Edit `.env` to configure your PostgreSQL connection parameters (`POSTGRES_HOSTNAME`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` or `POSTGRES_URL`), RabbitMQ broker host (`RABBITMQ_HOST=rabbitmq` for Docker Compose / Dokploy on Linux instances; `RABBITMQ_HOST=localhost` only for bare-metal host development), RabbitMQ credentials (`RABBITMQ_USER`, `RABBITMQ_PASSWORD`), deployment mode (`AUDITAGENT_MODE=all|web|worker`), Supabase integration settings (`SUPABASE_URL`, `SUPABASE_SERVICE_KEY`), OpenAI/OpenRouter credentials, TypeSafe Jev triage/supervisor settings (`AUDITAGENT_JEV_*`), and GitHub App keys.
+   Edit `.env` to configure your PostgreSQL connection parameters (`POSTGRES_HOSTNAME`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` or `POSTGRES_URL`), RabbitMQ broker host (`RABBITMQ_HOST=rabbitmq` for Docker Compose / Dokploy on Linux instances; `RABBITMQ_HOST=localhost` only for bare-metal host development), RabbitMQ credentials (`RABBITMQ_USER`, `RABBITMQ_PASSWORD`), deployment mode (`AUDITAGENT_MODE=all|web|worker`), cross-pod event exchange (`AUDITAGENT_EVENTS_EXCHANGE=auditagent.events`), scan priority (`AUDITAGENT_SCAN_PRIORITY=5`), Supabase integration settings (`SUPABASE_URL`, `SUPABASE_SERVICE_KEY`), OpenAI/OpenRouter credentials, TypeSafe Jev triage/supervisor settings (`AUDITAGENT_JEV_*`, `AUDITAGENT_JEV_TRIAGE_CONCURRENCY=8`), and GitHub App keys.
 
 2. **Start the application and messaging infrastructure**:
    ```bash
