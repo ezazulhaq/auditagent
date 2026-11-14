@@ -7,6 +7,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +35,10 @@ public class ScanDataService {
     private final TokenUsageRepository tokenUsageRepository;
     private final MemoryThreadRepository memoryThreadRepository;
     private final TrackedIssueRepository trackedIssueRepository;
+    private final JdbcTemplate jdbcTemplate;
+
+    @Value("${auditagent.database.batch-size:100}")
+    private int batchSize = 100;
 
     public ScanDataService(ManagedRepositoryRepository managedRepositoryRepository,
                            ScanSnapshotRepository scanSnapshotRepository,
@@ -42,7 +48,8 @@ public class ScanDataService {
                            WebhookDeliveryRepository webhookDeliveryRepository,
                            TokenUsageRepository tokenUsageRepository,
                            MemoryThreadRepository memoryThreadRepository,
-                           TrackedIssueRepository trackedIssueRepository) {
+                           TrackedIssueRepository trackedIssueRepository,
+                           JdbcTemplate jdbcTemplate) {
         this.managedRepositoryRepository = managedRepositoryRepository;
         this.scanSnapshotRepository = scanSnapshotRepository;
         this.scanHistoryStatsRepository = scanHistoryStatsRepository;
@@ -52,6 +59,36 @@ public class ScanDataService {
         this.tokenUsageRepository = tokenUsageRepository;
         this.memoryThreadRepository = memoryThreadRepository;
         this.trackedIssueRepository = trackedIssueRepository;
+        this.jdbcTemplate = jdbcTemplate;
+    }
+
+    public void setBatchSize(int batchSize) {
+        this.batchSize = batchSize;
+    }
+
+    public int getBatchSize() {
+        return this.batchSize;
+    }
+
+    private volatile Boolean isPostgresEngine = null;
+
+    private boolean isPostgreSql() {
+        if (isPostgresEngine == null) {
+            try {
+                if (jdbcTemplate != null && jdbcTemplate.getDataSource() != null) {
+                    try (java.sql.Connection conn = jdbcTemplate.getDataSource().getConnection()) {
+                        String dbName = conn.getMetaData().getDatabaseProductName();
+                        isPostgresEngine = dbName != null && dbName.toLowerCase().contains("postgres");
+                    }
+                } else {
+                    isPostgresEngine = false;
+                }
+            } catch (Exception e) {
+                logger.debug("Failed checking database product name: {}", e.getMessage());
+                isPostgresEngine = false;
+            }
+        }
+        return isPostgresEngine;
     }
 
     private String sha256(String value) {
@@ -93,18 +130,31 @@ public class ScanDataService {
         d.setRepoPath(e.getRepoPath());
         d.setMdReport(e.getMdReport());
         d.setHtmlReport(e.getHtmlReport());
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            if (e.getFindingsJson() != null && !e.getFindingsJson().trim().isEmpty()) {
+
+        // Eliminate relational JSON bloat: load findings from normalized vulnerabilities table
+        List<com.cb.auditagent.entity.VulnerabilityEntity> vulnEntities =
+                vulnerabilityEntityRepository.findByRepoPath(e.getRepoPath());
+        if (vulnEntities != null && !vulnEntities.isEmpty()) {
+            d.setFindings(vulnEntities.stream().map(this::mapToVulnerability).collect(Collectors.toList()));
+        } else if (e.getFindingsJson() != null && !e.getFindingsJson().trim().isEmpty()) {
+            // Backward-compatible fallback for legacy unmigrated reports
+            try {
+                ObjectMapper mapper = new ObjectMapper();
                 d.setFindings(mapper.readValue(e.getFindingsJson(), new TypeReference<List<Vulnerability>>() {}));
+            } catch (Exception ex) {
+                logger.error("Failed to deserialize legacy report findings", ex);
             }
-            if (e.getMetadataJson() != null && !e.getMetadataJson().trim().isEmpty()) {
+        }
+
+        if (e.getMetadataJson() != null && !e.getMetadataJson().trim().isEmpty()) {
+            try {
+                ObjectMapper mapper = new ObjectMapper();
                 d.setMetadata(mapper.readValue(e.getMetadataJson(), ScanMetadata.class));
-            } else {
+            } catch (Exception ex) {
+                logger.error("Failed to deserialize report metadata", ex);
                 d.setMetadata(new ScanMetadata());
             }
-        } catch (Exception ex) {
-            logger.error("Failed to deserialize report metadata/findings", ex);
+        } else {
             d.setMetadata(new ScanMetadata());
         }
         return d;
@@ -136,60 +186,132 @@ public class ScanDataService {
     public void saveReport(String repoPath, String mdReport, String htmlReport, List<Vulnerability> findings,
             ScanMetadata metadata) {
 
-        for (Vulnerability v : findings) {
-            String snippet = v.getCodeSnippet() == null ? "" : v.getCodeSnippet();
-            String fp = sha256(v.getRuleId() + v.getFilePath() + snippet);
-
-            Optional<com.cb.auditagent.entity.VulnerabilityEntity> existingOpt = vulnerabilityEntityRepository
-                    .findFirstByRepoPathAndFindingFingerprint(repoPath, fp);
-
-            com.cb.auditagent.entity.VulnerabilityEntity vulnEntity = new com.cb.auditagent.entity.VulnerabilityEntity();
-            if (existingOpt.isPresent()) {
-                com.cb.auditagent.entity.VulnerabilityEntity existing = existingOpt.get();
-                vulnEntity.setId(existing.getId());
-                v.setId(existing.getId());
-                vulnEntity.setStatus(existing.getStatus());
-                v.setStatus(VulnerabilityStatus.valueOf(existing.getStatus()));
-                vulnEntity.setProposedFix(existing.getProposedFix());
-                v.setProposedFix(existing.getProposedFix());
-                if (v.getTriageActionable() == null) {
-                    v.setTriageActionable(existing.getTriageActionable());
-                    v.setTriageConfidence(existing.getTriageConfidence());
-                    v.setTriageClassification(existing.getTriageClassification());
+        // 1. Fetch all existing findings for this repository in a single query (eliminating N+1 query loop)
+        List<com.cb.auditagent.entity.VulnerabilityEntity> existingEntities =
+                vulnerabilityEntityRepository.findByRepoPath(repoPath);
+        Map<String, com.cb.auditagent.entity.VulnerabilityEntity> existingByFp = new HashMap<>();
+        if (existingEntities != null) {
+            for (com.cb.auditagent.entity.VulnerabilityEntity ex : existingEntities) {
+                if (ex.getFindingFingerprint() != null && !existingByFp.containsKey(ex.getFindingFingerprint())) {
+                    existingByFp.put(ex.getFindingFingerprint(), ex);
                 }
-            } else {
-                if (v.getId() == null)
-                    v.setId(UUID.randomUUID().toString());
-                vulnEntity.setId(v.getId());
-                vulnEntity.setStatus("DETECTED");
-                v.setStatus(VulnerabilityStatus.DETECTED);
             }
-            vulnEntity.setRepoPath(repoPath);
-            vulnEntity.setFilePath(v.getFilePath());
-            vulnEntity.setLineNumber(v.getLineNumber());
-            vulnEntity.setCodeSnippet(v.getCodeSnippet());
-            vulnEntity.setSeverity(v.getSeverity().name());
-            vulnEntity.setVulnType(v.getVulnType());
-            vulnEntity.setDescription(v.getDescription());
-            vulnEntity.setRuleId(v.getRuleId());
-            vulnEntity.setFindingFingerprint(fp);
-            vulnEntity.setLanguage(v.getLanguage());
-            vulnEntity.setTriageActionable(v.getTriageActionable());
-            vulnEntity.setTriageConfidence(v.getTriageConfidence());
-            vulnEntity.setTriageClassification(v.getTriageClassification());
-            vulnerabilityEntityRepository.save(vulnEntity);
         }
 
+        // 2. Prepare batched parameters for native upsert
+        List<Object[]> batchParams = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
+
+        if (findings != null) {
+            for (Vulnerability v : findings) {
+                String snippet = v.getCodeSnippet() == null ? "" : v.getCodeSnippet();
+                String fp = sha256(v.getRuleId() + v.getFilePath() + snippet);
+
+                com.cb.auditagent.entity.VulnerabilityEntity existing = existingByFp.get(fp);
+                String id;
+                String status;
+                String proposedFix;
+                Boolean triageActionable = v.getTriageActionable();
+                Double triageConfidence = v.getTriageConfidence();
+                String triageClassification = v.getTriageClassification();
+
+                if (existing != null) {
+                    id = existing.getId();
+                    v.setId(existing.getId());
+                    status = existing.getStatus();
+                    if (status != null) {
+                        try {
+                            v.setStatus(VulnerabilityStatus.valueOf(status));
+                        } catch (IllegalArgumentException ignored) {
+                            v.setStatus(VulnerabilityStatus.DETECTED);
+                        }
+                    }
+                    proposedFix = existing.getProposedFix();
+                    v.setProposedFix(existing.getProposedFix());
+                    if (triageActionable == null) {
+                        triageActionable = existing.getTriageActionable();
+                        triageConfidence = existing.getTriageConfidence();
+                        triageClassification = existing.getTriageClassification();
+                        v.setTriageActionable(triageActionable);
+                        v.setTriageConfidence(triageConfidence);
+                        v.setTriageClassification(triageClassification);
+                    }
+                } else {
+                    if (v.getId() == null) {
+                        v.setId(UUID.randomUUID().toString());
+                    }
+                    id = v.getId();
+                    status = "DETECTED";
+                    v.setStatus(VulnerabilityStatus.DETECTED);
+                    proposedFix = v.getProposedFix();
+                }
+
+                LocalDateTime findingCreatedAt = (existing != null && existing.getCreatedAt() != null) ? existing.getCreatedAt() : now;
+
+                batchParams.add(new Object[] {
+                        id,
+                        repoPath,
+                        v.getFilePath(),
+                        v.getLineNumber(),
+                        v.getSeverity() != null ? v.getSeverity().name() : "MEDIUM",
+                        v.getVulnType(),
+                        v.getDescription(),
+                        v.getCodeSnippet(),
+                        v.getLanguage(),
+                        proposedFix,
+                        status,
+                        v.getRuleId(),
+                        fp,
+                        triageActionable,
+                        triageConfidence,
+                        triageClassification,
+                        findingCreatedAt
+                });
+            }
+        }
+
+        // 3. Execute batch upsert via JdbcTemplate
+        String upsertSql;
+        if (isPostgreSql()) {
+            upsertSql = "INSERT INTO vulnerabilities (" +
+                    "id, repo_path, file_path, line_number, severity, vuln_type, description, code_snippet, " +
+                    "language, proposed_fix, status, rule_id, finding_fingerprint, triage_actionable, " +
+                    "triage_confidence, triage_classification, created_at) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
+                    "ON CONFLICT (id) DO UPDATE SET " +
+                    "severity = EXCLUDED.severity, " +
+                    "status = EXCLUDED.status, " +
+                    "proposed_fix = EXCLUDED.proposed_fix, " +
+                    "triage_actionable = EXCLUDED.triage_actionable, " +
+                    "triage_confidence = EXCLUDED.triage_confidence, " +
+                    "triage_classification = EXCLUDED.triage_classification";
+        } else {
+            // H2 / non-Postgres compatibility syntax for test suites
+            upsertSql = "MERGE INTO vulnerabilities (" +
+                    "id, repo_path, file_path, line_number, severity, vuln_type, description, code_snippet, " +
+                    "language, proposed_fix, status, rule_id, finding_fingerprint, triage_actionable, " +
+                    "triage_confidence, triage_classification, created_at) " +
+                    "KEY (id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        }
+
+        if (!batchParams.isEmpty()) {
+            for (int i = 0; i < batchParams.size(); i += batchSize) {
+                List<Object[]> chunk = batchParams.subList(i, Math.min(i + batchSize, batchParams.size()));
+                jdbcTemplate.batchUpdate(upsertSql, chunk);
+            }
+        }
+
+        // 4. Save report metadata with findingsJson eliminated (set to null) to eliminate relational JSON bloat
         com.cb.auditagent.entity.Report entity = new com.cb.auditagent.entity.Report();
         entity.setRepoPath(repoPath);
         entity.setMdReport(mdReport);
         entity.setHtmlReport(htmlReport);
+        entity.setFindingsJson(null);
         try {
             ObjectMapper mapper = new ObjectMapper();
-            entity.setFindingsJson(mapper.writeValueAsString(findings));
             entity.setMetadataJson(mapper.writeValueAsString(metadata));
         } catch (JsonProcessingException e) {
-            logger.error("Failed to serialize report metadata/findings", e);
+            logger.error("Failed to serialize report metadata", e);
         }
         reportRepository.save(entity);
     }

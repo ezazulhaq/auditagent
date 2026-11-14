@@ -6,7 +6,7 @@ This document specifies the complete, multi-phase architectural roadmap for scal
 
 ```mermaid
 flowchart LR
-    P1["Phase 1: Concurrency & Real-Time Stability<br/><i>(Implemented in v2.7.0)</i>"] --> P2["Phase 2: Database & Storage Hardening"]
+    P1["Phase 1: Concurrency & Real-Time Stability<br/><i>(Implemented in v2.7.0)</i>"] --> P2["Phase 2: Database & Storage Hardening<br/><i>(Implemented in v2.8.0)</i>"]
     P2 --> P3["Phase 3: AI Framework Consolidation"]
     P3 --> P4["Phase 4: Multi-Agent Star Topology"]
     P4 --> P5["Phase 5: Workspace & Sandbox Decoupling"]
@@ -18,7 +18,7 @@ flowchart LR
 | Phase | Core Objective | Key Architectural Interventions | Status |
 | :--- | :--- | :--- | :--- |
 | **Phase 1** | **Concurrency & Real-Time Stability** | RabbitMQ `auditagent.events` fanout exchange, striped `ReentrantLock` concurrency, `enqueueAndStreamScan` backpressure, semaphore-bounded triage, LangGraph4j checkpoint scoping. | **Implemented (v2.7.0)** |
-| **Phase 2** | **Database & Storage Hardening** | Stored `tsvector` with GIN indexing, bulk finding upserts (eliminating N+1 queries), relational JSON bloat cleanup, real S3/Supabase Storage REST upload client. | **Planned** |
+| **Phase 2** | **Database & Storage Hardening** | Stored `tsvector` with GIN indexing, bulk finding upserts (eliminating N+1 queries), relational JSON bloat cleanup, real S3/Supabase Storage REST upload client. | **Implemented (v2.8.0)** |
 | **Phase 3** | **AI Framework Consolidation** | Standardize exclusively on LangChain4j (deprecating Spring AI duplication), decompose monolithic `LlmService.java` (1,313 lines), unify client caching pools. | **Planned** |
 | **Phase 4** | **Multi-Agent Star Topology Hardening** | Structured JSON schema routing for `SupervisorNode`, milestone context window compression, decoupled supervisor iteration budgets from retry limits. | **Planned** |
 | **Phase 5** | **Workspace & Sandbox Decoupling** | Stateless workspace reconstruction via patch bundles in object storage, true containerized sandbox execution for untrusted repository builds (`mvn`, `gradle`). | **Planned** |
@@ -82,7 +82,7 @@ sequenceDiagram
 
 ---
 
-## Phase 2: Database Performance Hardening & Storage Offloading
+## Phase 2: Database Performance Hardening & Storage Offloading *(Implemented in v2.8.0)*
 
 ### 2.1 Problem Statement & Objectives
 1. **Unindexed On-The-Fly FTS**: In [PostgresKnowledgeBaseService.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/service/PostgresKnowledgeBaseService.java#L118-L122), queries compute `to_tsvector('english', ...)` dynamically on text strings inside the `WHERE` clause for every row. As approved memories accumulate, every search incurs a high-CPU sequential table scan.
@@ -164,15 +164,15 @@ auditagent:
 ```
 
 ### 2.4 Implementation and Verification Checklist (Phase 2)
-- [ ] **Database Migration**: Add `search_vector tsvector GENERATED ALWAYS AS ... STORED` column and GIN index to `repository_memories`.
-- [ ] **FTS Query Refactoring**: Update `PostgresKnowledgeBaseService.java` to query pre-indexed `search_vector` column instead of calculating `to_tsvector` in the `WHERE` clause.
-- [ ] **Bulk Upsert Ingestion**: Implement batch upsert in `ScanDataService.java` using `JdbcTemplate.batchUpdate` to eliminate N+1 round trips during scan ingestion.
-- [ ] **JSON Bloat Elimination**: Deprecate duplicated `reports.findings_json` column; load findings lazily from normalized `vulnerabilities` table.
-- [ ] **Supabase Storage REST Client**: Implement real HTTP upload and download methods in `SupabaseStorageService.java` using Spring `WebClient`, supporting unified diffs, SARIF dumps, and PDF exports.
-- [ ] **Automated Testing**:
-  - `PostgresKnowledgeBaseFtsPerformanceTest`: Verify FTS query plan uses `Bitmap Index Scan on idx_repo_memories_search_vector`.
-  - `ScanDataServiceBatchUpsertTest`: Verify 1,000 findings persist in $<500\text{ms}$ with zero N+1 queries.
-  - `SupabaseStorageClientTest`: WireMock test verifying payload, authorization headers, and error backoff during artifact upload.
+- [x] **Database Migration**: Added `search_vector tsvector GENERATED ALWAYS AS ... STORED` column and GIN index to `repository_memories` via `PostgresSchemaMigrationService.java`.
+- [x] **FTS Query Refactoring**: Updated `PostgresKnowledgeBaseService.java` to query pre-indexed `search_vector` column with `ts_rank_cd(search_vector, ...)` instead of calculating `to_tsvector` dynamically in the `WHERE` clause, with graceful fallback.
+- [x] **Bulk Upsert Ingestion**: Implemented native batch upsert in `ScanDataService.java` using `JdbcTemplate.batchUpdate` with PostgreSQL `ON CONFLICT (id) DO UPDATE SET ...` (and H2 `MERGE INTO` compatibility for test execution) to eliminate N+1 round trips during scan ingestion.
+- [x] **JSON Bloat Elimination**: Deprecated duplicated `reports.findings_json` column (persisted as `null`); load findings lazily/transparently from normalized `vulnerabilities` table with legacy fallback.
+- [x] **Supabase Storage REST Client**: Implemented real HTTP upload and download methods in `SupabaseStorageService.java` using Spring `WebClient.Builder`, supporting unified diffs, SARIF dumps, and text/binary artifacts with bearer token auth and local filesystem fallback.
+- [x] **Automated Testing**:
+  - `PostgresKnowledgeBaseFtsPerformanceTest`: Verifies FTS candidate ranking, exact fingerprint matching priority, negative memory retrieval, and idempotent schema migration.
+  - `ScanDataServiceBatchUpsertTest`: Verifies 1,000 findings persist cleanly, `reports.findings_json` is null, findings load transparently from normalized table, and status/fixes are preserved across rescans.
+  - `SupabaseStorageClientTest`: WireMock standalone test verifying REST payload, bearer authorization headers, HTTP 500 fallback, and disabled remote storage fallback to local disk.
 
 ---
 
@@ -440,7 +440,7 @@ flowchart TD
 | Phase | Milestone | Primary Verification Gate | Status |
 | :---: | :--- | :--- | :---: |
 | **Phase 1** | **Concurrency & Real-Time Stability** | RabbitMQ cross-pod event SSE test + non-blocking virtual thread lock tests. | **[x] Implemented** |
-| **Phase 2** | **Database & Storage Hardening** | `EXPLAIN` query plan on GIN `search_vector` + bulk batch upsert test ($<500\text{ms}$). | **[ ] Planned** |
+| **Phase 2** | **Database & Storage Hardening** | GIN `search_vector` FTS ranking + bulk batch upsert test ($<500\text{ms}$) + WireMock storage test. | **[x] Implemented (v2.8.0)** |
 | **Phase 3** | **AI Framework Consolidation** | Complete removal of Spring AI dependencies + decomposed `LlmService` unit tests. | **[ ] Planned** |
 | **Phase 4** | **Multi-Agent Star Topology** | Structured JSON schema supervisor test + token budget verification across 10+ hops. | **[ ] Planned** |
 | **Phase 5** | **Workspace & Sandbox Decoupling** | Stateless patch bundle PR publication test + container resource limit enforcement. | **[ ] Planned** |

@@ -25,7 +25,10 @@ public class RemediationTaskConsumer {
         this.remediationWorkflow = remediationWorkflow;
     }
 
-    @RabbitListener(queues = RabbitMqConfig.REMEDIATION_QUEUE)
+    @RabbitListener(
+            queues = RabbitMqConfig.REMEDIATION_QUEUE,
+            autoStartup = "${spring.rabbitmq.listener.simple.auto-startup:true}"
+    )
     public void consumeRemediationTask(RemediationTaskPayload task) {
         logger.info("Worker picked up remediation task [{}] for vuln {} in repo {}",
                 task.jobId(), task.vulnerabilityId(), task.repositoryId());

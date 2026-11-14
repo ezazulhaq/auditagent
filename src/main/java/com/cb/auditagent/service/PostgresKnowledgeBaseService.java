@@ -111,14 +111,14 @@ public class PostgresKnowledgeBaseService {
     private void loadFtsCandidates(String repoPath, String query, boolean approved,
                                    Map<String, RepositoryMemory> candidates) {
         int candidateLimit = memoryConfig.getCandidateLimit();
-        // Try native PostgreSQL tsvector / plainto_tsquery if available
+        // Query pre-indexed search_vector column with GIN index
         String sql = "SELECT memory_id, repo_path, finding_fingerprint, rule_id, category, " +
                 "vulnerability_type, language, framework, file_pattern, title, summary, root_cause, " +
                 "remediation_pattern, search_text, confidence, source_run_id, usage_count, updated_at, " +
-                "ts_rank_cd(to_tsvector('english', coalesce(title, '') || ' ' || coalesce(summary, '') || ' ' || coalesce(root_cause, '') || ' ' || coalesce(remediation_pattern, '') || ' ' || coalesce(search_text, '')), plainto_tsquery('english', ?)) AS score " +
+                "ts_rank_cd(search_vector, plainto_tsquery('english', ?)) AS score " +
                 "FROM repository_memories " +
                 "WHERE repo_path = ? AND approved = ? " +
-                "AND to_tsvector('english', coalesce(title, '') || ' ' || coalesce(summary, '') || ' ' || coalesce(root_cause, '') || ' ' || coalesce(remediation_pattern, '') || ' ' || coalesce(search_text, '')) @@ plainto_tsquery('english', ?) " +
+                "AND search_vector @@ plainto_tsquery('english', ?) " +
                 "ORDER BY score DESC LIMIT ?";
         try {
             jdbcTemplate.query(sql, rs -> {

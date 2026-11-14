@@ -51,6 +51,9 @@ auditagent:
     service-key: ${SUPABASE_SERVICE_KEY:}
     storage:
       bucket: ${SUPABASE_STORAGE_BUCKET:auditagent-artifacts}
+      enabled: ${AUDITAGENT_STORAGE_REMOTE_ENABLED:true}
+      timeout-seconds: ${AUDITAGENT_STORAGE_TIMEOUT_SECONDS:15}
+      fallback-local-dir: ${AUDITAGENT_STORAGE_FALLBACK_LOCAL_DIR:.auditagent/storage}
   llm:
     # Mode can be 'user' (mandatory BYOK) or 'system' (legacy single-tenant / automated test mode)
     mode: ${AUDITAGENT_LLM_MODE:user}
@@ -81,6 +84,7 @@ auditagent:
       fallback-to-chat-model: true
   database:
     path: ${AUDITAGENT_DB_PATH:audit_reports.duckdb}
+    batch-size: ${AUDITAGENT_DB_BATCH_SIZE:100}
   scanner:
     queue-priority: ${AUDITAGENT_SCANNER_QUEUE_PRIORITY:5}
     timeout-seconds: ${AUDITAGENT_SCANNER_TIMEOUT_SECONDS:900}

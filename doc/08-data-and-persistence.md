@@ -28,7 +28,7 @@ Reports and all related scan artifacts (`vulnerabilities`, `scan_snapshots`, `sc
 | `repo_path`   | Primary report key. Format is `github:<repositoryId>:<branch>` for GitHub scans or `upload:<uploadId>` for uploaded ZIP projects. |
 | `md_report`   | Generated enterprise Markdown retained as the durable scan representation and for compatibility.                 |
 | `html_report` | Generated standalone HTML retained for schema and API compatibility; it is not rendered by the current frontend. |
-| `findings`    | JSON list of findings.                                                                                           |
+| `findings`    | Deprecated; set to `NULL` to eliminate relational JSON bloat. Reports load findings transparently from the normalized `vulnerabilities` table, with legacy fallback to this column for historical records. |
 | `metadata`    | JSON scan metadata.                                                                                              |
 
 #### `uploaded_projects`
@@ -199,9 +199,10 @@ Stores repository-scoped approved and rejected remediation:
 - language, framework, file pattern;
 - title, summary, root cause, remediation pattern (or rejection reason);
 - deterministic search text;
+- `search_vector` (`tsvector GENERATED ALWAYS AS (...) STORED` indexed via PostgreSQL GIN index `idx_repo_memories_search_vector` for fast sub-millisecond lexical full-text search with `ts_rank_cd`);
 - confidence, source run, approval flag (`TRUE` for merged, `FALSE` for rejected), usage count, timestamps.
 
-The repository/fingerprint pair is unique. Both positive memory (on PR merge) and negative memory (on manual reject) are written here and indexed in FTS.
+The repository/fingerprint pair is unique. Both positive memory (on PR merge) and negative memory (on manual reject) are written here and indexed in FTS. Automatic startup schema migration (`PostgresSchemaMigrationService`) ensures the stored column and GIN index exist when connected to PostgreSQL.
 
 #### `global_remediation_patterns`
 
@@ -493,6 +494,24 @@ Before Hibernate applies schema updates (`ddl-auto: update`), existing databases
 - `ScanDataService`: Encapsulates `ManagedRepositoryRepository`, `ScanSnapshotRepository`, `ScanHistoryStatsRepository`, `ReportRepository`, `VulnerabilityEntityRepository`, `WebhookDeliveryRepository`, `TokenUsageRepository`, and `TrackedIssueRepository`.
 
 `DatabaseService` remains as the unified public facade, preserving its exact method signatures and transactional contracts.
+
+### Batch Finding Ingestion & Deduplication
+
+In `ScanDataService.saveReport()`, finding persistence uses optimized batch operations instead of sequential N+1 query loops:
+1. Pre-fetches all existing findings for the repository (`vulnerabilityEntityRepository.findByRepoPath(repoPath)`) into an in-memory fingerprint map in a single indexed query.
+2. Reconciles existing findings by preserving existing IDs, statuses (`FIXED`, `IGNORED`, `AWAITING_APPROVAL`), and proposed fixes, or generates new UUIDs and `DETECTED` statuses for newly discovered findings.
+3. Chunks upsert statements in batches configured by `auditagent.database.batch-size` (default: 100).
+4. Executes native batch updates via `JdbcTemplate.batchUpdate`:
+   - On PostgreSQL: uses `INSERT INTO vulnerabilities (...) VALUES (...) ON CONFLICT (id) DO UPDATE SET severity = EXCLUDED.severity, status = EXCLUDED.status, proposed_fix = EXCLUDED.proposed_fix, triage_actionable = EXCLUDED.triage_actionable, triage_confidence = EXCLUDED.triage_confidence, triage_classification = EXCLUDED.triage_classification`.
+   - On H2/test engines: uses `MERGE INTO vulnerabilities (...) KEY (id) VALUES (...)`.
+5. Eliminates JSON serialization bloat by setting `reports.findings_json` to `null`. Finding retrieval loads normalized findings from the `vulnerabilities` table with legacy fallback.
+
+### Storage Offloading & Artifact Management
+
+`SupabaseStorageService` provides cloud object storage offloading for unified diffs, patch files, generated PDF reports, and SARIF dumps:
+- **Remote REST Client**: Uses reactive Spring `WebClient.Builder` with HTTP `POST` to `/storage/v1/object/{bucket}/{path}` with Bearer authorization and gateway `apikey` headers (`serviceKey`), and configurable timeout (`auditagent.supabase.storage.timeout-seconds`).
+- **Resilient Local Fallback**: When remote storage is disabled (`auditagent.supabase.storage.enabled: false`), unconfigured, or returns an HTTP error, artifacts automatically persist to local disk at `auditagent.supabase.storage.fallback-local-dir` (`.auditagent/storage`), returning `local://<path>` URIs.
+- **Artifact Downloads**: `downloadArtifact(uri)` and `downloadTextArtifact(uri)` parse `storage://` and `local://` schemes, retrieving content from Supabase REST API or reading from the local disk fallback.
 
 ## Deletion semantics
 

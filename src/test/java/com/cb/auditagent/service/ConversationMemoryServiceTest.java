@@ -31,6 +31,9 @@ class ConversationMemoryServiceTest {
     @MockitoBean
     private dev.langchain4j.model.chat.ChatModel agentModel;
 
+    @MockitoBean
+    private org.springframework.amqp.rabbit.connection.ConnectionFactory connectionFactory;
+
     @Autowired
     private MemoryConfig memoryConfig;
 
