@@ -139,7 +139,11 @@ Controllers translate HTTP into application operations. `ApiSecurityFilter` hand
 - `GitHubApiClient`: GitHub HTTP API and App JWT.
 - `GitHubProvider`: JGit workspace and publication operations.
 - `SecurityScanner` & `ScannerRegistry`: Polymorphic scanner strategy interface (`SecurityScanner`) and Spring registry (`ScannerRegistry`) resolving scanner engines dynamically by name (`semgrep`, etc.), adhering to OCP and DIP. `ScannerService` provides the default Semgrep implementation.
-- `LlmService`: Core LLM chat and tool-calling remediation loop, implementing `ChatService` and delegating token tracking to `LlmTokenTracker` (SRP/ISP).
+- `ChatConversationService`: Interactive conversational assistance, command tag parsing, and issue matching via LangChain4j, implementing `@Primary` `ChatService`.
+- `RemediationToolRegistry`: Declarative LangChain4j tool specifications, parameter validation, and execution dispatching.
+- `MemoryReflectionService`: Automated distillation of positive remediation patterns and failure anti-patterns via LangChain4j.
+- `LlmTokenAuditService`: LLM token usage auditing, Micrometer metric incrementing, and consumption database persistence.
+- `LlmService`: Remediation loop coordinator and facade delegating chat, tools, reflections, and token auditing to focused domain services.
 - `FindingTriageService`: Bounded finding triage with configurable `Semaphore` concurrency (1–32) and exponential backoff retry on HTTP 429 rate limits.
 - `AgentToolService`: Constrained repository tool suite implementing segregated role interfaces (`WorkspaceInspector`, `WorkspacePatcher`, `WorkspaceBuildVerifier`, `WorkspaceRescanner`).
 - `TaskProducerService`: RabbitMQ asynchronous task dispatcher with message priority and dead-letter routing.

@@ -6,7 +6,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import com.cb.auditagent.config.GitHubAppConfig;
 
 @Disabled("Manual test requiring local PostgreSQL server")
-@SpringBootTest(properties = {"spring.profiles.active=local", "spring.ai.openai.api-key=dummy"})
+@SpringBootTest(properties = {"spring.profiles.active=local"})
 public class YamlTest {
     @Autowired
     private GitHubAppConfig config;

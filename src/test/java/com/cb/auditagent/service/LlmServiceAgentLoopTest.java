@@ -17,8 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.ai.chat.model.ChatModel;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -38,8 +36,6 @@ import static org.mockito.Mockito.*;
 @ActiveProfiles("test")
 @Transactional
 class LlmServiceAgentLoopTest {
-    @MockitoBean
-    private ChatModel springChatModel;
     @MockitoBean
     private SkillManagerService skillManager;
     @MockitoBean

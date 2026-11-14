@@ -2,7 +2,7 @@
 
 ## Application entry and framework
 
-`AuditagentApplication` starts Spring Boot. The backend uses Java 21, Spring Boot 4.0.6, WebFlux, validation, Actuator, Spring AI 2.0.0-RC1, LangChain4j 1.0.0-beta4, PostgreSQL JDBC driver, JGit 7.6, and aligned AWS SDK modules.
+`AuditagentApplication` starts Spring Boot. The backend uses Java 21, Spring Boot 4.0.6, WebFlux, validation, Actuator, LangChain4j 1.22.0, PostgreSQL JDBC driver, JGit 7.6, and aligned AWS SDK modules. Spring AI is fully deprecated and removed.
 
 ## Controllers
 
@@ -153,20 +153,47 @@ Manages user-provided LLM credentials stored in the `user_llm_configs` table. It
 
 ### `UserLlmClientFactory`
 
-Provides dynamically instantiated and cached `ChatModel` (Spring AI) and `OpenAiChatModel` (LangChain4j) clients per authenticated user:
+Provides dynamically instantiated and cached `ChatModel` and `StreamingChatModel` (LangChain4j) clients per authenticated user:
 - Constructs provider-specific configurations (including OpenRouter headers and OpenAI-compatible base URLs).
 - Dynamically resolves either user-scoped models (when configured or required) or system-level fallback models.
-- Caches models using an LRU cache keyed by `userId:hash(apiKey,provider,model,baseUrl)`.
-- Injected into `SupervisorNode`, `ModelCallNode`, and `LlmService` to resolve active user models on demand.
+- Caches models using an unified cache keyed by `userId:type:model:hash(apiKey,baseUrl)`.
+- Injected into `SupervisorNode`, `ModelCallNode`, `ChatConversationService`, and `LlmService` to resolve active user models on demand.
+
+### `ChatConversationService`
+
+Standardized exclusively on LangChain4j and implements `@Primary` `ChatService`:
+- Handles conversational assistance with active vulnerability context and command tags (`[TRIGGER_SCAN]`, `[TRIGGER_FIX:VULN-ID]`).
+- Supports synchronous generation (`chat`) and real-time Server-Sent Events token streaming (`chatStream`) via `StreamingChatModel` (with graceful fallback to `ChatModel`).
+- Performs two-tier GitHub issue finding matching (Tier 1 regex, Tier 2 LangChain4j semantic matching).
+- Automatically redacts and persists conversation turns via `ConversationMemoryService`.
+
+### `RemediationToolRegistry`
+
+Centralized registry for agent tool definitions and execution dispatching:
+- Builds standard LangChain4j `ToolSpecification` schemas with parameters and requirements.
+- Dispatches tool invocations to `AgentToolService` and `DatabaseService` with parameter validation and error serialization.
+- Classifies mutating vs non-mutating tools and success return statuses.
+- Generates reproducible SHA-256 idempotency keys for tool steps.
+
+### `MemoryReflectionService`
+
+Distills remediation wisdom into durable pattern memory via LangChain4j:
+- Summarizes pull request diffs into abstract positive remediation patterns.
+- Distills failed remediation trajectories into negative anti-pattern warnings.
+- Redacts proprietary identifiers and persists global patterns in PostgreSQL.
+
+### `LlmTokenAuditService`
+
+Encapsulates token usage auditing and billing metrics:
+- Records tokens consumed by model name to Micrometer counter `ai.tokens.consumed`.
+- Persists per-run and per-thread token usage records to the database.
 
 ### `LlmService`
 
-Has two modes:
-
-- simple Spring AI conversation endpoint;
-- LangChain4j tool-calling remediation loop.
-
-It constructs prompts, loads approved memory, restores durable history, applies model timeouts, executes tools, persists idempotent steps and evidence, enforces verification, and emits progress. It resolves user-scoped models via `UserLlmClientFactory`, enforcing user key requirements when enabled.
+Coordinates the autonomous multi-turn tool-calling remediation loop:
+- Acts as a backward-compatible facade delegating chat, tools, reflections, and token tracking to the decomposed domain services.
+- Executes the autonomous ReAct tool-calling loop with sliding memory window, iteration budget awareness, stuck detection, and timeout handling.
+- Checkpoints runs and persists verification results and file changes across iterations.
 
 ### `AgentToolService`
 

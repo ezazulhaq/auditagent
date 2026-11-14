@@ -429,5 +429,10 @@
     "type": "java.lang.Integer",
     "description": "Timeout in seconds for Supabase/S3 artifact storage operations",
     "defaultValue": 30
+  },
+  {
+    "name": "auditagent.supabase.storage.fallback-local-dir",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.supabase.storage.fallback-local-dir'"
   }
 ]}

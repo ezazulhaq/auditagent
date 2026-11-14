@@ -25,9 +25,6 @@ import static org.junit.jupiter.api.Assertions.*;
 class DomainDataServicesTest {
 
     @MockitoBean
-    private org.springframework.ai.chat.model.ChatModel chatModel;
-
-    @MockitoBean
     private dev.langchain4j.model.chat.ChatModel agentModel;
 
     @Autowired
