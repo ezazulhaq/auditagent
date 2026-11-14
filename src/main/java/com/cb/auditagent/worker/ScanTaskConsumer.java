@@ -25,7 +25,10 @@ public class ScanTaskConsumer {
         this.scanOrchestrator = scanOrchestrator;
     }
 
-    @RabbitListener(queues = RabbitMqConfig.SCAN_QUEUE)
+    @RabbitListener(
+            queues = RabbitMqConfig.SCAN_QUEUE,
+            autoStartup = "${spring.rabbitmq.listener.simple.auto-startup:true}"
+    )
     public void consumeScanTask(ScanTaskPayload task) {
         logger.info("Worker picked up scan task [{}] for repo {} on branch {}",
                 task.jobId(), task.repositoryId(), task.branch());

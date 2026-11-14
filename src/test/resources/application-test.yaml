@@ -19,6 +19,9 @@ spring:
     hibernate:
       ddl-auto: update
   rabbitmq:
+    dynamic: false
+    username: ${RABBITMQ_USER:auditagent}
+    password: ${RABBITMQ_PASSWORD:auditagent}
     listener:
       simple:
         auto-startup: false
@@ -29,6 +32,8 @@ management:
       enabled: false
 
 auditagent:
+  worker:
+    enabled: false
   messaging:
     events-exchange: auditagent.events
   database:
