@@ -3,6 +3,7 @@ package com.cb.auditagent.service;
 import com.cb.auditagent.config.AgentConfig;
 import com.cb.auditagent.config.LlmProperties;
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.StreamingChatModel;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -15,7 +16,7 @@ class UserLlmClientFactoryTest {
     private LlmProperties llmProperties;
     private AgentConfig agentConfig;
     private ChatModel defaultAgentModel;
-    private org.springframework.ai.chat.model.ChatModel defaultSpringChatModel;
+    private StreamingChatModel defaultStreamingChatModel;
     private UserLlmClientFactory factory;
 
     @BeforeEach
@@ -25,10 +26,10 @@ class UserLlmClientFactoryTest {
         llmProperties.setUserKeysRequired(true);
         agentConfig = new AgentConfig();
         defaultAgentModel = mock(ChatModel.class);
-        defaultSpringChatModel = mock(org.springframework.ai.chat.model.ChatModel.class);
+        defaultStreamingChatModel = mock(StreamingChatModel.class);
 
         factory = new UserLlmClientFactory(
-                configService, llmProperties, agentConfig, defaultAgentModel, defaultSpringChatModel
+                configService, llmProperties, agentConfig, defaultAgentModel, defaultStreamingChatModel
         );
     }
 
@@ -52,8 +53,11 @@ class UserLlmClientFactoryTest {
         ChatModel model = factory.getAgentModel("user-1");
         assertSame(defaultAgentModel, model);
 
-        org.springframework.ai.chat.model.ChatModel springModel = factory.getSpringChatModel("user-1");
-        assertSame(defaultSpringChatModel, springModel);
+        ChatModel chatModel = factory.getChatModel("user-1");
+        assertSame(defaultAgentModel, chatModel);
+
+        StreamingChatModel streamingModel = factory.getStreamingChatModel("user-1");
+        assertSame(defaultStreamingChatModel, streamingModel);
     }
 
     @Test
@@ -90,4 +94,3 @@ class UserLlmClientFactoryTest {
         assertEquals("sk-custom-jev-key", factory.getJevApiKey("user-1"));
     }
 }
-

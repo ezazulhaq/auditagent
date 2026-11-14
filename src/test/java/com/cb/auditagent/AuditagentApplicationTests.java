@@ -1,22 +1,22 @@
 package com.cb.auditagent;
 
+import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.StreamingChatModel;
 import org.junit.jupiter.api.Test;
-import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest(properties = {
-		"spring.ai.model.chat=none",
-		"spring.ai.openai.api-key=dummy",
 		"auditagent.memory.fts-enabled=false",
 		"spring.rabbitmq.listener.simple.auto-startup=false"
 })
 class AuditagentApplicationTests {
+
 	@MockitoBean
 	ChatModel chatModel;
 
 	@MockitoBean
-	dev.langchain4j.model.chat.ChatModel agentModel;
+	StreamingChatModel streamingChatModel;
 
 	@Test
 	void contextLoads() {

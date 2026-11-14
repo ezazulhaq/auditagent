@@ -285,15 +285,16 @@ secret manager is preferable to a static environment file.
 - Remember that privileged container administrators can inspect process environments; enforce platform access
   controls as well as application controls.
 
-## AWS/model environment
+## LLM / Model environment
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `SPRING_AI_OPENAI_API_KEY` | empty | OpenAI-compatible API key for both Spring AI and LangChain4j. |
-| `SPRING_AI_OPENAI_BASE_URL` | empty | Base URL for the OpenAI-compatible API. |
-| `PROVIDER_MODEL` | empty | Model name (e.g. `anthropic/claude-3.5-sonnet`) for both chat/remediation. |
+| `OPENAI_API_KEY` | empty | OpenAI-compatible API key for LangChain4j. |
+| `OPENAI_BASE_URL` | `https://openrouter.ai/api/v1` | Base URL for the OpenAI-compatible API. |
+| `OPENAI_MODEL_NAME` / `PROVIDER_MODEL` | `z-ai/glm-5.3-flash` | Model name for chat and remediation agents. |
+| `SUPERVISOR_MODEL_NAME` | `z-ai/glm-5.3-flash` | Model name for supervisor routing. |
 
-The LangChain4j client uses the same Spring Boot properties. Provide valid API keys through secrets management rather than plain text.
+All LLM configuration is consolidated strictly under `auditagent.llm.*` using LangChain4j (Spring AI is fully deprecated and removed). Provide valid API keys through secrets management rather than plain text.
 
 ## Database and workspace environment
 
@@ -680,7 +681,7 @@ Each scan also creates a short `aa-*` directory directly under `java.io.tmpdir`.
 - LangGraph4j (`1.9.5`) provides the graph-based orchestration and requires Java 17+.
 - LangChain4j (`1.22.0`) and `langchain4j-open-ai` are included to support OpenRouter, Gemini, and other OpenAI-compatible API proxies.
 - `async-generator-5.0.0` provides async streaming compatibility for the graph engine.
-- Spring Boot 4 and Spring AI release candidate require deliberate Jackson/AWS alignment.
+- Spring Boot 4 and LangChain4j 1.22.0 provide unified AI client integration without dual-framework fragmentation.
 - JUnit BOM is pinned to JUnit 6 for Spring Framework 7 compatibility.
 - Frontend build empties the static output directory.
 - Generated static assets are intentionally tracked/allowed by `.gitignore`.

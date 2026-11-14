@@ -2,7 +2,9 @@ package com.cb.auditagent.config;
 
 import dev.langchain4j.http.client.okhttp.OkHttpClientBuilder;
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
+import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
@@ -16,22 +18,22 @@ import org.springframework.context.annotation.Configuration;
 import okhttp3.OkHttpClient.Builder;
 
 /**
- * Configuration for the LangChain4j ChatModel used by the agentic
- * remediation loop. This is a separate model instance from the Spring AI
- * ChatModel used for the simple chat endpoint.
+ * Configuration for LangChain4j ChatModel and StreamingChatModel used across
+ * agentic remediation and conversational chat workflows.
+ * Standardized exclusively on LangChain4j in Phase 3.
  */
 @Configuration
 public class LangChainModelConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(LangChainModelConfig.class);
 
-    @Value("${auditagent.llm.openai.base-url:https://openrouter.ai/api/v1}")
+    @Value("${auditagent.llm.openai.base-url:${auditagent.llm.base-url:https://openrouter.ai/api/v1}}")
     private String baseUrl;
 
-    @Value("${auditagent.llm.openai.api-key:}")
+    @Value("${auditagent.llm.openai.api-key:${auditagent.llm.api-key:}}")
     private String apiKey;
 
-    @Value("${auditagent.llm.openai.model-name:anthropic/claude-3.5-sonnet}")
+    @Value("${auditagent.llm.openai.model-name:${auditagent.llm.model-name:anthropic/claude-3.5-sonnet}}")
     private String modelName;
 
     @Value("${auditagent.agent.llm-temperature:0.2}")
@@ -69,6 +71,32 @@ public class LangChainModelConfig {
                 .maxTokens(maxOutputTokens)
                 .timeout(Duration.ofSeconds(timeoutSeconds))
                 .maxRetries(maxRetries)
+                .httpClientBuilder(httpClientBuilder)
+                .build();
+    }
+
+    @Bean
+    public StreamingChatModel openAiStreamingChatModel() {
+        logger.info(
+                "Initializing LangChain4j StreamingChatModel with model={} url={}",
+                modelName, baseUrl);
+
+        Builder okBuilder = new Builder()
+                .addInterceptor(new GeminiThoughtSignatureInterceptor())
+                .readTimeout(timeoutSeconds, TimeUnit.SECONDS)
+                .connectTimeout(timeoutSeconds, TimeUnit.SECONDS)
+                .writeTimeout(timeoutSeconds, TimeUnit.SECONDS)
+                .callTimeout(timeoutSeconds, TimeUnit.SECONDS);
+        OkHttpClientBuilder httpClientBuilder = new OkHttpClientBuilder()
+                .okHttpClientBuilder(okBuilder);
+
+        return OpenAiStreamingChatModel.builder()
+                .baseUrl(baseUrl)
+                .apiKey(apiKey)
+                .modelName(modelName)
+                .temperature(temperature)
+                .maxTokens(maxOutputTokens)
+                .timeout(Duration.ofSeconds(timeoutSeconds))
                 .httpClientBuilder(httpClientBuilder)
                 .build();
     }
