@@ -148,6 +148,7 @@
 |---|---|
 | `AgentToolService.java` | LLM agent tool suite implementing segregated role interfaces (`WorkspaceInspector`, `WorkspacePatcher`, `WorkspaceBuildVerifier`, `WorkspaceRescanner`). |
 | `ChatService.java` | Interface for AI conversational assistance, vulnerability triage, and command dispatching (ISP/DIP). |
+| `ChatConversationService.java` | Primary implementation of `ChatService` providing interactive chat, streaming SSE via LangChain4j `StreamingChatModel`, command tag injection (`[TRIGGER_FIX]`, `[TRIGGER_SCAN]`), and 2-tier regex/semantic finding matching. |
 | `ConversationMemoryService.java` | Durable LangChain message history, context summarization, and aggressive tool output truncation. |
 | `DatabaseService.java` | Unified persistence facade delegating to Conversation, Remediation, User, and Scan domain data services. |
 | `FilePatchService.java` | Backup, rollback, diff, and legacy patch helper. |
@@ -158,11 +159,13 @@
 | `GitHubProvider.java` | JGit clone/diff/hash/commit/push/PR/cleanup. |
 | `IssueLifecycleService.java` | GitHub App issue webhook event processor, triage matching, autonomous remediation, and issue thread tracking. |
 | `LlmErrorClassifier.java` | Classifies and normalizes LLM provider failures (404 model not found, 401 unauthorized, 402 quota exhausted, 429 rate limit, 400 context length, connection refused), strips Java exception prefixes, extracts clean JSON provider error messages, and indicates configuration resolution flags. |
-| `LlmService.java` | Core LLM provider delegation, tool-calling remediation loop, failure reflection (`reflectOnFailure`), and PR diff learning (`summarizeDiffForGlobalPattern`). Implements `ChatService`. |
+| `LlmService.java` | Refactored facade coordinating multi-turn agent tool loops, delegating interactive chat to `ChatConversationService`, tools to `RemediationToolRegistry`, reflections to `MemoryReflectionService`, and token metrics to `LlmTokenAuditService`. |
+| `LlmTokenAuditService.java` | Encapsulates LLM token recording: registers Micrometer counter metrics (`ai.tokens.consumed`) and persists usage records via `DatabaseService`. |
 | `LlmTokenTracker.java` | Dedicated component for recording token consumption to Micrometer metrics and database audit tables (SRP). |
 | `ManagedProcessEnvironment.java` | Secret scrubbing, contained runtime directories, and validated scanner-temp override. |
 | `ManagedProcessRunner.java` | Concurrent stream draining, heartbeat, deadline, process-tree termination, and short per-scan temp lifecycle. |
 | `MemoryRedactor.java` | Secret masks and caps. |
+| `MemoryReflectionService.java` | Asynchronously distills positive remediation patterns (`summarizeDiffForGlobalPattern`) and failure anti-patterns (`reflectOnFailure`) via LangChain4j. |
 | `PostgresKnowledgeBaseService.java` | Native PostgreSQL/Supabase full-text search (`tsvector`/`tsquery`), candidate retrieval, and domain ranking weights for approved remediation memory. |
 | `DuckDbKnowledgeBaseService.java` | Deprecated compatibility subclass extending `PostgresKnowledgeBaseService`. |
 | `PullRequestLifecycleService.java` | Pull request webhook events, and vulnerability state transitions. |
@@ -171,6 +174,7 @@
 | `ProjectUploadService.java` | Project upload scan orchestration, persistence, and report export. |
 | `queue/TaskProducerService.java` | AMQP task producer routing scan and remediation jobs to RabbitMQ direct exchanges with priority headers. |
 | `realtime/EventBroadcastService.java` | Service broadcasting job events to PostgreSQL durable log and Supabase Realtime / WebSocket subscribers. |
+| `RemediationToolRegistry.java` | Declarative registry defining the 10 LangChain4j `ToolSpecification` instances, validating invocation arguments, dispatching execution to `AgentToolService` and `DatabaseService`, and classifying tool execution status and mutability. |
 | `RemediationWorkflowService.java` | GitHub-native remediation workflow orchestration and async worker task execution. |
 | `reporting/ReportFormat.java` | Enum defining supported report export targets (`MARKDOWN`, `HTML`, `PDF`). |
 | `reporting/ReportExportContext.java` | Encapsulates immutable scan findings and metadata parameters for report generation. |
@@ -198,7 +202,7 @@
 | `tool/WorkspacePatcher.java` | Role interface for applying patches and rolling back files (ISP). |
 | `tool/WorkspaceBuildVerifier.java` | Role interface for compiling projects, running tests, and linting (ISP). |
 | `tool/WorkspaceRescanner.java` | Role interface for rescanning individual files and full static analysis (ISP). |
-| `UserLlmClientFactory.java` | Factory dynamically instantiating and caching user-scoped `ChatModel` (Spring AI) and `OpenAiChatModel` (LangChain4j) clients. |
+| `UserLlmClientFactory.java` | Factory dynamically instantiating and caching user-scoped LangChain4j `ChatModel` and `StreamingChatModel` instances with BYOK AES-GCM decryption and Jev fallback. |
 | `UserLlmConfigService.java` | Service managing user LLM configurations, AES-GCM encryption, key masking, and connectivity testing. |
 | `UserLlmConfigurationException.java` | Domain exception thrown when required user LLM configuration is missing (HTTP 422 `LLM_KEY_REQUIRED`). |
 | `ZipArchiveExtractor.java` | Safe archive validation, extraction, ZipSlip protection, and directory cleanup. |
@@ -332,13 +336,13 @@
 | `scripts/install-git-hooks.ps1`                 | Configures repository hooks path to `.githooks` for PowerShell/Windows users. |
 | `scripts/install-git-hooks.sh`                  | Configures repository hooks path to `.githooks` and executable bit on Unix-like systems. |
 | `.devcontainer/devcontainer.json`               | Temurin Java 21, Node.js 24 & Python 3.12 development container. |
-| `release_notes/*.md`                            | Versioned release notes tracking product, tooling, and infrastructure updates (v2.0.0, v2.0.1, v2.1.0, v2.1.1, v2.2.0, v2.2.1, v2.3.0, v2.3.1, v2.3.2, v2.3.3, v2.4.0, v2.4.1, v2.5.0, v2.6.0, v2.6.1, v2.7.0, v2.8.0). |
+| `release_notes/*.md`                            | Versioned release notes tracking product, tooling, and infrastructure updates (v2.0.0, v2.0.1, v2.1.0, v2.1.1, v2.2.0, v2.2.1, v2.3.0, v2.3.1, v2.3.2, v2.3.3, v2.4.0, v2.4.1, v2.5.0, v2.6.0, v2.6.1, v2.7.0, v2.8.0, v2.9.0). |
 
 ## Test file map
 
 ### Backend
 
-`AuditagentApplicationTests`, `ApiSecurityFilterTest`, `AuditControllerReportExportTest`, `GitHubWebhookControllerTest`, `GitHubRepositoryControllerTest`, `IssueLifecycleServiceTest`, `AgentToolServiceSecurityTest`, `ConversationMemoryServiceTest`, `DatabaseMemoryServiceTest`, `FindingTriageServiceTest`, `FindingTriageConcurrencyTest`, `GitHubAuthServiceTest`, `GitHubAuthServiceConcurrencyTest`, `GitHubProviderIntegrationTest`, `JevClientTest`, `LlmErrorClassifierTest`, `LlmServiceAgentLoopTest`, `ManagedProcessRunnerTest`, `ProjectUploadControllerTest`, `ProjectUploadServiceTest`, `RabbitMqTaskQueueTest`, `RemediationWorkflowPreparationTest`, `CloneWorkspaceNodeConcurrencyTest`, `EventBroadcastServiceRabbitMqTest`, `RunPublicationControllerTest`, `ScanOrchestratorReportExportTest`, `ScanOrchestratorServiceTest`, `ReporterServiceTest`, `ScannerServiceTest`, `SupabaseStorageServiceTest`, `SupabaseStorageClientTest`, `ScanDataServiceBatchUpsertTest`, `PostgresKnowledgeBaseFtsPerformanceTest`, `SupervisorNodeTest`, `TokenCipherTest`, `UserLlmClientFactoryTest`, `UserLlmConfigControllerTest`, `UserLlmConfigServiceTest`, and `ZipArchiveExtractorTest`.
+`AuditagentApplicationTests`, `ApiSecurityFilterTest`, `AuditControllerReportExportTest`, `ChatConversationServiceTest`, `GitHubWebhookControllerTest`, `GitHubRepositoryControllerTest`, `IssueLifecycleServiceTest`, `AgentToolServiceSecurityTest`, `ConversationMemoryServiceTest`, `DatabaseMemoryServiceTest`, `FindingTriageServiceTest`, `FindingTriageConcurrencyTest`, `GitHubAuthServiceTest`, `GitHubAuthServiceConcurrencyTest`, `GitHubProviderIntegrationTest`, `JevClientTest`, `LlmErrorClassifierTest`, `LlmServiceAgentLoopTest`, `LlmTokenAuditServiceTest`, `ManagedProcessRunnerTest`, `ProjectUploadControllerTest`, `ProjectUploadServiceTest`, `RabbitMqTaskQueueTest`, `RemediationToolRegistryTest`, `RemediationWorkflowPreparationTest`, `CloneWorkspaceNodeConcurrencyTest`, `EventBroadcastServiceRabbitMqTest`, `RunPublicationControllerTest`, `ScanOrchestratorReportExportTest`, `ScanOrchestratorServiceTest`, `ReporterServiceTest`, `ScannerServiceTest`, `SupabaseStorageServiceTest`, `SupabaseStorageClientTest`, `ScanDataServiceBatchUpsertTest`, `PostgresKnowledgeBaseFtsPerformanceTest`, `SupervisorNodeTest`, `TokenCipherTest`, `UserLlmClientFactoryTest`, `UserLlmConfigControllerTest`, `UserLlmConfigServiceTest`, and `ZipArchiveExtractorTest`.
 
 ### Frontend
 
@@ -419,7 +423,7 @@ Get-ChildItem rules -Directory | ForEach-Object {
 
 **Recovery checkpoint** — persisted phase/status/iteration/Git hashes enabling safe retry or resume.
 
-**`reflectOnFailure`** — `LlmService` method asynchronously generating anti-pattern warnings from failed agent trajectories when hitting maximum iterations.
+**`reflectOnFailure`** — `MemoryReflectionService` / `LlmService` method asynchronously generating anti-pattern warnings from failed agent trajectories when hitting maximum iterations.
 
 **Report key** — `github:<repositoryId>:<branch>`, used to scope report, finding, and repository memory.
 
@@ -427,7 +431,7 @@ Get-ChildItem rules -Directory | ForEach-Object {
 
 **SSE** — server-sent events, used to stream JSON progress from POST workflows.
 
-**`summarizeDiffForGlobalPattern`** — `LlmService` method asynchronously extracting abstract positive remediation patterns from merged PR diffs.
+**`summarizeDiffForGlobalPattern`** — `MemoryReflectionService` / `LlmService` method asynchronously extracting abstract positive remediation patterns from merged PR diffs.
 
 **Supabase Storage** — S3-compatible object storage layer backed by Supabase used for durable PDF/Markdown audit reports and artifacts.
 

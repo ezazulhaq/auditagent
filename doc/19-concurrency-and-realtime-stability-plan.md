@@ -7,7 +7,7 @@ This document specifies the complete, multi-phase architectural roadmap for scal
 ```mermaid
 flowchart LR
     P1["Phase 1: Concurrency & Real-Time Stability<br/><i>(Implemented in v2.7.0)</i>"] --> P2["Phase 2: Database & Storage Hardening<br/><i>(Implemented in v2.8.0)</i>"]
-    P2 --> P3["Phase 3: AI Framework Consolidation"]
+    P2 --> P3["Phase 3: AI Framework Consolidation<br/><i>(Implemented in v2.9.0)</i>"]
     P3 --> P4["Phase 4: Multi-Agent Star Topology"]
     P4 --> P5["Phase 5: Workspace & Sandbox Decoupling"]
     P5 --> P6["Phase 6: Frontend State Unification"]
@@ -19,7 +19,7 @@ flowchart LR
 | :--- | :--- | :--- | :--- |
 | **Phase 1** | **Concurrency & Real-Time Stability** | RabbitMQ `auditagent.events` fanout exchange, striped `ReentrantLock` concurrency, `enqueueAndStreamScan` backpressure, semaphore-bounded triage, LangGraph4j checkpoint scoping. | **Implemented (v2.7.0)** |
 | **Phase 2** | **Database & Storage Hardening** | Stored `tsvector` with GIN indexing, bulk finding upserts (eliminating N+1 queries), relational JSON bloat cleanup, real S3/Supabase Storage REST upload client. | **Implemented (v2.8.0)** |
-| **Phase 3** | **AI Framework Consolidation** | Standardize exclusively on LangChain4j (deprecating Spring AI duplication), decompose monolithic `LlmService.java` (1,313 lines), unify client caching pools. | **Planned** |
+| **Phase 3** | **AI Framework Consolidation** | Standardize exclusively on LangChain4j (deprecating Spring AI duplication), decompose monolithic `LlmService.java` (1,313 lines), unify client caching pools. | **Implemented (v2.9.0)** |
 | **Phase 4** | **Multi-Agent Star Topology Hardening** | Structured JSON schema routing for `SupervisorNode`, milestone context window compression, decoupled supervisor iteration budgets from retry limits. | **Planned** |
 | **Phase 5** | **Workspace & Sandbox Decoupling** | Stateless workspace reconstruction via patch bundles in object storage, true containerized sandbox execution for untrusted repository builds (`mvn`, `gradle`). | **Planned** |
 | **Phase 6** | **Frontend State & Protocol Unification** | Consolidate 12 fragmented `useState` maps in `useRemediationController.js` into a centralized reducer (`useRemediationReducer`), eliminate polling in favor of real-time server push. | **Planned** |
@@ -176,7 +176,7 @@ auditagent:
 
 ---
 
-## Phase 3: AI Framework Consolidation & Pipeline Decomposition
+## Phase 3: AI Framework Consolidation & Pipeline Decomposition *(Implemented in v2.9.0)*
 
 ### 3.1 Problem Statement & Objectives
 1. **Framework Fragmentation**: The application imports Spring AI (`ChatModel`), LangChain4j (`ChatModel`), official OpenAI Java SDK (`OpenAIClient`), and raw Spring `WebClient` simultaneously.
@@ -222,17 +222,19 @@ auditagent:
 ```
 
 ### 3.4 Implementation and Verification Checklist (Phase 3)
-- [ ] **LangChain4j Chat Migration**: Migrate `LlmService.chat()` and `chatStream()` from Spring AI to LangChain4j `ChatModel`.
-- [ ] **Dependency Pruning**: Remove `spring-ai-openai-spring-boot-starter` and obsolete Spring AI configuration classes from `pom.xml`.
-- [ ] **Service Decomposition**:
-  - Extract `ChatConversationService.java` for interactive chat and tag parsing (`[TRIGGER_FIX]`, `[TRIGGER_SCAN]`).
-  - Extract `RemediationToolRegistry.java` for tool specifications, permission filtering, and execution dispatching.
-  - Extract `MemoryReflectionService.java` for failure/success pattern diff summaries.
-- [ ] **Unified Client Factory**: Refactor `UserLlmClientFactory.java` to maintain a single model cache (`Map<String, dev.langchain4j.model.chat.ChatModel>`).
-- [ ] **Automated Testing**:
-  - `ChatConversationServiceTest`: Verify tag detection and prompt formatting using LangChain4j test doubles.
-  - `RemediationToolRegistryTest`: Verify strict tool validation and error serialization.
-  - Regression test: Full suite passes with zero Spring AI classes on classpath.
+- [x] **LangChain4j Chat Migration**: Migrated `LlmService.chat()` and `chatStream()` from Spring AI to LangChain4j `ChatModel` and `StreamingChatModel`.
+- [x] **Dependency Pruning**: Removed `spring-ai-starter-model-openai`, `spring-ai-markdown-document-reader`, and `spring-ai-bom` from `pom.xml`, with zero Spring AI dependencies remaining on classpath.
+- [x] **Service Decomposition**:
+  - Extracted `ChatConversationService.java` for interactive chat, tag parsing (`[TRIGGER_FIX]`, `[TRIGGER_SCAN]`), and GitHub issue matching.
+  - Extracted `RemediationToolRegistry.java` for tool specifications, permission filtering, and execution dispatching.
+  - Extracted `MemoryReflectionService.java` for failure/success pattern diff summaries.
+  - Extracted `LlmTokenAuditService.java` for token metrics recording and database persistence.
+- [x] **Unified Client Factory**: Refactored `UserLlmClientFactory.java` to maintain a single model cache (`Map<String, dev.langchain4j.model.chat.ChatModel>`), removing Spring AI models and caches.
+- [x] **Automated Testing**:
+  - `ChatConversationServiceTest`: Verified tag detection, prompt formatting, and streaming using LangChain4j test doubles.
+  - `RemediationToolRegistryTest`: Verified strict tool validation and error serialization.
+  - `LlmTokenAuditServiceTest`: Verified token metrics recording and database persistence.
+  - Full test suite: 194 tests run, 0 failures, 0 errors, 2 skipped (`BUILD SUCCESS`) with zero Spring AI classes on classpath.
 
 ---
 
