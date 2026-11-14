@@ -509,7 +509,7 @@ In `ScanDataService.saveReport()`, finding persistence uses optimized batch oper
 ### Storage Offloading & Artifact Management
 
 `SupabaseStorageService` provides cloud object storage offloading for unified diffs, patch files, generated PDF reports, and SARIF dumps:
-- **Remote REST Client**: Uses reactive Spring `WebClient.Builder` with HTTP `POST` to `/storage/v1/object/{bucket}/{path}` with Bearer authentication (`serviceKey`) and configurable timeout (`auditagent.supabase.storage.timeout-seconds`).
+- **Remote REST Client**: Uses reactive Spring `WebClient.Builder` with HTTP `POST` to `/storage/v1/object/{bucket}/{path}` with Bearer authorization and gateway `apikey` headers (`serviceKey`), and configurable timeout (`auditagent.supabase.storage.timeout-seconds`).
 - **Resilient Local Fallback**: When remote storage is disabled (`auditagent.supabase.storage.enabled: false`), unconfigured, or returns an HTTP error, artifacts automatically persist to local disk at `auditagent.supabase.storage.fallback-local-dir` (`.auditagent/storage`), returning `local://<path>` URIs.
 - **Artifact Downloads**: `downloadArtifact(uri)` and `downloadTextArtifact(uri)` parse `storage://` and `local://` schemes, retrieving content from Supabase REST API or reading from the local disk fallback.
 

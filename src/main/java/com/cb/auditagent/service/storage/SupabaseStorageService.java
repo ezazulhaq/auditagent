@@ -106,6 +106,7 @@ public class SupabaseStorageService {
                         cleanPath, bucketName, data.length);
                 webClient.post()
                         .uri("/storage/v1/object/" + bucketName + "/" + cleanPath)
+                        .header("apikey", serviceKey)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + serviceKey)
                         .contentType(MediaType.APPLICATION_OCTET_STREAM)
                         .bodyValue(data)
@@ -142,6 +143,7 @@ public class SupabaseStorageService {
             try {
                 byte[] data = webClient.get()
                         .uri("/storage/v1/object/" + bucketName + "/" + cleanPath)
+                        .header("apikey", serviceKey)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + serviceKey)
                         .retrieve()
                         .bodyToMono(byte[].class)
