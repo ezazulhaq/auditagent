@@ -411,5 +411,23 @@
     "name": "auditagent.jev.triage.backoff-initial-ms",
     "type": "java.lang.String",
     "description": "A description for 'auditagent.jev.triage.backoff-initial-ms'"
+  },
+  {
+    "name": "auditagent.database.batch-size",
+    "type": "java.lang.Integer",
+    "description": "Batch chunk size for bulk database upserts of scan findings",
+    "defaultValue": 100
+  },
+  {
+    "name": "auditagent.supabase.storage.enabled",
+    "type": "java.lang.Boolean",
+    "description": "Enable remote artifact offloading to Supabase/S3 REST storage",
+    "defaultValue": true
+  },
+  {
+    "name": "auditagent.supabase.storage.timeout-seconds",
+    "type": "java.lang.Integer",
+    "description": "Timeout in seconds for Supabase/S3 artifact storage operations",
+    "defaultValue": 30
   }
 ]}

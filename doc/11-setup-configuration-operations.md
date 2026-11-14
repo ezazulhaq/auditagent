@@ -338,6 +338,16 @@ complete boundary against malicious build scripts.
 | `auditagent.jev.triage.max-retries` | 3 | Maximum retry attempts on HTTP 429 rate limit responses from the LLM provider. |
 | `auditagent.jev.triage.backoff-initial-ms` | 500 | Initial backoff duration in milliseconds before jitter for HTTP 429 retries. |
 
+### Database and Storage Performance (Phase 2)
+
+| Property | Default | Meaning |
+|---|---:|---|
+| `auditagent.database.batch-size` | 100 | Chunked batch size for bulk finding upserts in `ScanDataService` via `JdbcTemplate.batchUpdate`. |
+| `auditagent.supabase.storage.enabled` | `true` | Toggle for remote Supabase S3-compatible REST storage offloading. When `false` or unreachable, automatically uses local filesystem fallback. |
+| `auditagent.supabase.storage.bucket-name` | `auditagent-artifacts` | Destination Supabase Storage bucket for unified diffs, patches, and reports. |
+| `auditagent.supabase.storage.timeout-seconds` | 15 | HTTP request timeout in seconds for reactive WebClient storage uploads and downloads. |
+| `auditagent.supabase.storage.fallback-local-dir` | `.auditagent/storage` | Local directory path used for resilient artifact fallback storage when remote storage is unavailable. |
+
 Semgrep also requires a short, writable JVM OS-temp root (`java.io.tmpdir`), especially on Windows. AuditAgent creates one random `aa-*` child per scan and removes it after Semgrep and its observed RPC descendants stop. Do not redirect the JVM OS-temp root into the deeply nested managed scan workspace; Windows Semgrep can fail native RPC `socketpair` creation there. No repository path or credential is used in the temp name.
 
 ### Project upload and multipart codecs
