@@ -49,4 +49,18 @@ public class NotificationController {
         databaseService.markNotificationsRead(user.userId());
         return ResponseEntity.ok().build();
     }
+
+    @PostMapping("/{id}/read")
+    public ResponseEntity<Void> markNotificationRead(ServerWebExchange exchange, @PathVariable String id) {
+        AuthenticatedUser user = auth.requireUser(exchange);
+        databaseService.markNotificationRead(id, user.userId());
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping
+    public ResponseEntity<Void> clearNotifications(ServerWebExchange exchange) {
+        AuthenticatedUser user = auth.requireUser(exchange);
+        databaseService.clearNotifications(user.userId());
+        return ResponseEntity.ok().build();
+    }
 }

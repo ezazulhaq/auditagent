@@ -176,6 +176,16 @@ Shows a responsive two-column enterprise access experience with product capabili
 
 Shows brand and enterprise context, secure-session status, responsive repository scan summary, high/medium counts, GitHub avatar/name, and sign out.
 
+### `NotificationDropdown`
+
+Renders an accessible notification center within `AppHeader`. Key capabilities include:
+- **Badge & Counters**: Numeric unread pill badge (`99+`) with pulse animation on arrival; separate live counters for unread and alert items.
+- **Explicit Read/Unread Control**: Preserves unread status upon opening; provides an explicit "Mark all read" header action and single-item mark-as-read on click.
+- **Segmented Filter Tabs**: Instant filtering by `All`, `Unread`, and `Alerts` (errors/warnings) with customized empty-state messaging.
+- **Smart Deep Linking**: Automatically detects `VULN-xxxx` tokens in notification messages to open the corresponding finding in `FindingDrawer` via `onSelectFinding`, and renders clickable GitHub PR links.
+- **Inline Clear All Confirmation**: Two-step header confirmation (`Clear all? [Clear] [Cancel]`) to wipe notifications safely via `DELETE /api/notifications`.
+- **Relative Timestamps**: Displays human-readable elapsed times ("Just now", "5m ago", "2h ago") with full locale date-time tooltips via `notificationUtils.js`.
+
 ### `ScanPanel`
 
 Coordinates audit scope selection, file upload dropzone, and real-time progress tracking. Decomposed into three focused sub-components adhering to SRP:

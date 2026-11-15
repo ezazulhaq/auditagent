@@ -660,6 +660,17 @@ Request body:
 
 Marks all notifications as read for the authenticated user (`isRead = true`).
 
+### `POST /api/notifications/{id}/read`
+
+Marks a single notification as read for the authenticated user by its ID (`isRead = true`).
+
+Path parameters:
+- `id`: Notification unique identifier.
+
+### `DELETE /api/notifications`
+
+Purges all notifications for the authenticated user from the persistent storage.
+
 ## GitHub webhook
 
 ### `POST /api/webhooks/github`

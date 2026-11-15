@@ -531,6 +531,16 @@ public class DatabaseService {
         userDataService.markNotificationsRead(userId);
     }
 
+    @Transactional
+    public void markNotificationRead(String id, String userId) {
+        userDataService.markNotificationRead(id, userId);
+    }
+
+    @Transactional
+    public void clearNotifications(String userId) {
+        userDataService.clearNotifications(userId);
+    }
+
     // --- Retention & Expiration ---
 
     @Transactional
