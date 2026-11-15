@@ -123,6 +123,26 @@ describe('audit API scan adapter', () => {
     window.removeEventListener('notification-added', eventListener);
   });
 
+  it('marks notifications read and clears notifications', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(new Response('', { status: 200 }));
+    const api = createAuditApi({ fetchImpl });
+
+    await api.markNotificationsRead();
+    expect(fetchImpl).toHaveBeenCalledWith('/api/notifications/read', expect.objectContaining({
+      method: 'POST',
+    }));
+
+    await api.markNotificationRead('notif-42');
+    expect(fetchImpl).toHaveBeenCalledWith('/api/notifications/notif-42/read', expect.objectContaining({
+      method: 'POST',
+    }));
+
+    await api.clearNotifications();
+    expect(fetchImpl).toHaveBeenCalledWith('/api/notifications', expect.objectContaining({
+      method: 'DELETE',
+    }));
+  });
+
   it('requests active run for vulnerability via GET /api/runs/vulnerability/{vulnId}', async () => {
     const runData = { run: { runId: 'run-1', status: 'AWAITING_APPROVAL' }, publication: null };
     const fetchImpl = vi.fn().mockResolvedValue(new Response(JSON.stringify(runData), {

@@ -318,6 +318,17 @@ export function createAuditApi({ baseUrl = API_BASE_URL, fetchImpl = fetch } = {
       if (!response.ok) throw await errorFor(response);
     },
 
+    async markNotificationRead(id) {
+      if (!id || String(id).startsWith('temp-')) return;
+      const response = await request(`/notifications/${encodeURIComponent(id)}/read`, { method: 'POST' });
+      if (!response.ok) throw await errorFor(response);
+    },
+
+    async clearNotifications() {
+      const response = await request(`/notifications`, { method: 'DELETE' });
+      if (!response.ok) throw await errorFor(response);
+    },
+
     async getDocs(signal) {
       const response = await request(`/docs`, { signal });
       if (!response.ok) throw await errorFor(response);

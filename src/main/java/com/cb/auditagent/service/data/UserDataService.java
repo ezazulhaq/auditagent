@@ -185,6 +185,16 @@ public class UserDataService {
     }
 
     @Transactional
+    public void markNotificationRead(String id, String userId) {
+        userNotificationRepository.markAsReadById(id, userId);
+    }
+
+    @Transactional
+    public void clearNotifications(String userId) {
+        userNotificationRepository.deleteAllByUserId(userId);
+    }
+
+    @Transactional
     public void deleteExpiredMemory(LocalDateTime now) {
         oauthStateRepository.deleteExpiredStates(now);
         userSessionRepository.deleteExpiredSessions(now);

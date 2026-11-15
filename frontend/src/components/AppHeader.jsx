@@ -2,7 +2,7 @@ import { Activity, LogOut, Moon, ShieldCheck, Sun, PlayCircle, BookOpen, Chevron
 import { NotificationDropdown } from './NotificationDropdown';
 import { useState, useRef, useEffect, memo } from 'react';
 
-export const AppHeader = memo(function AppHeader({ metadata, counts, user, onLogout, findings = [], onShowFindings, onShowObservability, theme = 'dark', onToggleTheme, onTourClick, onShowDocs, onToggleSidebar, isSidebarOpen, onOpenProfileSettings, api }) {
+export const AppHeader = memo(function AppHeader({ metadata, counts, user, onLogout, findings = [], onSelectFinding, onShowFindings, onShowObservability, theme = 'dark', onToggleTheme, onTourClick, onShowDocs, onToggleSidebar, isSidebarOpen, onOpenProfileSettings, api }) {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = useRef(null);
 
@@ -75,7 +75,7 @@ export const AppHeader = memo(function AppHeader({ metadata, counts, user, onLog
             >
               <PlayCircle size={14} />
             </button>
-            <NotificationDropdown api={api} />
+            <NotificationDropdown api={api} findings={findings} onSelectFinding={onSelectFinding} />
             <div className="relative" ref={userMenuRef}>
               <button
                 type="button"

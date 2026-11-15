@@ -56,7 +56,7 @@
 | `GitHubWebhookController.java` | Signed/replay-protected PR, issue, and issue comment webhook. |
 | `ObservabilityController.java` | Aggregated user-level observability metrics (e.g. token usage). |
 | `MemoryController.java` | Thread restore/forget and run resume/discard. |
-| `NotificationController.java` | User notification retrieval, creation, and mark-read endpoints. |
+| `NotificationController.java` | User notification retrieval, creation, mark-read, and deletion endpoints. |
 | `ProjectUploadController.java` | Multipart upload scan, upload report restore, and export APIs. |
 | `RunPublicationController.java` | Preview, structured decision, publication retry, active run lookup by vulnerability. |
 | `UserLlmConfigController.java` | User Bring-Your-Own-Key LLM configuration endpoints (fetch, save, live test). |
@@ -244,7 +244,8 @@
 | `src/api/sse.js` | Robust JSON SSE parser. |
 | `src/components/AppHeader.jsx` | Brand, scan summary, identity, logout. |
 | `src/components/CopyButton.jsx` | Reusable clipboard copy button supporting multiple sizes, accessible labels, and feedback states. |
-| `src/components/NotificationDropdown.jsx` | Bell icon notification dropdown with unread badge and real-time updates. |
+| `src/components/NotificationDropdown.jsx` | Bell icon notification dropdown with unread count pill badge, filter tabs, finding deep-linking, and inline clear all confirmation. |
+| `src/utils/notificationUtils.js` | Helper utilities for relative time calculation, VULN ID extraction, PR metadata parsing, and tab filtering. |
 | `src/components/ModalManager.jsx` | Centralized modal, drawer, and confirmation dialog container consuming `useModals()`. |
 | `src/features/navigation/workspaceTabs.jsx` | Declarative Workspace Tab Registry implementing Open/Closed Principle (OCP). |
 | `src/features/navigation/WorkspaceContainer.jsx` | Dynamic workspace tab router and view renderer driven by the tab registry. |
@@ -336,7 +337,7 @@
 | `scripts/install-git-hooks.ps1`                 | Configures repository hooks path to `.githooks` for PowerShell/Windows users. |
 | `scripts/install-git-hooks.sh`                  | Configures repository hooks path to `.githooks` and executable bit on Unix-like systems. |
 | `.devcontainer/devcontainer.json`               | Temurin Java 21, Node.js 24 & Python 3.12 development container. |
-| `release_notes/*.md`                            | Versioned release notes tracking product, tooling, and infrastructure updates (v2.0.0, v2.0.1, v2.1.0, v2.1.1, v2.2.0, v2.2.1, v2.3.0, v2.3.1, v2.3.2, v2.3.3, v2.4.0, v2.4.1, v2.5.0, v2.6.0, v2.6.1, v2.7.0, v2.8.0, v2.9.0, v2.9.1). |
+| `release_notes/*.md`                            | Versioned release notes tracking product, tooling, and infrastructure updates (v2.0.0, v2.0.1, v2.1.0, v2.1.1, v2.2.0, v2.2.1, v2.3.0, v2.3.1, v2.3.2, v2.3.3, v2.4.0, v2.4.1, v2.5.0, v2.6.0, v2.6.1, v2.7.0, v2.8.0, v2.9.0, v2.9.1, v2.10.0). |
 
 ## Test file map
 

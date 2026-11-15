@@ -30,7 +30,7 @@ function AppShell() {
   const { authSession, authError, logout, loginUrl } = auth;
   const { config, updateConfig, repositories, branches, loadingRepositories } = workspace;
   const {
-    metadata, counts, findings, startScan, startUploadScan, scan,
+    metadata, counts, findings, handleSelectFinding, startScan, startUploadScan, scan,
     handleTabChange, selectedFinding, handleCloseFindingDrawer, chat
   } = audit;
   const {
@@ -76,6 +76,7 @@ function AppShell() {
         user={authSession.user}
         onLogout={logout}
         findings={findings}
+        onSelectFinding={handleSelectFinding}
         onShowObservability={openObservability}
         onShowFindings={openFindingsModal}
         theme={theme}
