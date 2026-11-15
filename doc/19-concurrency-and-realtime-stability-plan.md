@@ -166,7 +166,7 @@ auditagent:
 ### 2.4 Implementation and Verification Checklist (Phase 2)
 - [x] **Database Migration**: Added `search_vector tsvector GENERATED ALWAYS AS ... STORED` column and GIN index to `repository_memories` via `PostgresSchemaMigrationService.java`.
 - [x] **FTS Query Refactoring**: Updated `PostgresKnowledgeBaseService.java` to query pre-indexed `search_vector` column with `ts_rank_cd(search_vector, ...)` instead of calculating `to_tsvector` dynamically in the `WHERE` clause, with graceful fallback.
-- [x] **Bulk Upsert Ingestion**: Implemented native batch upsert in `ScanDataService.java` using `JdbcTemplate.batchUpdate` with PostgreSQL `ON CONFLICT (id) DO UPDATE SET ...` (and H2 `MERGE INTO` compatibility for test execution) to eliminate N+1 round trips during scan ingestion.
+- [x] **Bulk Upsert Ingestion & Finding Reconciliation**: Implemented native batch upsert in `ScanDataService.java` using `JdbcTemplate.batchUpdate` with PostgreSQL `ON CONFLICT (id) DO UPDATE SET ...` (and H2 `MERGE INTO` compatibility for test execution) to eliminate N+1 round trips during scan ingestion, along with automatic pruning of stale or resolved findings omitted from rescans.
 - [x] **JSON Bloat Elimination**: Deprecated duplicated `reports.findings_json` column (persisted as `null`); load findings lazily/transparently from normalized `vulnerabilities` table with legacy fallback.
 - [x] **Supabase Storage REST Client**: Implemented real HTTP upload and download methods in `SupabaseStorageService.java` using Spring `WebClient.Builder`, supporting unified diffs, SARIF dumps, and text/binary artifacts with bearer token auth and local filesystem fallback.
 - [x] **Automated Testing**:

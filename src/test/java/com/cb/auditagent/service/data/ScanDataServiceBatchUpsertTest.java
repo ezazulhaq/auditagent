@@ -109,4 +109,53 @@ class ScanDataServiceBatchUpsertTest {
         assertEquals(VulnerabilityStatus.FIXED, preserved.getStatus(), "Existing finding status must be preserved across rescans");
         assertEquals("PreparedStatement fix", preserved.getProposedFix(), "Existing proposed fix must be preserved across rescans");
     }
+
+    @Test
+    void testRescanPrunesResolvedVulnerabilitiesFromReportAndDatabase() {
+        String repoPath = "github:999:main";
+        List<Vulnerability> initialFindings = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            Vulnerability v = new Vulnerability(
+                    "VULN-RESOLVE-" + i,
+                    "src/com/example/Service" + i + ".java",
+                    20 + i,
+                    "vulnerable snippet " + i,
+                    Severity.HIGH,
+                    "sql-injection",
+                    "SQL injection issue " + i,
+                    "java"
+            );
+            v.setRuleId("rules.security.sqli." + i);
+            initialFindings.add(v);
+        }
+
+        ScanMetadata metadata = new ScanMetadata();
+        metadata.setProjectName("PruneTest");
+
+        // Initial scan saves 5 findings
+        scanDataService.saveReport(repoPath, "# Initial Report", "<p>Initial</p>", initialFindings, metadata);
+
+        Report initialReport = scanDataService.getReport(repoPath).orElseThrow();
+        assertEquals(5, initialReport.getFindings().size());
+        assertEquals(5, vulnerabilityEntityRepository.findByRepoPath(repoPath).size());
+
+        // Simulate 2 vulnerabilities resolved in code (e.g., VULN-RESOLVE-0 and VULN-RESOLVE-1 fixed)
+        // Subsequent scan returns only the remaining 3 findings
+        List<Vulnerability> remainingFindings = new ArrayList<>(initialFindings.subList(2, 5));
+
+        scanDataService.saveReport(repoPath, "# Rescan Report", "<p>Rescan</p>", remainingFindings, metadata);
+
+        // When user logs in / loads report, getReport must contain ONLY the 3 active findings, NOT 5!
+        Report rescannedReport = scanDataService.getReport(repoPath).orElseThrow();
+        assertEquals(3, rescannedReport.getFindings().size(), "getReport must return only the active findings left after rescan");
+
+        // Database table vulnerabilities must also prune the resolved entities
+        assertEquals(3, vulnerabilityEntityRepository.findByRepoPath(repoPath).size(),
+                "vulnerabilities table must prune resolved findings for the repo_path");
+
+        // The resolved IDs must not be present in the report
+        List<String> reportIds = rescannedReport.getFindings().stream().map(Vulnerability::getId).toList();
+        assertFalse(reportIds.contains("VULN-RESOLVE-0"));
+        assertFalse(reportIds.contains("VULN-RESOLVE-1"));
+    }
 }

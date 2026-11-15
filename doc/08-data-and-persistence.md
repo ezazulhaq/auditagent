@@ -504,7 +504,8 @@ In `ScanDataService.saveReport()`, finding persistence uses optimized batch oper
 4. Executes native batch updates via `JdbcTemplate.batchUpdate`:
    - On PostgreSQL: uses `INSERT INTO vulnerabilities (...) VALUES (...) ON CONFLICT (id) DO UPDATE SET severity = EXCLUDED.severity, status = EXCLUDED.status, proposed_fix = EXCLUDED.proposed_fix, triage_actionable = EXCLUDED.triage_actionable, triage_confidence = EXCLUDED.triage_confidence, triage_classification = EXCLUDED.triage_classification`.
    - On H2/test engines: uses `MERGE INTO vulnerabilities (...) KEY (id) VALUES (...)`.
-5. Eliminates JSON serialization bloat by setting `reports.findings_json` to `null`. Finding retrieval loads normalized findings from the `vulnerabilities` table with legacy fallback.
+5. Prunes stale and previously resolved findings: identifies existing records for the `repo_path` whose fingerprints are no longer detected by the current scan and deletes them in chunked batches from `vulnerabilities` so that `getReport()` returns only the active findings left.
+6. Eliminates JSON serialization bloat by setting `reports.findings_json` to `null`. Finding retrieval loads normalized findings from the `vulnerabilities` table with legacy fallback.
 
 ### Storage Offloading & Artifact Management
 

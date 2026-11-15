@@ -145,6 +145,9 @@ public class ScanDataService {
                 logger.error("Failed to deserialize legacy report findings", ex);
             }
         }
+        if (d.getFindings() == null) {
+            d.setFindings(new ArrayList<>());
+        }
 
         if (e.getMetadataJson() != null && !e.getMetadataJson().trim().isEmpty()) {
             try {
@@ -201,6 +204,7 @@ public class ScanDataService {
         // 2. Prepare batched parameters for native upsert
         List<Object[]> batchParams = new ArrayList<>();
         LocalDateTime now = LocalDateTime.now();
+        Set<String> activeFindingIds = new HashSet<>();
 
         if (findings != null) {
             for (Vulnerability v : findings) {
@@ -245,6 +249,8 @@ public class ScanDataService {
                     v.setStatus(VulnerabilityStatus.DETECTED);
                     proposedFix = v.getProposedFix();
                 }
+
+                activeFindingIds.add(id);
 
                 LocalDateTime findingCreatedAt = (existing != null && existing.getCreatedAt() != null) ? existing.getCreatedAt() : now;
 
@@ -301,7 +307,21 @@ public class ScanDataService {
             }
         }
 
-        // 4. Save report metadata with findingsJson eliminated (set to null) to eliminate relational JSON bloat
+        // 4. Prune stale / resolved findings that are no longer part of this scan
+        if (existingEntities != null && !existingEntities.isEmpty()) {
+            List<String> staleIds = existingEntities.stream()
+                    .map(com.cb.auditagent.entity.VulnerabilityEntity::getId)
+                    .filter(id -> !activeFindingIds.contains(id))
+                    .toList();
+            if (!staleIds.isEmpty()) {
+                for (int i = 0; i < staleIds.size(); i += batchSize) {
+                    List<String> chunk = staleIds.subList(i, Math.min(i + batchSize, staleIds.size()));
+                    vulnerabilityEntityRepository.deleteAllById(chunk);
+                }
+            }
+        }
+
+        // 5. Save report metadata with findingsJson eliminated (set to null) to eliminate relational JSON bloat
         com.cb.auditagent.entity.Report entity = new com.cb.auditagent.entity.Report();
         entity.setRepoPath(repoPath);
         entity.setMdReport(mdReport);
