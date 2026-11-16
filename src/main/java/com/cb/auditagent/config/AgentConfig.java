@@ -38,6 +38,17 @@ public class AgentConfig {
     @Min(0)
     private int maxRetries = 3;
 
+    /** Maximum number of routing hops allowed for the supervisor before aborting (Phase 4) */
+    @Min(1)
+    private int maxSupervisorHops = 25;
+
+    /** Maximum retry attempts for a single worker stage before aborting (Phase 4) */
+    @Min(1)
+    private int maxStageRetries = 3;
+
+    /** Whether to enforce structured JSON output in supervisor routing (Phase 4) */
+    private boolean structuredSupervisor = true;
+
     /** Timeout in seconds for individual LLM calls (Gap #6) */
     @Min(1)
     private int llmCallTimeoutSeconds = 120;
@@ -88,6 +99,9 @@ public class AgentConfig {
 
     public void setMaxIterations(int maxIterations) {
         this.maxIterations = maxIterations;
+        if (this.maxSupervisorHops == 25) {
+            this.maxSupervisorHops = maxIterations;
+        }
     }
 
     public int getCompileTimeoutSeconds() {
@@ -128,6 +142,30 @@ public class AgentConfig {
 
     public void setMaxRetries(int maxRetries) {
         this.maxRetries = maxRetries;
+    }
+
+    public int getMaxSupervisorHops() {
+        return maxSupervisorHops;
+    }
+
+    public void setMaxSupervisorHops(int maxSupervisorHops) {
+        this.maxSupervisorHops = maxSupervisorHops;
+    }
+
+    public int getMaxStageRetries() {
+        return maxStageRetries;
+    }
+
+    public void setMaxStageRetries(int maxStageRetries) {
+        this.maxStageRetries = maxStageRetries;
+    }
+
+    public boolean isStructuredSupervisor() {
+        return structuredSupervisor;
+    }
+
+    public void setStructuredSupervisor(boolean structuredSupervisor) {
+        this.structuredSupervisor = structuredSupervisor;
     }
 
     public int getLlmCallTimeoutSeconds() {

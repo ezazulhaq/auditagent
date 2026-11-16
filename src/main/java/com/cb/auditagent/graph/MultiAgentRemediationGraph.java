@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import com.cb.auditagent.config.AgentConfig;
 import com.cb.auditagent.domain.Skill;
 import com.cb.auditagent.graph.agent.AgentStage;
+import com.cb.auditagent.graph.agent.StageMilestone;
 import com.cb.auditagent.graph.agent.WorkerAgentGraphFactory;
 import com.cb.auditagent.graph.node.AbortNode;
 import com.cb.auditagent.graph.node.CompleteNode;
@@ -19,15 +20,20 @@ import com.cb.auditagent.graph.node.SupervisorNode;
 import com.cb.auditagent.graph.state.MultiAgentState;
 import com.cb.auditagent.service.ConversationMemoryService;
 import com.cb.auditagent.service.SkillManagerService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import static org.bsc.langgraph4j.action.AsyncNodeAction.node_async;
 import static org.bsc.langgraph4j.action.AsyncEdgeAction.edge_async;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
 public class MultiAgentRemediationGraph {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final CompiledGraph<MultiAgentState> graph;
 
@@ -97,6 +103,29 @@ public class MultiAgentRemediationGraph {
                         : "Completed without specific message.";
                 agentOutputs.put(nodeName, finalResponse);
                 updates.put("agentOutputs", agentOutputs);
+
+                // Create and record compact StageMilestone (Phase 4)
+                Object msObj = result.data().get("currentMilestone");
+                StageMilestone milestone;
+                if (msObj instanceof StageMilestone sm) {
+                    milestone = sm;
+                } else if (msObj instanceof Map<?, ?> map) {
+                    milestone = OBJECT_MAPPER.convertValue(map, StageMilestone.class);
+                } else {
+                    milestone = workerFactory.createMilestone(stage, result);
+                }
+                List<StageMilestone> milestones = new ArrayList<>(state.getMilestones());
+                milestones.add(milestone);
+                updates.put("milestones", milestones);
+
+                // Track per-stage retries
+                Map<String, Integer> stageRetries = new HashMap<>(state.getStageRetries());
+                if (!milestone.success()) {
+                    stageRetries.put(stage.name(), stageRetries.getOrDefault(stage.name(), 0) + 1);
+                }
+                updates.put("stageRetries", stageRetries);
+                updates.put("lastStage", stage.name());
+                updates.put("lastStageSuccess", milestone.success());
 
                 // Special handling for PLANNING stage: mark plan as generated
                 if (stage == AgentStage.PLANNING) {

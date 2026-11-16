@@ -87,7 +87,11 @@ auditagent:
     max-memory-mb: ${AUDITAGENT_SCANNER_MAX_MEMORY_MB:1024}
     rule-timeout-seconds: ${AUDITAGENT_SCANNER_RULE_TIMEOUT_SECONDS:2}
   agent:
-    max-iterations: 15
+    max-iterations: ${AUDITAGENT_MAX_ITERATIONS:15}
+    max-supervisor-hops: ${AUDITAGENT_MAX_SUPERVISOR_HOPS:25}
+    max-stage-retries: ${AUDITAGENT_MAX_STAGE_RETRIES:3}
+    structured-supervisor: ${AUDITAGENT_STRUCTURED_SUPERVISOR:true}
+    batch-concurrency: ${AUDITAGENT_BATCH_CONCURRENCY:2}
     compile-timeout-seconds: 120
     test-timeout-seconds: 180
     backup-dir: .auditagent/backups
@@ -100,8 +104,8 @@ auditagent:
     # Docker sandbox configuration
     sandbox-enabled: ${AUDITAGENT_SANDBOX_ENABLED:false}
     sandbox-image: ${AUDITAGENT_SANDBOX_IMAGE:auditagent-sandbox:latest}
-    sandbox-memory-limit: ${AUDITAGENT_SANDBOX_MEMORY:2g}
-    sandbox-cpu-limit: ${AUDITAGENT_SANDBOX_CPU:2.0}
+    sandbox-memory-limit: ${AUDITAGENT_SANDBOX_MEMORY_LIMIT:2g}
+    sandbox-cpu-limit: ${AUDITAGENT_SANDBOX_CPU_LIMIT:2.0}
   memory:
     enabled: true
     fts-enabled: true

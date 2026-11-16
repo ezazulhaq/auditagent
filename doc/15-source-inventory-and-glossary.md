@@ -134,10 +134,10 @@
 | `MultiAgentRemediationGraph.java` | 15-stage Star Topology orchestration graph with a supervisor. |
 | `RemediationGraph.java` | Inner LangGraph4j state machine for agent execution. |
 | `RemediationState.java` | State definition for the remediation loop. |
-| `agent/*.java` | Specialized agent definitions (`AgentStage.java`, `WorkerAgentGraphFactory.java`). |
-| `node/SupervisorNode.java` | Dynamic routing node for the multi-agent workflow. |
+| `agent/*.java` | Specialized agent definitions (`AgentStage.java`, `WorkerAgentGraphFactory.java`, `StageMilestone.java`, `SupervisorDecision.java`). |
+| `node/SupervisorNode.java` | Dynamic routing node for the multi-agent workflow using structured JSON output (`SupervisorDecision`), fuzzy enum normalization (`normalizeAgentEnum`), compact milestone context compression (`StageMilestone`), and decoupled hop limits. |
 | `node/*.java` | Individual graph nodes (Init, ModelCall, ToolExecution, etc.). |
-| `state/MultiAgentState.java` | Agent handoff state definition; includes `planGenerated` and `remediationPlan` for the PLANNING stage. |
+| `state/MultiAgentState.java` | Agent handoff state definition; includes `milestones`, `hops`, `stageRetries`, `planGenerated`, and `remediationPlan`. |
 | `workflow/RemediationWorkflowGraph.java` | Outer LangGraph4j state machine for the end-to-end workflow. |
 | `workflow/WorkflowState.java` | State definition for the workflow orchestration. |
 | `workflow/*.java` | Nodes for workspace setup, and publication. |
@@ -325,6 +325,7 @@
 | `frontend/vitest.config.js` | frontend test environment. |
 | `.gitignore` | Excludes build/runtime artifacts and populated profile-specific configuration files. |
 | `docker-compose.yml` | Container Compose specification for AuditAgent application, frontend dev server, and sandbox builder connecting to external PostgreSQL. |
+| `docker-compose-dev.yml` | Development Container Compose specification with hot-reloading configurations and Vite dev container profile. |
 | `Dockerfile` | Multi-stage production container packaging Java 21, Semgrep CLI, Maven, Gradle, Python 3, and Git. |
 | `Dockerfile.sandbox` | Sandbox container image definition (`auditagent-sandbox:latest`) for isolated tool execution. |
 | `frontend/Dockerfile.dev` | Frontend Vite dev server container with HMR for containerized frontend development. |
@@ -337,13 +338,13 @@
 | `scripts/install-git-hooks.ps1`                 | Configures repository hooks path to `.githooks` for PowerShell/Windows users. |
 | `scripts/install-git-hooks.sh`                  | Configures repository hooks path to `.githooks` and executable bit on Unix-like systems. |
 | `.devcontainer/devcontainer.json`               | Temurin Java 21, Node.js 24 & Python 3.12 development container. |
-| `release_notes/*.md`                            | Versioned release notes tracking product, tooling, and infrastructure updates (v2.0.0, v2.0.1, v2.1.0, v2.1.1, v2.2.0, v2.2.1, v2.3.0, v2.3.1, v2.3.2, v2.3.3, v2.4.0, v2.4.1, v2.5.0, v2.6.0, v2.6.1, v2.7.0, v2.8.0, v2.9.0, v2.9.1, v2.10.0). |
+| `release_notes/*.md`                            | Versioned release notes tracking product, tooling, and infrastructure updates (v2.0.0, v2.0.1, v2.1.0, v2.1.1, v2.2.0, v2.2.1, v2.3.0, v2.3.1, v2.3.2, v2.3.3, v2.4.0, v2.4.1, v2.5.0, v2.6.0, v2.6.1, v2.7.0, v2.8.0, v2.9.0, v2.9.1, v2.10.0, v2.11.0). |
 
 ## Test file map
 
 ### Backend
 
-`AuditagentApplicationTests`, `ApiSecurityFilterTest`, `AuditControllerReportExportTest`, `ChatConversationServiceTest`, `GitHubWebhookControllerTest`, `GitHubRepositoryControllerTest`, `IssueLifecycleServiceTest`, `AgentToolServiceSecurityTest`, `ConversationMemoryServiceTest`, `DatabaseMemoryServiceTest`, `FindingTriageServiceTest`, `FindingTriageConcurrencyTest`, `GitHubAuthServiceTest`, `GitHubAuthServiceConcurrencyTest`, `GitHubProviderIntegrationTest`, `JevClientTest`, `LlmErrorClassifierTest`, `LlmServiceAgentLoopTest`, `LlmTokenAuditServiceTest`, `ManagedProcessRunnerTest`, `ProjectUploadControllerTest`, `ProjectUploadServiceTest`, `RabbitMqTaskQueueTest`, `RemediationToolRegistryTest`, `RemediationWorkflowPreparationTest`, `CloneWorkspaceNodeConcurrencyTest`, `EventBroadcastServiceRabbitMqTest`, `RunPublicationControllerTest`, `ScanOrchestratorReportExportTest`, `ScanOrchestratorServiceTest`, `ReporterServiceTest`, `ScannerServiceTest`, `SupabaseStorageServiceTest`, `SupabaseStorageClientTest`, `ScanDataServiceBatchUpsertTest`, `PostgresKnowledgeBaseFtsPerformanceTest`, `SupervisorNodeTest`, `TokenCipherTest`, `UserLlmClientFactoryTest`, `UserLlmConfigControllerTest`, `UserLlmConfigServiceTest`, and `ZipArchiveExtractorTest`.
+`AuditagentApplicationTests`, `ApiSecurityFilterTest`, `AuditControllerReportExportTest`, `ChatConversationServiceTest`, `GitHubWebhookControllerTest`, `GitHubRepositoryControllerTest`, `IssueLifecycleServiceTest`, `AgentToolServiceSecurityTest`, `ConversationMemoryServiceTest`, `DatabaseMemoryServiceTest`, `FindingTriageServiceTest`, `FindingTriageConcurrencyTest`, `GitHubAuthServiceTest`, `GitHubAuthServiceConcurrencyTest`, `GitHubProviderIntegrationTest`, `JevClientTest`, `LlmErrorClassifierTest`, `LlmServiceAgentLoopTest`, `LlmTokenAuditServiceTest`, `ManagedProcessRunnerTest`, `ProjectUploadControllerTest`, `ProjectUploadServiceTest`, `RabbitMqTaskQueueTest`, `RemediationToolRegistryTest`, `RemediationWorkflowPreparationTest`, `CloneWorkspaceNodeConcurrencyTest`, `EventBroadcastServiceRabbitMqTest`, `RunPublicationControllerTest`, `ScanOrchestratorReportExportTest`, `ScanOrchestratorServiceTest`, `ReporterServiceTest`, `ScannerServiceTest`, `SupabaseStorageServiceTest`, `SupabaseStorageClientTest`, `ScanDataServiceBatchUpsertTest`, `PostgresKnowledgeBaseFtsPerformanceTest`, `SupervisorNodeTest`, `SupervisorNodeStructuredTest`, `SupervisorContextCompressionTest`, `MultiAgentExecutionLimitTest`, `StageMilestoneSerializationTest`, `TokenCipherTest`, `UserLlmClientFactoryTest`, `UserLlmConfigControllerTest`, `UserLlmConfigServiceTest`, and `ZipArchiveExtractorTest`.
 
 ### Frontend
 

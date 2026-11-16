@@ -1,9 +1,14 @@
 package com.cb.auditagent.graph.state;
 
 import com.cb.auditagent.domain.Vulnerability;
+import com.cb.auditagent.graph.agent.StageMilestone;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.bsc.langgraph4j.state.AgentState;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 public class MultiAgentState extends AgentState {
@@ -68,6 +73,53 @@ public class MultiAgentState extends AgentState {
     public int getRetries() {
         Object val = data().get("retries");
         return val instanceof Integer ? (Integer) val : 0;
+    }
+
+    public int getHops() {
+        Object val = data().get("hops");
+        if (val instanceof Integer i) {
+            return i;
+        }
+        return getRetries();
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<StageMilestone> getMilestones() {
+        Object val = data().get("milestones");
+        if (val instanceof List<?> list) {
+            List<StageMilestone> milestones = new ArrayList<>();
+            for (Object item : list) {
+                if (item instanceof StageMilestone sm) {
+                    milestones.add(sm);
+                } else if (item instanceof Map<?, ?> map) {
+                    milestones.add(mapper.convertValue(map, StageMilestone.class));
+                }
+            }
+            return Collections.unmodifiableList(milestones);
+        }
+        return Collections.emptyList();
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Integer> getStageRetries() {
+        Object val = data().get("stageRetries");
+        if (val instanceof Map<?, ?> map) {
+            return (Map<String, Integer>) map;
+        }
+        return Collections.emptyMap();
+    }
+
+    public String getLastStage() {
+        return (String) data().get("lastStage");
+    }
+
+    public Boolean getLastStageSuccess() {
+        Object val = data().get("lastStageSuccess");
+        return val instanceof Boolean ? (Boolean) val : null;
+    }
+
+    public String getSupervisorReasoning() {
+        return (String) data().get("supervisorReasoning");
     }
 
     public boolean isPatchApplied() {
