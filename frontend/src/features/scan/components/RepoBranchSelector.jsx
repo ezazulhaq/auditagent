@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { GitFork, GitBranch, ScanLine, Play, ChevronRight, RefreshCw } from 'lucide-react';
+import { Switch, SwitchThumb } from '@ui-sdk/react/switch';
 import { CustomSelect } from '../../../components/CustomSelect';
 import { formatTime } from '../../../utils/auditSelectors';
 
@@ -86,16 +87,14 @@ export const RepoBranchSelector = memo(function RepoBranchSelector({
           <span className="block text-xs font-semibold text-slate-300">Force fresh rescan</span>
           <span className="mt-1 block text-[10px] leading-4 text-slate-500">Bypass a valid commit cache and run a new scan.</span>
         </span>
-        <span className="relative inline-flex shrink-0">
-          <input
-            type="checkbox"
-            checked={config.forceRescan}
-            onChange={event => onConfigChange('forceRescan', event.target.checked)}
-            className="peer sr-only"
-          />
-          <span className="h-6 w-11 rounded-full border border-slate-600 bg-slate-800 transition peer-checked:border-cyan-400/60 peer-checked:bg-cyan-400/20" />
-          <span className="absolute left-1 top-1 h-4 w-4 rounded-full bg-slate-500 shadow transition peer-checked:translate-x-5 peer-checked:bg-[#06b6d4]" />
-        </span>
+        <Switch
+          checked={Boolean(config.forceRescan)}
+          onCheckedChange={checked => onConfigChange('forceRescan', checked)}
+          aria-label="Force fresh rescan"
+          className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border border-slate-600 bg-slate-800 p-0.5 transition data-checked:border-cyan-400/60 data-checked:bg-cyan-400/20"
+        >
+          <SwitchThumb className="block h-4 w-4 rounded-full bg-slate-500 shadow transition-transform data-checked:translate-x-5 data-checked:bg-[#06b6d4]" />
+        </Switch>
       </label>
 
       {scan.isScanning ? (

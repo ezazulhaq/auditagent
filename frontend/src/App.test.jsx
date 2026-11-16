@@ -38,7 +38,7 @@ describe('App scan lifecycle', () => {
     fireEvent.click(screen.getByRole('button', { name: /Run Scan/i }));
     await waitFor(() => expect(api.scan).toHaveBeenCalled());
     expect(await screen.findByTitle('AuditAgent PDF Report')).toHaveAttribute('src', 'blob:audit-report');
-    expect(screen.getByRole('button', { name: /Audit Report/i })).toHaveClass('border-cyan-400');
+    expect(screen.getByRole('tab', { name: /Audit Report/i })).toHaveClass('border-cyan-400');
   }, 10_000);
 
   it('renders the Issues tab beside Findings and displays tracked issues', async () => {
@@ -66,7 +66,7 @@ describe('App scan lifecycle', () => {
       getNotifications: vi.fn().mockResolvedValue([]), markNotificationsRead: vi.fn().mockResolvedValue({}),
     };
     render(<ToastProvider><App api={api} /></ToastProvider>);
-    const issuesTab = await screen.findByRole('button', { name: /Issues/i });
+    const issuesTab = await screen.findByRole('tab', { name: /Issues/i });
     expect(issuesTab).toBeInTheDocument();
     fireEvent.click(issuesTab);
     expect(await screen.findByText('Tracked GitHub Issues')).toBeInTheDocument();
