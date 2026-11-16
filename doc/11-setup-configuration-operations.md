@@ -364,8 +364,15 @@ Semgrep also requires a short, writable JVM OS-temp root (`java.io.tmpdir`), esp
 
 | Property | Default | Meaning |
 |---|---:|---|
-| `auditagent.agent.max-iterations` | 15 | Model/tool rounds. |
-| `auditagent.agent.batch-concurrency` | 2 | Maximum concurrent remediation tasks executed in batch analysis. |
+| `auditagent.agent.max-iterations` | 15 | Model/tool rounds for worker agent reasoning loops. Controlled via `AUDITAGENT_AGENT_MAX_ITERATIONS` or `AUDITAGENT_MAX_ITERATIONS`. |
+| `auditagent.agent.max-supervisor-hops` | 25 | Maximum routing transitions allowed for `SupervisorNode` before aborting to `FAIL`. Controlled via `AUDITAGENT_AGENT_MAX_SUPERVISOR_HOPS` or alias `AUDITAGENT_SUPERVISOR_MAX_HOPS`. |
+| `auditagent.agent.max-stage-retries` | 3 | Maximum consecutive or total failure retries allowed for an individual worker stage before aborting. Controlled via `AUDITAGENT_AGENT_MAX_STAGE_RETRIES` or alias `AUDITAGENT_STAGE_MAX_RETRIES`. |
+| `auditagent.agent.structured-supervisor` | `true` | Enforces structured JSON output (`SupervisorDecision`) via LangChain4j `ResponseFormat.JSON` with fuzzy enum resilience. Controlled via `AUDITAGENT_AGENT_STRUCTURED_SUPERVISOR` or alias `AUDITAGENT_STRUCTURED_SUPERVISOR`. |
+| `auditagent.agent.batch-concurrency` | 2 | Maximum concurrent remediation tasks executed in batch analysis. Controlled via `AUDITAGENT_AGENT_BATCH_CONCURRENCY` or alias `AUDITAGENT_BATCH_CONCURRENCY`. |
+| `auditagent.agent.sandbox-enabled` | `false` | Whether to execute worker commands inside isolated Docker sandbox container. Controlled via `AUDITAGENT_AGENT_SANDBOX_ENABLED` or alias `AUDITAGENT_SANDBOX_ENABLED`. |
+| `auditagent.agent.sandbox-image` | `auditagent-sandbox:latest` | Docker image tag for worker sandbox execution. Controlled via `AUDITAGENT_AGENT_SANDBOX_IMAGE` or alias `AUDITAGENT_SANDBOX_IMAGE`. |
+| `auditagent.agent.sandbox-memory-limit` | `2g` | Memory allocation limit for worker sandbox containers. Controlled via `AUDITAGENT_AGENT_SANDBOX_MEMORY_LIMIT` or alias `AUDITAGENT_SANDBOX_MEMORY`. |
+| `auditagent.agent.sandbox-cpu-limit` | `2.0` | CPU allocation limit for worker sandbox containers. Controlled via `AUDITAGENT_AGENT_SANDBOX_CPU_LIMIT` or alias `AUDITAGENT_SANDBOX_CPU`. |
 | `auditagent.llm.user-keys-required` | `true` | When true (default), authenticated users must supply their own LLM API key and model (BYOK). Chat and multi-agent remediation fail fast with HTTP 422 (`LLM_KEY_REQUIRED`) if not configured. Controlled via `AUDITAGENT_LLM_USER_KEYS_REQUIRED`. |
 | `auditagent.llm.mode` | `user` | Execution mode (`user` for user-provided credentials, `system` for global system credentials). |
 | `auditagent.llm.provider` | `openrouter` | Default LLM provider (`openrouter` or `openai-compatible`). |
