@@ -8,7 +8,7 @@ This document specifies the complete, multi-phase architectural roadmap for scal
 flowchart LR
     P1["Phase 1: Concurrency & Real-Time Stability<br/><i>(Implemented in v2.7.0)</i>"] --> P2["Phase 2: Database & Storage Hardening<br/><i>(Implemented in v2.8.0)</i>"]
     P2 --> P3["Phase 3: AI Framework Consolidation<br/><i>(Implemented in v2.9.0)</i>"]
-    P3 --> P4["Phase 4: Multi-Agent Star Topology"]
+    P3 --> P4["Phase 4: Multi-Agent Star Topology<br/><i>(Implemented in v2.11.0)</i>"]
     P4 --> P5["Phase 5: Workspace & Sandbox Decoupling"]
     P5 --> P6["Phase 6: Frontend State Unification"]
 ```
@@ -20,7 +20,7 @@ flowchart LR
 | **Phase 1** | **Concurrency & Real-Time Stability** | RabbitMQ `auditagent.events` fanout exchange, striped `ReentrantLock` concurrency, `enqueueAndStreamScan` backpressure, semaphore-bounded triage, LangGraph4j checkpoint scoping. | **Implemented (v2.7.0)** |
 | **Phase 2** | **Database & Storage Hardening** | Stored `tsvector` with GIN indexing, bulk finding upserts (eliminating N+1 queries), relational JSON bloat cleanup, real S3/Supabase Storage REST upload client. | **Implemented (v2.8.0)** |
 | **Phase 3** | **AI Framework Consolidation** | Standardize exclusively on LangChain4j (deprecating Spring AI duplication), decompose monolithic `LlmService.java` (1,313 lines), unify client caching pools. | **Implemented (v2.9.0)** |
-| **Phase 4** | **Multi-Agent Star Topology Hardening** | Structured JSON schema routing for `SupervisorNode`, milestone context window compression, decoupled supervisor iteration budgets from retry limits. | **Planned** |
+| **Phase 4** | **Multi-Agent Star Topology Hardening** | Structured JSON schema routing for `SupervisorNode`, milestone context window compression, decoupled supervisor iteration budgets from retry limits. | **Implemented (v2.11.0)** |
 | **Phase 5** | **Workspace & Sandbox Decoupling** | Stateless workspace reconstruction via patch bundles in object storage, true containerized sandbox execution for untrusted repository builds (`mvn`, `gradle`). | **Planned** |
 | **Phase 6** | **Frontend State & Protocol Unification** | Consolidate 12 fragmented `useState` maps in `useRemediationController.js` into a centralized reducer (`useRemediationReducer`), eliminate polling in favor of real-time server push. | **Planned** |
 
@@ -238,7 +238,7 @@ auditagent:
 
 ---
 
-## Phase 4: Multi-Agent Star Topology & Supervisor Hardening
+## Phase 4: Multi-Agent Star Topology & Supervisor Hardening *(Implemented in v2.11.0)*
 
 ### 4.1 Problem Statement & Objectives
 1. **Fragile String Matching**: [SupervisorNode.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/graph/node/SupervisorNode.java#L166-L177) expects the LLM to reply with a raw enum name (`"Reply ONLY with the exact name..."`). Markdown, punctuation, or lowercase text causes fallback to `FAIL`.
@@ -304,14 +304,15 @@ auditagent:
 ```
 
 ### 4.4 Implementation and Verification Checklist (Phase 4)
-- [ ] **Structured Routing**: Refactor `SupervisorNode.java` to use structured JSON output with `SupervisorDecision` DTO.
-- [ ] **Enum Resilience**: Add fuzzy enum normalization (strip markdown, case-insensitive match) before falling back to `FAIL`.
-- [ ] **Milestone Summarization**: Update `WorkerAgentGraphFactory.java` so completed stages append structured `StageMilestone` objects to state rather than raw string blobs.
-- [ ] **Decoupled Hop Limits**: Introduce `max-supervisor-hops` (default: 25) independent of `max-stage-retries` (default: 3) in `AgentConfig.java` and `SupervisorNode.java`.
-- [ ] **Automated Testing**:
-  - `SupervisorNodeStructuredTest`: Verify model JSON response deserialization and validation.
-  - `SupervisorContextCompressionTest`: Verify supervisor prompt tokens remain $O(N)$ with compact milestones rather than $O(N^2)$.
-  - `MultiAgentExecutionLimitTest`: Verify graph safely executes 10+ consecutive stages without hitting premature iteration aborts.
+- [x] **Structured Routing**: Refactored `SupervisorNode.java` to use structured JSON output with `SupervisorDecision` DTO and LangChain4j `ResponseFormat.JSON`.
+- [x] **Enum Resilience**: Added resilient `normalizeAgentEnum` fuzzy parser (stripping markdown backticks, asterisks, punctuation, quotes, hyphens, spaces, and case-insensitivity) with fallback extraction before defaulting to `FAIL`.
+- [x] **Milestone Summarization**: Updated `WorkerAgentGraphFactory.java` and `MultiAgentRemediationGraph.java` so completed stages append structured `StageMilestone` records (capped at 150 tokens) to state rather than raw string blobs.
+- [x] **Decoupled Hop Limits**: Introduced `max-supervisor-hops` (default: 25) independent of `max-stage-retries` (default: 3) in `AgentConfig.java` and `SupervisorNode.java`, allowing 10+ consecutive stages to execute seamlessly.
+- [x] **Automated Testing**:
+  - `SupervisorNodeStructuredTest`: Verified model JSON response deserialization, markdown code-block unwrapping, field aliases (`next_agent`, `agent`, `rationale`), fuzzy normalization, and disallowance of routing back to `PLANNING`.
+  - `SupervisorContextCompressionTest`: Verified supervisor prompt tokens remain $O(N)$ with compact milestones rather than $O(N^2)$ quadratic explosion, with per-stage summary capped at 150 tokens.
+  - `MultiAgentExecutionLimitTest`: Verified graph safely executes 12 consecutive review stages without hitting premature iteration aborts, and validates that reaching `maxSupervisorHops` or `maxStageRetries` aborts to `FAIL`.
+  - Full test suite: 214 tests run, 0 failures, 0 errors, 2 skipped (`BUILD SUCCESS`).
 
 ---
 
@@ -441,9 +442,9 @@ flowchart TD
 
 | Phase | Milestone | Primary Verification Gate | Status |
 | :---: | :--- | :--- | :---: |
-| **Phase 1** | **Concurrency & Real-Time Stability** | RabbitMQ cross-pod event SSE test + non-blocking virtual thread lock tests. | **[x] Implemented** |
+| **Phase 1** | **Concurrency & Real-Time Stability** | RabbitMQ cross-pod event SSE test + non-blocking virtual thread lock tests. | **[x] Implemented (v2.7.0)** |
 | **Phase 2** | **Database & Storage Hardening** | GIN `search_vector` FTS ranking + bulk batch upsert test ($<500\text{ms}$) + WireMock storage test. | **[x] Implemented (v2.8.0)** |
-| **Phase 3** | **AI Framework Consolidation** | Complete removal of Spring AI dependencies + decomposed `LlmService` unit tests. | **[ ] Planned** |
-| **Phase 4** | **Multi-Agent Star Topology** | Structured JSON schema supervisor test + token budget verification across 10+ hops. | **[ ] Planned** |
+| **Phase 3** | **AI Framework Consolidation** | Complete removal of Spring AI dependencies + decomposed `LlmService` unit tests. | **[x] Implemented (v2.9.0)** |
+| **Phase 4** | **Multi-Agent Star Topology** | Structured JSON schema supervisor test + token budget verification across 10+ hops. | **[x] Implemented (v2.11.0)** |
 | **Phase 5** | **Workspace & Sandbox Decoupling** | Stateless patch bundle PR publication test + container resource limit enforcement. | **[ ] Planned** |
 | **Phase 6** | **Frontend State Unification** | Vitest suite verifying reducer state transitions without polling intervals. | **[ ] Planned** |

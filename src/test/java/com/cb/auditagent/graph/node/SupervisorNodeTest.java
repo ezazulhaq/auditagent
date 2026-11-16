@@ -40,6 +40,7 @@ class SupervisorNodeTest {
         mockMemoryService = Mockito.mock(ConversationMemoryService.class);
         agentConfig = new AgentConfig();
         agentConfig.setMaxIterations(5);
+        agentConfig.setMaxSupervisorHops(5);
         mockLlmService = Mockito.mock(LlmService.class);
         mockJevClient = Mockito.mock(JevClient.class);
         jevProperties = new JevProperties();

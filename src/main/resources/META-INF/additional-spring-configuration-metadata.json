@@ -434,5 +434,25 @@
     "name": "auditagent.supabase.storage.fallback-local-dir",
     "type": "java.lang.String",
     "description": "A description for 'auditagent.supabase.storage.fallback-local-dir'"
+  },
+  {
+    "name": "auditagent.agent.max-supervisor-hops",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.agent.max-supervisor-hops'"
+  },
+  {
+    "name": "auditagent.agent.max-stage-retries",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.agent.max-stage-retries'"
+  },
+  {
+    "name": "auditagent.agent.structured-supervisor",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.agent.structured-supervisor'"
+  },
+  {
+    "name": "auditagent.agent.batch-concurrency",
+    "type": "java.lang.String",
+    "description": "A description for 'auditagent.agent.batch-concurrency'"
   }
 ]}
