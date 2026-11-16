@@ -1,5 +1,5 @@
 import { Check, ChevronDown } from 'lucide-react';
-import { useMemo } from 'react';
+import { memo, useMemo, useState } from 'react';
 import {
   Select,
   SelectContent,
@@ -9,7 +9,15 @@ import {
   SelectValue,
 } from '@ui-sdk/react/select';
 
-export function CustomSelect({ value, onChange, options = [], disabled, placeholder = 'Select option' }) {
+export const CustomSelect = memo(function CustomSelect({
+  value,
+  onChange,
+  options = [],
+  disabled,
+  placeholder = 'Select option',
+}) {
+  const [open, setOpen] = useState(false);
+
   const items = useMemo(() => {
     return (options || []).map((opt) => ({
       value: String(opt.value),
@@ -29,6 +37,8 @@ export function CustomSelect({ value, onChange, options = [], disabled, placehol
     <div className="relative w-full">
       <Select
         items={items}
+        open={open}
+        onOpenChange={setOpen}
         value={selectedValue}
         onValueChange={handleValueChange}
         disabled={disabled}
@@ -53,7 +63,7 @@ export function CustomSelect({ value, onChange, options = [], disabled, placehol
               No options available
             </div>
           ) : (
-            items.map((item) => (
+            open && items.map((item) => (
               <SelectItem
                 key={item.value}
                 value={item.value}
@@ -70,4 +80,4 @@ export function CustomSelect({ value, onChange, options = [], disabled, placehol
       </Select>
     </div>
   );
-}
+});

@@ -1,7 +1,11 @@
-@layer ui-sdk;
+@layer ui-sdk {
+  /* Lightweight behavior containment: ensure hidden parts stay hidden without expensive :has() tree invalidations */
+  [data-slot][hidden]:not([hidden="until-found"]) {
+    display: none !important;
+  }
+}
 
 @import "tailwindcss";
-@import "@ui-sdk/core/web.css" layer(components);
 @plugin "@tailwindcss/typography";
 
 @theme {
