@@ -11,7 +11,7 @@ import {
   ShieldAlert,
   GitPullRequest
 } from 'lucide-react';
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { auditApi } from '../api/auditApi';
 import {
   formatRelativeTime,
@@ -42,18 +42,6 @@ export function NotificationDropdown({
   const filteredNotifications = useMemo(() => {
     return filterNotifications(notifications, activeTab);
   }, [notifications, activeTab]);
-
-  const fetchNotifications = useCallback(() => {
-    api?.getNotifications?.()
-      ?.then?.(data => {
-        if (Array.isArray(data)) {
-          setNotifications(data);
-        }
-      })
-      ?.catch?.(e => {
-        console.error('Failed to fetch notifications', e);
-      });
-  }, [api]);
 
   useEffect(() => {
     let ignore = false;
