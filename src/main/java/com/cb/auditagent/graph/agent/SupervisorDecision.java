@@ -5,6 +5,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.io.Serializable;
+
 /**
  * Structured decision output from the supervisor router.
  */
@@ -17,7 +19,10 @@ public record SupervisorDecision(
         @JsonProperty("reasoning")
         @JsonAlias({"reason", "rationale", "thought", "explanation"})
         String reasoning
-) {
+) implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
     @JsonCreator
     public SupervisorDecision(
             @JsonProperty("nextAgent") String nextAgent,

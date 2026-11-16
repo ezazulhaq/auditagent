@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -17,7 +19,10 @@ public record StageMilestone(
         @JsonProperty("success") boolean success,
         @JsonProperty("summary") String summary,
         @JsonProperty("touchedFiles") List<String> touchedFiles
-) {
+) implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
     @JsonCreator
     public StageMilestone(
             @JsonProperty("stage") AgentStage stage,
@@ -27,6 +32,6 @@ public record StageMilestone(
         this.stage = stage;
         this.success = success;
         this.summary = summary != null ? summary : "";
-        this.touchedFiles = touchedFiles != null ? Collections.unmodifiableList(touchedFiles) : Collections.emptyList();
+        this.touchedFiles = touchedFiles != null ? Collections.unmodifiableList(new ArrayList<>(touchedFiles)) : Collections.emptyList();
     }
 }

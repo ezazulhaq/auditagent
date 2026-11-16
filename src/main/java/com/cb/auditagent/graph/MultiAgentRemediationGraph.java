@@ -20,6 +20,7 @@ import com.cb.auditagent.graph.node.SupervisorNode;
 import com.cb.auditagent.graph.state.MultiAgentState;
 import com.cb.auditagent.service.ConversationMemoryService;
 import com.cb.auditagent.service.SkillManagerService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import static org.bsc.langgraph4j.action.AsyncNodeAction.node_async;
 import static org.bsc.langgraph4j.action.AsyncEdgeAction.edge_async;
@@ -31,6 +32,8 @@ import java.util.Map;
 
 @Service
 public class MultiAgentRemediationGraph {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final CompiledGraph<MultiAgentState> graph;
 
@@ -106,6 +109,8 @@ public class MultiAgentRemediationGraph {
                 StageMilestone milestone;
                 if (msObj instanceof StageMilestone sm) {
                     milestone = sm;
+                } else if (msObj instanceof Map<?, ?> map) {
+                    milestone = OBJECT_MAPPER.convertValue(map, StageMilestone.class);
                 } else {
                     milestone = workerFactory.createMilestone(stage, result);
                 }
