@@ -419,7 +419,12 @@ Stores lifecycle events (`queued`, `progress`, `workspace_prepared`, `graph_step
 
 ### Artifact offloading (`SupabaseStorageService`)
 
-Heavy binary and text artifacts (raw Semgrep SARIF JSON dumps, unified git diffs exceeding 10 KB, and generated PDF reports) are stored in Supabase Storage (`auditagent-artifacts` bucket), keeping relational database tables compact and query latencies fast.
+Heavy binary and text artifacts (raw Semgrep SARIF JSON dumps, unified git diffs exceeding 10 KB, generated PDF reports, and stateless `PatchBundle` JSON manifests) are stored in Supabase Storage (`auditagent-artifacts` bucket), keeping relational database tables compact and query latencies fast.
+
+- `runs/{runId}/patch-bundle.json`: Full stateless `PatchBundle` record (unified diff, modified file paths, hashes, file contents, base SHA, branch name) enabling cross-pod workspace reconstruction.
+- `runs/{runId}/patch.diff`: Isolated raw unified diff for transparency and quick inspection.
+- When `SupabaseStorageService` remote mode is disabled or unreachable, artifacts automatically fall back to local disk persistence under `<workspace.root>/artifacts/`.
+- File modifications within a patch bundle are also recorded in the relational `run_changes` table (`run_id`, `file_path`, `before_hash`, `after_hash`, `state`) for transactional audit tracking.
 
 ## Entity Relationships, Aggregate Roots, and Modular Domain Data Services
 

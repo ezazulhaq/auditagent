@@ -150,6 +150,8 @@ Controllers translate HTTP into application operations. `ApiSecurityFilter` hand
 - `ScanTaskConsumer` & `RemediationTaskConsumer`: background worker listeners enforcing concurrency backpressure (`prefetch = 2` for scans, `prefetch = 1` for remediations).
 - `PostgresKnowledgeBaseService`: PostgreSQL-backed memory search using native `tsvector`, GIN indexing, and metadata ranking (retiring embedded DuckDB).
 - `SupabaseStorageService`: offloads heavy unified diffs, SARIF dumps, and PDF reports to S3-compatible Supabase Storage.
+- `PatchBundleService`: serializes, uploads, and downloads stateless `PatchBundle` artifacts, enabling cross-pod workspace reconstruction and immediate worker clone cleanup.
+- `ContainerizedProcessRunner`: executes untrusted build commands in ephemeral Docker containers with strict resource limits, dropped capabilities, and network restrictions.
 - `EventBroadcastService`: records progress in `job_event_log`, broadcasts events across pods via `auditagent.events` Fanout exchange, and bridges events to local web pod SSE client streams.
 
 ### Persistence
