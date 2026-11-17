@@ -244,8 +244,13 @@
 | `src/api/sse.js` | Robust JSON SSE parser. |
 | `src/components/AppHeader.jsx` | Brand, scan summary, identity, logout. |
 | `src/components/CopyButton.jsx` | Reusable clipboard copy button supporting multiple sizes, accessible labels, and feedback states. |
+| `src/components/CustomSelect.jsx` | Accessible custom select primitive built on `@ui-sdk/react/select`. |
+| `src/components/Modal.jsx` | Accessible dialog container built on `@ui-sdk/react/dialog`. |
+| `src/components/ConfirmDialog.jsx` | Accessible confirmation alert dialog built on `@ui-sdk/react/alert-dialog` with `data-agent-confirm`. |
 | `src/components/NotificationDropdown.jsx` | Bell icon notification dropdown with unread count pill badge, filter tabs, finding deep-linking, and inline clear all confirmation. |
 | `src/utils/notificationUtils.js` | Helper utilities for relative time calculation, VULN ID extraction, PR metadata parsing, and tab filtering. |
+| `src/utils/agentBridge.js` | UI Agent Bridge connecting `@ui-sdk/react/agent` (`createAgent`, `registerTools`, WebMCP) for AI agent UI inspection and control. |
+| `src/features/report/WorkspaceTabs.jsx` | Accessible top tab navigation bar built on `@ui-sdk/react/tabs`. |
 | `src/components/ModalManager.jsx` | Centralized modal, drawer, and confirmation dialog container consuming `useModals()`. |
 | `src/features/navigation/workspaceTabs.jsx` | Declarative Workspace Tab Registry implementing Open/Closed Principle (OCP). |
 | `src/features/navigation/WorkspaceContainer.jsx` | Dynamic workspace tab router and view renderer driven by the tab registry. |

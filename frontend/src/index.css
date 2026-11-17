@@ -1,3 +1,10 @@
+@layer ui-sdk {
+  /* Lightweight behavior containment: ensure hidden parts stay hidden without expensive :has() tree invalidations */
+  [data-slot][hidden]:not([hidden="until-found"]) {
+    display: none !important;
+  }
+}
+
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
@@ -31,6 +38,23 @@
 
     --surface-panel-border: var(--border-subtle);
     --surface-card-border: var(--border-subtle);
+
+    /* Vercel ui-sdk Theme Token Mapping */
+    --ui-background: var(--surface-card);
+    --ui-foreground: var(--text-primary);
+    --ui-muted: var(--surface-inset);
+    --ui-muted-foreground: var(--text-muted);
+    --ui-border: var(--border-subtle);
+    --ui-input: var(--border-medium);
+    --ui-primary: var(--accent-primary);
+    --ui-primary-foreground: #080d16;
+    --ui-destructive: #f43f5e;
+    --ui-ring: var(--border-focus);
+    --ui-ring-border: var(--accent-primary);
+    --ui-overlay: rgba(7, 16, 27, 0.8);
+    --ui-radius: 0.75rem;
+    --ui-font-sans: var(--font-sans);
+    --ui-font-mono: var(--font-mono);
 
     /* Backward compatibility mappings */
     --app-bg: var(--surface-canvas);
@@ -97,6 +121,23 @@
 
     --surface-panel-border: var(--border-subtle);
     --surface-card-border: var(--border-subtle);
+
+    /* Vercel ui-sdk Theme Token Mapping */
+    --ui-background: var(--surface-card);
+    --ui-foreground: var(--text-primary);
+    --ui-muted: var(--surface-inset);
+    --ui-muted-foreground: var(--text-muted);
+    --ui-border: var(--border-subtle);
+    --ui-input: var(--border-medium);
+    --ui-primary: var(--accent-primary);
+    --ui-primary-foreground: #ffffff;
+    --ui-destructive: #e11d48;
+    --ui-ring: var(--border-focus);
+    --ui-ring-border: var(--accent-primary);
+    --ui-overlay: rgba(15, 23, 42, 0.45);
+    --ui-radius: 0.75rem;
+    --ui-font-sans: var(--font-sans);
+    --ui-font-mono: var(--font-mono);
 
     /* Backward compatibility mappings */
     --app-bg: var(--surface-canvas);

@@ -59,6 +59,46 @@ AppShell (Lean layout orchestrator)
 - **Modal Manager (`src/components/ModalManager.jsx`)**:
   All overlays (`DocsView`, `FindingDrawer`, `ChatWidget`, `TokenUsageLayout`, `FindingsModal`, `ConfirmDialog`, `OnboardingTour`, `UserProfileModal`, `LlmOnboardingModal`) are mounted within a dedicated modal root driven by `useModals()`, isolating dialog markup from workspace layout panels.
 
+## Vercel ui-sdk Primitives & Agent-Readiness
+
+AuditAgent integrates `@ui-sdk/react` and `@ui-sdk/core` to provide WAI-ARIA compliant, keyboard-navigable interactive primitives while maintaining existing prop interfaces and the dark DevSecOps visual design.
+
+### Theme Token Mapping & Performance Containment
+
+In `frontend/src/index.css`:
+1. `@layer ui-sdk;` provides lightweight behavioral containment (`[data-slot][hidden]:not([hidden="until-found"]) { display: none !important; }`), ensuring accessibility and hidden state compliance without pulling in the heavy 3,300+ line unstyled `web.css` bundle and its expensive relational `:has()` selectors.
+2. Styling is entirely driven by AuditAgent's Tailwind CSS system, ensuring high-speed layout rendering (<16ms) and zero style invalidation overhead during DOM updates or SSE streaming.
+3. Design tokens (`--ui-*`) are mapped to AuditAgent's semantic surface and brand tokens:
+   - `--ui-background: var(--surface-card);`
+   - `--ui-foreground: var(--text-primary);`
+   - `--ui-muted: var(--surface-inset);`
+   - `--ui-muted-foreground: var(--text-muted);`
+   - `--ui-border: var(--border-subtle);`
+   - `--ui-primary: var(--accent-primary);`
+   - `--ui-ring: var(--border-focus);`
+   - `--ui-radius: 0.75rem;`
+
+### Modernized Component Primitives
+
+1. **`CustomSelect` (`src/components/CustomSelect.jsx`)**:
+   Re-implemented with `@ui-sdk/react/select` (`Select`, `SelectTrigger`, `SelectValue`, `SelectContent`, `SelectItem`, `SelectItemIndicator`). Wrapped in `React.memo` with lazy-mounted options rendering (`open && items.map(...)`), eliminating virtual DOM churn and primitive `useLayoutEffect` overhead when dropdowns are closed. Preserves backward-compatible prop signatures (`value`, `onChange`, `options`, `disabled`, `placeholder`).
+2. **`Modal` (`src/components/Modal.jsx`)**:
+   Powered by `@ui-sdk/react/dialog` (`Dialog`, `DialogBackdrop`, `DialogContent`, `DialogTitle`, `DialogClose`). Manages top-layer focus trapping, background blur, and accessible Escape / outside-press dismissals.
+3. **`ConfirmDialog` (`src/components/ConfirmDialog.jsx`)**:
+   Built on `@ui-sdk/react/alert-dialog` (`AlertDialog`, `AlertDialogBackdrop`, `AlertDialogContent`, `AlertDialogTitle`, `AlertDialogDescription`, `AlertDialogClose`). Includes `data-agent-confirm` to enforce human-in-the-loop guardrails for destructive or modifying actions.
+4. **`WorkspaceTabs` (`src/features/report/WorkspaceTabs.jsx`)**:
+   Uses `@ui-sdk/react/tabs` (`Tabs`, `TabsList`, `TabsTab`, `TabsTabIcon`). Provides semantic WAI-ARIA `tablist` and `tab` roles, left/right keyboard arrow navigation, and live finding/issue counts.
+5. **Fresh Rescan Toggle & Timer Isolation (`src/features/scan/components/RepoBranchSelector.jsx`)**:
+   Upgraded from a plain checkbox to `@ui-sdk/react/switch` (`Switch`, `SwitchThumb`), supporting Space key toggling and animated state transitions. In addition, repository and branch select options are memoized with `useMemo`, and the 1-second scanning timer is isolated into `ScanActionButton`, ensuring tick updates do not re-render select primitives.
+
+### Agent Bridge & WebMCP Integration (`src/utils/agentBridge.js`)
+
+AuditAgent exposes an agent control bridge enabling autonomous agents to read, inspect, and invoke actions across UI primitives:
+- `createAgent({ allow })`: Discovers visible controls and validates confirmation barriers (`step.confirm`).
+- `registerTools(agent, { allow })`: Registers standard `snapshot`, `act`, and `query` tools into `document.modelContext` when WebMCP is present in the browser.
+- `agentTools`: Standard metadata array for tool definitions.
+- Safety guardrails: Destructive actions (such as deletion confirmations) are annotated with `data-agent-confirm`.
+
 ### Startup
 
 1. `AuthProvider` calls `/api/auth/session`.

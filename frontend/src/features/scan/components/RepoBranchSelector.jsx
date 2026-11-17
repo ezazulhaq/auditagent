@@ -1,7 +1,36 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { GitFork, GitBranch, ScanLine, Play, ChevronRight, RefreshCw } from 'lucide-react';
+import { Switch, SwitchThumb } from '@ui-sdk/react/switch';
 import { CustomSelect } from '../../../components/CustomSelect';
 import { formatTime } from '../../../utils/auditSelectors';
+
+const ScanActionButton = memo(function ScanActionButton({ isScanning, scanTime, onCancel, canRunScan }) {
+  if (isScanning) {
+    return (
+      <div className="flex gap-2">
+        <div className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-bold text-slate-400">
+          <RefreshCw size={16} className="animate-spin" /> Scanning <span className="font-mono">{formatTime(scanTime)}</span>
+        </div>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="flex shrink-0 items-center justify-center rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-sm font-bold text-rose-300 transition hover:border-rose-500/30 hover:bg-rose-500/20"
+        >
+          Cancel
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      disabled={!canRunScan}
+      className="primary-action flex w-full items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold"
+    >
+      <Play size={16} fill="currentColor" /> Run Scan <ChevronRight size={15} />
+    </button>
+  );
+});
 
 /**
  * RepoBranchSelector handles repository and branch selection, scanner settings, and scan trigger.
@@ -17,23 +46,29 @@ export const RepoBranchSelector = memo(function RepoBranchSelector({
   branches = [],
   loadingRepositories,
 }) {
-  const selectedRepository = repositories.find(
-    repository => String(repository.repositoryId) === String(config?.repositoryId)
-  );
+  const selectedRepository = useMemo(() => {
+    return repositories.find(
+      repository => String(repository.repositoryId) === String(config?.repositoryId)
+    );
+  }, [repositories, config?.repositoryId]);
 
-  const repositoryOptions = repositories.map(r => ({
-    value: r.repositoryId,
-    label: `${r.fullName} (${r.permission.toLowerCase()})`
-  }));
+  const repositoryOptions = useMemo(() => {
+    return repositories.map(r => ({
+      value: r.repositoryId,
+      label: `${r.fullName} (${r.permission.toLowerCase()})`
+    }));
+  }, [repositories]);
 
-  const branchOptions = branches.map(b => ({
-    value: b,
-    label: b
-  }));
+  const branchOptions = useMemo(() => {
+    return branches.map(b => ({
+      value: b,
+      label: b
+    }));
+  }, [branches]);
 
-  const scannerOptions = [
+  const scannerOptions = useMemo(() => [
     { value: 'semgrep', label: 'Semgrep · managed ruleset' }
-  ];
+  ], []);
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -86,39 +121,22 @@ export const RepoBranchSelector = memo(function RepoBranchSelector({
           <span className="block text-xs font-semibold text-slate-300">Force fresh rescan</span>
           <span className="mt-1 block text-[10px] leading-4 text-slate-500">Bypass a valid commit cache and run a new scan.</span>
         </span>
-        <span className="relative inline-flex shrink-0">
-          <input
-            type="checkbox"
-            checked={config.forceRescan}
-            onChange={event => onConfigChange('forceRescan', event.target.checked)}
-            className="peer sr-only"
-          />
-          <span className="h-6 w-11 rounded-full border border-slate-600 bg-slate-800 transition peer-checked:border-cyan-400/60 peer-checked:bg-cyan-400/20" />
-          <span className="absolute left-1 top-1 h-4 w-4 rounded-full bg-slate-500 shadow transition peer-checked:translate-x-5 peer-checked:bg-[#06b6d4]" />
-        </span>
+        <Switch
+          checked={Boolean(config.forceRescan)}
+          onCheckedChange={checked => onConfigChange('forceRescan', checked)}
+          aria-label="Force fresh rescan"
+          className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border border-slate-600 bg-slate-800 p-0.5 transition data-checked:border-cyan-400/60 data-checked:bg-cyan-400/20"
+        >
+          <SwitchThumb className="block h-4 w-4 rounded-full bg-slate-500 shadow transition-transform data-checked:translate-x-5 data-checked:bg-[#06b6d4]" />
+        </Switch>
       </label>
 
-      {scan.isScanning ? (
-        <div className="flex gap-2">
-          <div className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-bold text-slate-400">
-            <RefreshCw size={16} className="animate-spin" /> Scanning <span className="font-mono">{formatTime(scanTime)}</span>
-          </div>
-          <button
-            type="button"
-            onClick={scan.cancel}
-            className="flex shrink-0 items-center justify-center rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-sm font-bold text-rose-300 transition hover:border-rose-500/30 hover:bg-rose-500/20"
-          >
-            Cancel
-          </button>
-        </div>
-      ) : (
-        <button
-          disabled={!config.repositoryId || !config.branch}
-          className="primary-action flex w-full items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold"
-        >
-          <Play size={16} fill="currentColor" /> Run Scan <ChevronRight size={15} />
-        </button>
-      )}
+      <ScanActionButton
+        isScanning={scan.isScanning}
+        scanTime={scanTime}
+        onCancel={scan.cancel}
+        canRunScan={Boolean(config.repositoryId && config.branch)}
+      />
     </form>
   );
 });
