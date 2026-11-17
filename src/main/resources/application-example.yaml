@@ -106,6 +106,7 @@ auditagent:
     sandbox-image: ${AUDITAGENT_SANDBOX_IMAGE:auditagent-sandbox:latest}
     sandbox-memory-limit: ${AUDITAGENT_SANDBOX_MEMORY_LIMIT:2g}
     sandbox-cpu-limit: ${AUDITAGENT_SANDBOX_CPU_LIMIT:2.0}
+    stateless-workspaces: ${AUDITAGENT_STATELESS_WORKSPACES:true}
   memory:
     enabled: true
     fts-enabled: true

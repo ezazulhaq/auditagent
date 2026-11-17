@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
@@ -17,6 +18,7 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.security.MessageDigest;
+import java.time.Duration;
 import java.util.HexFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -57,6 +59,7 @@ public class AgentToolService implements WorkspaceInspector, WorkspacePatcher, W
     private final FilePatchService filePatchService;
     private final ScannerConfig scannerConfig;
     private final SecurityScanner scannerService;
+    private final ManagedProcessRunner processRunner;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public AgentToolService(
@@ -64,10 +67,21 @@ public class AgentToolService implements WorkspaceInspector, WorkspacePatcher, W
             FilePatchService filePatchService,
             ScannerConfig scannerConfig,
             SecurityScanner scannerService) {
+        this(agentConfig, filePatchService, scannerConfig, scannerService, null);
+    }
+
+    @Autowired
+    public AgentToolService(
+            AgentConfig agentConfig,
+            FilePatchService filePatchService,
+            ScannerConfig scannerConfig,
+            SecurityScanner scannerService,
+            @Autowired(required = false) ManagedProcessRunner processRunner) {
         this.agentConfig = agentConfig;
         this.filePatchService = filePatchService;
         this.scannerConfig = scannerConfig;
         this.scannerService = scannerService;
+        this.processRunner = processRunner;
     }
 
     // -----------------------------------------------------------------------
@@ -681,6 +695,25 @@ public class AgentToolService implements WorkspaceInspector, WorkspacePatcher, W
      * When sandbox is enabled, wraps the command inside a Docker container.
      */
     private ProcessResult runProcess(List<String> command, File workingDir, int timeoutSeconds) {
+        if (processRunner != null) {
+            try {
+                ManagedProcessRunner.ProcessResult runnerResult = processRunner.run(
+                        command,
+                        workingDir.toPath(),
+                        Duration.ofSeconds(timeoutSeconds),
+                        Duration.ofSeconds(15),
+                        null);
+                String combined = (runnerResult.stdout() != null ? runnerResult.stdout() : "") +
+                        (runnerResult.stderr() != null ? runnerResult.stderr() : "");
+                logger.info("Process completed via processRunner with exit code {}: {}",
+                        runnerResult.exitCode(), String.join(" ", command));
+                return new ProcessResult(combined, runnerResult.exitCode());
+            } catch (Exception e) {
+                logger.error("Error running process via processRunner: {}", String.join(" ", command), e);
+                return new ProcessResult("ERROR: Failed to execute command: " + e.getMessage(), -1);
+            }
+        }
+
         try {
             List<String> effectiveCommand;
 
