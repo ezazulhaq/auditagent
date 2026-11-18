@@ -79,6 +79,9 @@ public class AgentConfig {
     /** CPU limit for sandbox containers (e.g. "2.0" for 2 CPUs) */
     private String sandboxCpuLimit = "2.0";
 
+    /** Whether to use stateless workspaces by storing patch bundles and cleaning local workspaces */
+    private boolean statelessWorkspaces = false;
+
     /** Maximum number of concurrent remediation workflows in a batch */
     @Min(1)
     private int batchConcurrency = 2;
@@ -230,6 +233,14 @@ public class AgentConfig {
 
     public void setSandboxCpuLimit(String sandboxCpuLimit) {
         this.sandboxCpuLimit = sandboxCpuLimit;
+    }
+
+    public boolean isStatelessWorkspaces() {
+        return statelessWorkspaces;
+    }
+
+    public void setStatelessWorkspaces(boolean statelessWorkspaces) {
+        this.statelessWorkspaces = statelessWorkspaces;
     }
 
     public int getBatchConcurrency() {

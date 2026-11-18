@@ -1,6 +1,7 @@
 package com.cb.auditagent.graph.workflow;
 
 import org.bsc.langgraph4j.action.NodeAction;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import com.cb.auditagent.domain.AgentPhase;
@@ -10,7 +11,9 @@ import com.cb.auditagent.domain.AuthenticatedUser;
 import com.cb.auditagent.domain.RunPublicationRecord;
 import com.cb.auditagent.domain.VulnerabilityStatus;
 import com.cb.auditagent.service.DatabaseService;
+import com.cb.auditagent.service.SourceControlProvider;
 
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.HashMap;
@@ -20,9 +23,16 @@ import java.util.Map;
 public class RejectNode implements NodeAction<WorkflowState> {
 
     private final DatabaseService database;
+    private final SourceControlProvider sourceControl;
 
     public RejectNode(DatabaseService database) {
+        this(database, null);
+    }
+
+    @Autowired
+    public RejectNode(DatabaseService database, @Autowired(required = false) SourceControlProvider sourceControl) {
         this.database = database;
+        this.sourceControl = sourceControl;
     }
 
     @Override
@@ -57,6 +67,13 @@ public class RejectNode implements NodeAction<WorkflowState> {
                 publication.approvalDigest(), user.login(), LocalDateTime.now(ZoneOffset.UTC),
                 null, "REJECTED", null, null, "REJECTED", null);
         database.saveRunPublication(rejectedPub);
+
+        if (sourceControl != null && publication.workspacePath() != null) {
+            try {
+                sourceControl.cleanupWorkspace(Path.of(publication.workspacePath()));
+            } catch (Exception ignored) {
+            }
+        }
 
         Map<String, Object> updates = new HashMap<>();
         updates.put("runStatus", "REJECTED");

@@ -1,37 +1,49 @@
 package com.cb.auditagent.graph.workflow;
 
 import org.bsc.langgraph4j.action.NodeAction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import com.cb.auditagent.config.AgentConfig;
 import com.cb.auditagent.domain.AgentPhase;
 import com.cb.auditagent.domain.AgentRunRecord;
 import com.cb.auditagent.domain.AgentRunStatus;
 import com.cb.auditagent.domain.AuthenticatedUser;
 import com.cb.auditagent.domain.ManagedRepository;
+import com.cb.auditagent.domain.PatchBundle;
 import com.cb.auditagent.domain.PublishResult;
 import com.cb.auditagent.domain.RunPublicationRecord;
 import com.cb.auditagent.domain.Vulnerability;
 import com.cb.auditagent.domain.VulnerabilityStatus;
 import com.cb.auditagent.service.DatabaseService;
 import com.cb.auditagent.service.GitHubApiClient;
+import com.cb.auditagent.service.PatchBundleService;
 import com.cb.auditagent.service.PullRequestProvider;
 import com.cb.auditagent.service.ReporterService;
 import com.cb.auditagent.service.SourceControlProvider;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Optional;
+import java.util.UUID;
 
 @Component
 public class PublicationNode implements NodeAction<WorkflowState> {
+        private static final Logger logger = LoggerFactory.getLogger(PublicationNode.class);
 
         private final DatabaseService database;
         private final GitHubApiClient github;
         private final PullRequestProvider pullRequests;
         private final SourceControlProvider sourceControl;
         private final ReporterService reporter;
+        private final PatchBundleService patchBundleService;
+        private final AgentConfig agentConfig;
 
         public PublicationNode(
                         DatabaseService database,
@@ -39,11 +51,25 @@ public class PublicationNode implements NodeAction<WorkflowState> {
                         PullRequestProvider pullRequests,
                         SourceControlProvider sourceControl,
                         ReporterService reporter) {
+                this(database, github, pullRequests, sourceControl, reporter, null, new AgentConfig());
+        }
+
+        @Autowired
+        public PublicationNode(
+                        DatabaseService database,
+                        GitHubApiClient github,
+                        PullRequestProvider pullRequests,
+                        SourceControlProvider sourceControl,
+                        ReporterService reporter,
+                        @Autowired(required = false) PatchBundleService patchBundleService,
+                        AgentConfig agentConfig) {
                 this.database = database;
                 this.github = github;
                 this.pullRequests = pullRequests;
                 this.sourceControl = sourceControl;
                 this.reporter = reporter;
+                this.patchBundleService = patchBundleService;
+                this.agentConfig = agentConfig != null ? agentConfig : new AgentConfig();
         }
 
         private void refreshReport(String reportKey, ManagedRepository repository) {
@@ -78,98 +104,139 @@ public class PublicationNode implements NodeAction<WorkflowState> {
                 String installationToken = github.installationToken(publication.installationId());
 
                 Path workspace = Path.of(publication.workspacePath());
+                Path ephemeralWorkspace = null;
 
-                List<String> changedFiles = sourceControl.changedFiles(workspace);
-                boolean touchesWorkflows = changedFiles.stream()
-                                .anyMatch(f -> f.replace('\\', '/').startsWith(".github/workflows/"));
-                if (touchesWorkflows && !github.installationHasWorkflowPermission(publication.installationId())) {
-                        throw new IllegalStateException("Remediation touches GitHub Actions workflow files (.github/workflows/), which requires the GitHub App to have 'Workflows: Read and write' permission. Please grant 'Workflows: Read and write' permission in your GitHub App settings (Developer settings -> GitHub Apps -> Permissions & events -> Repository permissions -> Workflows) and accept the updated permissions for this repository.");
-                }
-
-                database.updateAgentRun(
-                                run.runId(),
-                                AgentPhase.COMMITTING,
-                                AgentRunStatus.PUBLISHING,
-                                run.iteration(),
-                                run.retryCount(),
-                                run.patchApplied(),
-                                run.compilePassed(),
-                                run.rescanPassed(),
-                                run.testsPassed(),
-                                run.checkpointJson(),
-                                run.finalSummary(),
-                                null,
-                                null);
-
-                Vulnerability vulnerability = database.getVulnerabilityById(run.vulnerabilityId())
-                                .orElseThrow(() -> new IllegalStateException("Run finding no longer exists"));
-
-                Integer issueNumber = state.<Integer>value("issueNumber").orElse(null);
-                String summary = "Automated security remediation for " + vulnerability.getRuleId();
-                if (issueNumber != null && issueNumber > 0) {
-                        summary += "\n\nFixes #" + issueNumber;
-                }
-                String approvingUser = user != null ? user.login()
-                                : (publication.approvedBy() != null ? publication.approvedBy() : "system");
-                java.time.LocalDateTime approvedAt = publication.approvedAt() != null
-                                ? publication.approvedAt()
-                                : java.time.LocalDateTime.now(java.time.ZoneOffset.UTC);
-
-                PublishResult result;
                 try {
-                        result = pullRequests.publish(repository, workspace,
-                                        publication.baseBranch(), publication.branchName(), installationToken, approvingUser,
-                                        run.runId(), vulnerability, summary, checkpoint -> {
-                                                // Progress callback omitted for brevity in graph node
-                                        });
-                } catch (Exception e) {
-                        String commitSha = null;
-                        try {
-                                commitSha = sourceControl.workspaceHead(workspace);
-                        } catch (Exception ignored) {
+                        boolean localWorkspaceValid = Files.isDirectory(workspace)
+                                        && Files.isDirectory(workspace.resolve(".git"))
+                                        && !agentConfig.isStatelessWorkspaces();
+
+                        if (!localWorkspaceValid) {
+                                if (patchBundleService != null) {
+                                        Optional<PatchBundle> bundleOpt = patchBundleService.getPatchBundle(runId);
+                                        if (bundleOpt.isPresent()) {
+                                                PatchBundle bundle = bundleOpt.get();
+                                                String ephemeralKey = "pub-" + runId + "-" + UUID.randomUUID().toString().substring(0, 8);
+                                                logger.info("Stateless reconstruction: cloning clean workspace at baseSha [{}] with key [{}]",
+                                                                publication.baseSha(), ephemeralKey);
+                                                ephemeralWorkspace = sourceControl.cloneAtCommit(
+                                                                repository,
+                                                                publication.baseBranch(),
+                                                                publication.baseSha(),
+                                                                installationToken,
+                                                                ephemeralKey);
+                                                patchBundleService.applyBundleToWorkspace(ephemeralWorkspace, bundle);
+                                                workspace = ephemeralWorkspace;
+                                        } else if (!Files.isDirectory(workspace)) {
+                                                throw new IllegalStateException("Workspace directory does not exist on this node (" + workspace
+                                                                + ") and no remote patch bundle found for run " + runId);
+                                        }
+                                } else if (!Files.isDirectory(workspace)) {
+                                        throw new IllegalStateException("Workspace directory does not exist on this node: " + workspace);
+                                }
                         }
-                        AgentPhase failedPhase = commitSha == null ? AgentPhase.COMMITTING : AgentPhase.PUSHING;
-                        database.updateAgentRun(run.runId(), failedPhase, AgentRunStatus.PUBLISH_FAILED,
-                                        run.iteration(), run.retryCount(), run.patchApplied(), run.compilePassed(),
-                                        run.rescanPassed(), run.testsPassed(), run.checkpointJson(), run.finalSummary(),
-                                        "PUBLISH_FAILED", e.getMessage());
-                        RunPublicationRecord failed = new RunPublicationRecord(
+
+                        List<String> changedFiles = sourceControl.changedFiles(workspace);
+                        boolean touchesWorkflows = changedFiles.stream()
+                                        .anyMatch(f -> f.replace('\\', '/').startsWith(".github/workflows/"));
+                        if (touchesWorkflows && !github.installationHasWorkflowPermission(publication.installationId())) {
+                                throw new IllegalStateException("Remediation touches GitHub Actions workflow files (.github/workflows/), which requires the GitHub App to have 'Workflows: Read and write' permission. Please grant 'Workflows: Read and write' permission in your GitHub App settings (Developer settings -> GitHub Apps -> Permissions & events -> Repository permissions -> Workflows) and accept the updated permissions for this repository.");
+                        }
+
+                        database.updateAgentRun(
+                                        run.runId(),
+                                        AgentPhase.COMMITTING,
+                                        AgentRunStatus.PUBLISHING,
+                                        run.iteration(),
+                                        run.retryCount(),
+                                        run.patchApplied(),
+                                        run.compilePassed(),
+                                        run.rescanPassed(),
+                                        run.testsPassed(),
+                                        run.checkpointJson(),
+                                        run.finalSummary(),
+                                        null,
+                                        null);
+
+                        Vulnerability vulnerability = database.getVulnerabilityById(run.vulnerabilityId())
+                                        .orElseThrow(() -> new IllegalStateException("Run finding no longer exists"));
+
+                        Integer issueNumber = state.<Integer>value("issueNumber").orElse(null);
+                        String summary = "Automated security remediation for " + vulnerability.getRuleId();
+                        if (issueNumber != null && issueNumber > 0) {
+                                summary += "\n\nFixes #" + issueNumber;
+                        }
+                        String approvingUser = user != null ? user.login()
+                                        : (publication.approvedBy() != null ? publication.approvedBy() : "system");
+                        java.time.LocalDateTime approvedAt = publication.approvedAt() != null
+                                        ? publication.approvedAt()
+                                        : java.time.LocalDateTime.now(java.time.ZoneOffset.UTC);
+
+                        PublishResult result;
+                        try {
+                                result = pullRequests.publish(repository, workspace,
+                                                publication.baseBranch(), publication.branchName(), installationToken, approvingUser,
+                                                run.runId(), vulnerability, summary, checkpoint -> {
+                                                        // Progress callback omitted for brevity in graph node
+                                                });
+                        } catch (Exception e) {
+                                String commitSha = null;
+                                try {
+                                        commitSha = sourceControl.workspaceHead(workspace);
+                                } catch (Exception ignored) {
+                                }
+                                AgentPhase failedPhase = commitSha == null ? AgentPhase.COMMITTING : AgentPhase.PUSHING;
+                                database.updateAgentRun(run.runId(), failedPhase, AgentRunStatus.PUBLISH_FAILED,
+                                                run.iteration(), run.retryCount(), run.patchApplied(), run.compilePassed(),
+                                                run.rescanPassed(), run.testsPassed(), run.checkpointJson(), run.finalSummary(),
+                                                "PUBLISH_FAILED", e.getMessage());
+                                RunPublicationRecord failed = new RunPublicationRecord(
+                                                publication.runId(), publication.userId(), publication.repositoryId(),
+                                                publication.installationId(), publication.reportKey(), publication.baseBranch(),
+                                                publication.baseSha(), publication.workspacePath(), publication.branchName(),
+                                                publication.approvalDigest(), approvingUser, approvedAt,
+                                                commitSha != null ? commitSha : publication.commitSha(), "FAILED",
+                                                publication.pullRequestNumber(), publication.pullRequestUrl(), publication.pullRequestState(),
+                                                e.getMessage());
+                                database.saveRunPublication(failed);
+                                throw e;
+                        }
+
+                        RunPublicationRecord completed = new RunPublicationRecord(
                                         publication.runId(), publication.userId(), publication.repositoryId(),
                                         publication.installationId(), publication.reportKey(), publication.baseBranch(),
                                         publication.baseSha(), publication.workspacePath(), publication.branchName(),
                                         publication.approvalDigest(), approvingUser, approvedAt,
-                                        commitSha != null ? commitSha : publication.commitSha(), "FAILED",
-                                        publication.pullRequestNumber(), publication.pullRequestUrl(), publication.pullRequestState(),
-                                        e.getMessage());
-                        database.saveRunPublication(failed);
-                        throw e;
+                                        result.commitSha(), "PUSHED", result.pullRequestNumber(), result.pullRequestUrl(),
+                                        "OPEN", null);
+                        database.saveRunPublication(completed);
+
+                        vulnerability.setStatus(VulnerabilityStatus.PR_OPEN);
+                        database.updateVulnerabilityStatus(vulnerability.getId(), vulnerability.getStatus(),
+                                        vulnerability.getProposedFix());
+
+                        database.updateAgentRun(run.runId(), AgentPhase.TRACKING_PR, AgentRunStatus.PR_OPEN,
+                                        run.iteration(), run.retryCount(), run.patchApplied(), run.compilePassed(),
+                                        run.rescanPassed(),
+                                        run.testsPassed(), run.checkpointJson(), run.finalSummary(), null, null);
+
+                        refreshReport(publication.reportKey(), repository);
+
+                        Map<String, Object> updates = new HashMap<>();
+                        updates.put("runStatus", "PUBLISHED");
+                        updates.put("pullRequestUrl", result.pullRequestUrl());
+                        updates.put("pullRequestNumber", result.pullRequestNumber());
+                        updates.put("workflowMessage", "Pull request created successfully: " + result.pullRequestUrl());
+                        return updates;
+                } finally {
+                        if (ephemeralWorkspace != null) {
+                                try {
+                                        sourceControl.cleanupWorkspace(ephemeralWorkspace);
+                                        logger.info("Cleaned up ephemeral publication workspace [{}]", ephemeralWorkspace);
+                                } catch (Exception e) {
+                                        logger.warn("Failed to clean up ephemeral publication workspace: {}", e.getMessage());
+                                }
+                        }
                 }
-
-                RunPublicationRecord completed = new RunPublicationRecord(
-                                publication.runId(), publication.userId(), publication.repositoryId(),
-                                publication.installationId(), publication.reportKey(), publication.baseBranch(),
-                                publication.baseSha(), publication.workspacePath(), publication.branchName(),
-                                publication.approvalDigest(), approvingUser, approvedAt,
-                                result.commitSha(), "PUSHED", result.pullRequestNumber(), result.pullRequestUrl(),
-                                "OPEN", null);
-                database.saveRunPublication(completed);
-
-                vulnerability.setStatus(VulnerabilityStatus.PR_OPEN);
-                database.updateVulnerabilityStatus(vulnerability.getId(), vulnerability.getStatus(),
-                                vulnerability.getProposedFix());
-
-                database.updateAgentRun(run.runId(), AgentPhase.TRACKING_PR, AgentRunStatus.PR_OPEN,
-                                run.iteration(), run.retryCount(), run.patchApplied(), run.compilePassed(),
-                                run.rescanPassed(),
-                                run.testsPassed(), run.checkpointJson(), run.finalSummary(), null, null);
-
-                refreshReport(publication.reportKey(), repository);
-
-                Map<String, Object> updates = new HashMap<>();
-                updates.put("runStatus", "PUBLISHED");
-                updates.put("pullRequestUrl", result.pullRequestUrl());
-                updates.put("pullRequestNumber", result.pullRequestNumber());
-                updates.put("workflowMessage", "Pull request created successfully: " + result.pullRequestUrl());
-                return updates;
         }
 }

@@ -1,8 +1,12 @@
 package com.cb.auditagent.graph.workflow;
 
 import org.bsc.langgraph4j.action.NodeAction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import com.cb.auditagent.config.AgentConfig;
 import com.cb.auditagent.domain.AgentPhase;
 import com.cb.auditagent.domain.AgentRunRecord;
 import com.cb.auditagent.domain.AgentRunStatus;
@@ -12,6 +16,7 @@ import com.cb.auditagent.domain.ManagedRepository;
 import com.cb.auditagent.domain.RunPublicationRecord;
 import com.cb.auditagent.domain.VulnerabilityStatus;
 import com.cb.auditagent.service.DatabaseService;
+import com.cb.auditagent.service.PatchBundleService;
 import com.cb.auditagent.service.SourceControlProvider;
 
 import java.nio.file.Path;
@@ -23,13 +28,27 @@ import java.util.stream.Collectors;
 
 @Component
 public class ApprovalReadyNode implements NodeAction<WorkflowState> {
+    private static final Logger logger = LoggerFactory.getLogger(ApprovalReadyNode.class);
 
     private final DatabaseService database;
     private final SourceControlProvider sourceControl;
+    private final PatchBundleService patchBundleService;
+    private final AgentConfig agentConfig;
 
     public ApprovalReadyNode(DatabaseService database, SourceControlProvider sourceControl) {
+        this(database, sourceControl, null, new AgentConfig());
+    }
+
+    @Autowired
+    public ApprovalReadyNode(
+            DatabaseService database,
+            SourceControlProvider sourceControl,
+            @Autowired(required = false) PatchBundleService patchBundleService,
+            AgentConfig agentConfig) {
         this.database = database;
         this.sourceControl = sourceControl;
+        this.patchBundleService = patchBundleService;
+        this.agentConfig = agentConfig != null ? agentConfig : new AgentConfig();
     }
 
     @SuppressWarnings("unused")
@@ -159,6 +178,31 @@ public class ApprovalReadyNode implements NodeAction<WorkflowState> {
                 run.iteration(), run.retryCount(), run.patchApplied(), run.compilePassed(),
                 run.rescanPassed(),
                 run.testsPassed(), run.checkpointJson(), run.finalSummary(), null, null);
+
+        if (patchBundleService != null) {
+            try {
+                patchBundleService.createAndUploadBundle(
+                        run.runId(),
+                        run.vulnerabilityId(),
+                        publication.repositoryId(),
+                        publication.baseBranch(),
+                        publication.baseSha(),
+                        publication.branchName(),
+                        workspace,
+                        run.finalSummary());
+            } catch (Exception e) {
+                logger.warn("Failed to create/upload patch bundle for run [{}]: {}", runId, e.getMessage());
+            }
+        }
+
+        if (agentConfig.isStatelessWorkspaces()) {
+            try {
+                sourceControl.cleanupWorkspace(workspace);
+                logger.info("Stateless workspaces enabled: cleaned up local workspace [{}] for run [{}]", workspace, runId);
+            } catch (Exception e) {
+                logger.warn("Failed to clean up workspace [{}] for run [{}]: {}", workspace, runId, e.getMessage());
+            }
+        }
 
         updates.put("workflowMessage", "Remediation verified. Awaiting human approval.");
         // Decision is NOT set here. The graph pauses at the conditional edge.

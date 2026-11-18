@@ -17,6 +17,7 @@ import com.cb.auditagent.domain.PublishResult;
 import com.cb.auditagent.domain.PullRequestState;
 import com.cb.auditagent.domain.Vulnerability;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -166,6 +167,21 @@ public class GitHubProvider implements SourceControlProvider, PullRequestProvide
             return git.getRepository().resolve("HEAD").name();
         } catch (Exception e) {
             throw new IllegalStateException("Could not resolve remediation workspace commit", e);
+        }
+    }
+
+    @Override
+    public void applyPatch(Path workspace, String diff) {
+        if (diff == null || diff.isBlank()) {
+            return;
+        }
+        Path root = validateWorkspace(workspace);
+        try (Git git = Git.open(root.toFile())) {
+            try (ByteArrayInputStream in = new ByteArrayInputStream(diff.getBytes(StandardCharsets.UTF_8))) {
+                git.apply().setPatch(in).call();
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("Could not apply remediation patch to workspace", e);
         }
     }
 

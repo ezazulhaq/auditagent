@@ -30,5 +30,7 @@ public interface SourceControlProvider {
 
     String workspaceHead(Path workspace);
 
+    void applyPatch(Path workspace, String diff);
+
     void cleanupWorkspace(Path workspace);
 }

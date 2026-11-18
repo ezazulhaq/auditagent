@@ -93,6 +93,7 @@
 | `ManagedRepository.java` | Installed GitHub repository identity/permission. |
 | `MemoryMessageRecord.java` | Durable ordered message. |
 | `Notification.java` | User workflow and security notification domain model. |
+| `PatchBundle.java` | Stateless patch bundle record (unified diff, modified file paths, hashes, file contents, base SHA, branch name) enabling cross-pod workspace reconstruction. |
 | `PublicationCheckpoint.java` | Commit/push/PR callback checkpoint. |
 | `PublishResult.java` | Successful publication result. |
 | `PullRequestState.java` | GitHub PR state for reconciliation. |
@@ -149,6 +150,7 @@
 | `AgentToolService.java` | LLM agent tool suite implementing segregated role interfaces (`WorkspaceInspector`, `WorkspacePatcher`, `WorkspaceBuildVerifier`, `WorkspaceRescanner`). |
 | `ChatService.java` | Interface for AI conversational assistance, vulnerability triage, and command dispatching (ISP/DIP). |
 | `ChatConversationService.java` | Primary implementation of `ChatService` providing interactive chat, streaming SSE via LangChain4j `StreamingChatModel`, command tag injection (`[TRIGGER_FIX]`, `[TRIGGER_SCAN]`), and 2-tier regex/semantic finding matching. |
+| `ContainerizedProcessRunner.java` | Subclass of `ManagedProcessRunner` with `@Primary` injection executing untrusted repository builds in an ephemeral, resource-bounded Docker sandbox with network isolation and dropped capabilities. |
 | `ConversationMemoryService.java` | Durable LangChain message history, context summarization, and aggressive tool output truncation. |
 | `DatabaseService.java` | Unified persistence facade delegating to Conversation, Remediation, User, and Scan domain data services. |
 | `FilePatchService.java` | Backup, rollback, diff, and legacy patch helper. |
@@ -164,6 +166,8 @@
 | `LlmTokenTracker.java` | Dedicated component for recording token consumption to Micrometer metrics and database audit tables (SRP). |
 | `ManagedProcessEnvironment.java` | Secret scrubbing, contained runtime directories, and validated scanner-temp override. |
 | `ManagedProcessRunner.java` | Concurrent stream draining, heartbeat, deadline, process-tree termination, and short per-scan temp lifecycle. |
+| `ContainerizedProcessRunner.java` | Subclass of `ManagedProcessRunner` executing untrusted build commands in ephemeral Docker containers with strict resource limits, dropped capabilities, and offline network. |
+| `PatchBundleService.java` | Serializes, uploads, downloads, and applies stateless patch bundles with Supabase Storage and `run_changes` persistence. |
 | `MemoryRedactor.java` | Secret masks and caps. |
 | `MemoryReflectionService.java` | Asynchronously distills positive remediation patterns (`summarizeDiffForGlobalPattern`) and failure anti-patterns (`reflectOnFailure`) via LangChain4j. |
 | `PostgresKnowledgeBaseService.java` | Native PostgreSQL/Supabase full-text search (`tsvector`/`tsquery`), candidate retrieval, and domain ranking weights for approved remediation memory. |
@@ -343,13 +347,13 @@
 | `scripts/install-git-hooks.ps1`                 | Configures repository hooks path to `.githooks` for PowerShell/Windows users. |
 | `scripts/install-git-hooks.sh`                  | Configures repository hooks path to `.githooks` and executable bit on Unix-like systems. |
 | `.devcontainer/devcontainer.json`               | Temurin Java 21, Node.js 24 & Python 3.12 development container. |
-| `release_notes/*.md`                            | Versioned release notes tracking product, tooling, and infrastructure updates (v2.0.0, v2.0.1, v2.1.0, v2.1.1, v2.2.0, v2.2.1, v2.3.0, v2.3.1, v2.3.2, v2.3.3, v2.4.0, v2.4.1, v2.5.0, v2.6.0, v2.6.1, v2.7.0, v2.8.0, v2.9.0, v2.9.1, v2.10.0, v2.11.0). |
+| `release_notes/*.md`                            | Versioned release notes tracking product, tooling, and infrastructure updates (v2.0.0, v2.0.1, v2.1.0, v2.1.1, v2.2.0, v2.2.1, v2.3.0, v2.3.1, v2.3.2, v2.3.3, v2.4.0, v2.4.1, v2.5.0, v2.6.0, v2.6.1, v2.7.0, v2.8.0, v2.9.0, v2.9.1, v2.10.0, v2.11.0, v2.12.0, v2.13.0). |
 
 ## Test file map
 
 ### Backend
 
-`AuditagentApplicationTests`, `ApiSecurityFilterTest`, `AuditControllerReportExportTest`, `ChatConversationServiceTest`, `GitHubWebhookControllerTest`, `GitHubRepositoryControllerTest`, `IssueLifecycleServiceTest`, `AgentToolServiceSecurityTest`, `ConversationMemoryServiceTest`, `DatabaseMemoryServiceTest`, `FindingTriageServiceTest`, `FindingTriageConcurrencyTest`, `GitHubAuthServiceTest`, `GitHubAuthServiceConcurrencyTest`, `GitHubProviderIntegrationTest`, `JevClientTest`, `LlmErrorClassifierTest`, `LlmServiceAgentLoopTest`, `LlmTokenAuditServiceTest`, `ManagedProcessRunnerTest`, `ProjectUploadControllerTest`, `ProjectUploadServiceTest`, `RabbitMqTaskQueueTest`, `RemediationToolRegistryTest`, `RemediationWorkflowPreparationTest`, `CloneWorkspaceNodeConcurrencyTest`, `EventBroadcastServiceRabbitMqTest`, `RunPublicationControllerTest`, `ScanOrchestratorReportExportTest`, `ScanOrchestratorServiceTest`, `ReporterServiceTest`, `ScannerServiceTest`, `SupabaseStorageServiceTest`, `SupabaseStorageClientTest`, `ScanDataServiceBatchUpsertTest`, `PostgresKnowledgeBaseFtsPerformanceTest`, `SupervisorNodeTest`, `SupervisorNodeStructuredTest`, `SupervisorContextCompressionTest`, `MultiAgentExecutionLimitTest`, `StageMilestoneSerializationTest`, `TokenCipherTest`, `UserLlmClientFactoryTest`, `UserLlmConfigControllerTest`, `UserLlmConfigServiceTest`, and `ZipArchiveExtractorTest`.
+`AuditagentApplicationTests`, `ApiSecurityFilterTest`, `AuditControllerReportExportTest`, `ChatConversationServiceTest`, `GitHubWebhookControllerTest`, `GitHubRepositoryControllerTest`, `IssueLifecycleServiceTest`, `AgentToolServiceSecurityTest`, `ContainerizedSandboxSecurityTest`, `ConversationMemoryServiceTest`, `DatabaseMemoryServiceTest`, `FindingTriageServiceTest`, `FindingTriageConcurrencyTest`, `GitHubAuthServiceTest`, `GitHubAuthServiceConcurrencyTest`, `GitHubProviderIntegrationTest`, `JevClientTest`, `LlmErrorClassifierTest`, `LlmServiceAgentLoopTest`, `LlmTokenAuditServiceTest`, `ManagedProcessRunnerTest`, `PatchBundleServiceTest`, `ProjectUploadControllerTest`, `ProjectUploadServiceTest`, `RabbitMqTaskQueueTest`, `RemediationToolRegistryTest`, `RemediationWorkflowPreparationTest`, `CloneWorkspaceNodeConcurrencyTest`, `EventBroadcastServiceRabbitMqTest`, `RunPublicationControllerTest`, `ScanOrchestratorReportExportTest`, `ScanOrchestratorServiceTest`, `ReporterServiceTest`, `ScannerServiceTest`, `StatelessPublicationTest`, `SupabaseStorageServiceTest`, `SupabaseStorageClientTest`, `ScanDataServiceBatchUpsertTest`, `PostgresKnowledgeBaseFtsPerformanceTest`, `SupervisorNodeTest`, `SupervisorNodeStructuredTest`, `SupervisorContextCompressionTest`, `MultiAgentExecutionLimitTest`, `StageMilestoneSerializationTest`, `TokenCipherTest`, `UserLlmClientFactoryTest`, `UserLlmConfigControllerTest`, `UserLlmConfigServiceTest`, and `ZipArchiveExtractorTest`.
 
 ### Frontend
 

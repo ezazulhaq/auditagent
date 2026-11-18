@@ -113,6 +113,17 @@ Semgrep metrics are disabled.
 
 In containerized deployments, Semgrep is provisioned within an isolated virtual environment (`/opt/venv`) owned by `root:root` with standard read/execute permissions (`755`). The runtime service runs as an unprivileged user (`auditagent` or `sandboxuser`, UID 10001). This respects PEP 668 OS package boundaries, eliminates global dependency conflicts with system packages, and ensures unprivileged application processes cannot tamper with or rewrite scanner binaries and dependencies.
 
+### Containerized Ephemeral Sandbox Execution (`ContainerizedProcessRunner`)
+
+When `auditagent.agent.sandbox-enabled: true`, untrusted repository commands (`mvn test`, `gradle check`, `pytest`, `npm test`) are isolated inside ephemeral, single-use Docker containers via `ContainerizedProcessRunner`:
+- **Ephemeral Lifecycle**: `--rm` removes the container immediately upon process exit.
+- **Strict Resource Quotas**: Memory is constrained to `2g` (`--memory=2g`) and CPU cores to `2.0` (`--cpus=2.0`), preventing denial-of-service and fork bombs.
+- **Network Isolation**: `--network=none` prevents untrusted build scripts and malicious dependencies from exfiltrating repository code or connecting to external command-and-control servers.
+- **Privilege Containment**: `--security-opt=no-new-privileges` prevents privilege escalation attacks, and dangerous Linux capabilities (`CAP_NET_RAW`, `CAP_SYS_ADMIN`) are dropped (`--cap-drop=CAP_NET_RAW --cap-drop=CAP_SYS_ADMIN`).
+- **Temporary Filesystem Isolation**: Temporary build output uses an in-memory, non-executable tmpfs (`--tmpfs /tmp:rw,noexec,size=512m`).
+- **Host Secret Stripping**: Sensitive host environment variables (`SUPABASE_SERVICE_KEY`, `OPENAI_API_KEY`, `GITHUB_TOKEN`, `AWS_SECRET_ACCESS_KEY`, `INTERNAL_API_TOKEN`) are never forwarded to the container sandbox. Only benign locale variables (`LANG=C.UTF-8`, `LC_ALL=C.UTF-8`) are passed.
+- **Filesystem Boundaries**: Workspace volume mounts (`-v`) and working directory (`-w`) are strictly bounded to the canonical workspace path, preventing lexical and symlink path traversal.
+
 `ManagedProcessRunner` drains Semgrep stdout and stderr concurrently to prevent pipe backpressure deadlocks. It keeps complete JSON stdout but only the final 64 KiB of stderr; user-visible diagnostics pass through secret redaction and length caps. A monotonic deadline defaults to 15 minutes. Timeout or interruption terminates the root and observed descendant processes, escalates to forced termination after five seconds, closes process streams, and prevents report/snapshot persistence. The runner polls for descendants independently of heartbeat emission and also terminates observed survivors after any root exit before deleting the per-run temp directory or allowing workspace cleanup.
 
 ## Model containment

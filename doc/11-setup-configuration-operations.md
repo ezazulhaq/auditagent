@@ -369,6 +369,7 @@ Semgrep also requires a short, writable JVM OS-temp root (`java.io.tmpdir`), esp
 | `auditagent.agent.max-stage-retries` | 3 | Maximum consecutive or total failure retries allowed for an individual worker stage before aborting. Controlled via `AUDITAGENT_AGENT_MAX_STAGE_RETRIES` or alias `AUDITAGENT_STAGE_MAX_RETRIES`. |
 | `auditagent.agent.structured-supervisor` | `true` | Enforces structured JSON output (`SupervisorDecision`) via LangChain4j `ResponseFormat.JSON` with fuzzy enum resilience. Controlled via `AUDITAGENT_AGENT_STRUCTURED_SUPERVISOR` or alias `AUDITAGENT_STRUCTURED_SUPERVISOR`. |
 | `auditagent.agent.batch-concurrency` | 2 | Maximum concurrent remediation tasks executed in batch analysis. Controlled via `AUDITAGENT_AGENT_BATCH_CONCURRENCY` or alias `AUDITAGENT_BATCH_CONCURRENCY`. |
+| `auditagent.agent.stateless-workspaces` | `true` (in dev/local yaml) / `false` (default field) | Whether to store patch bundles in object storage and discard local cloned repositories on workers, reconstructing workspaces on-demand at PR publication. Controlled via `AUDITAGENT_AGENT_STATELESS_WORKSPACES` or alias `AUDITAGENT_STATELESS_WORKSPACES`. |
 | `auditagent.agent.sandbox-enabled` | `false` | Whether to execute worker commands inside isolated Docker sandbox container. Controlled via `AUDITAGENT_AGENT_SANDBOX_ENABLED` or alias `AUDITAGENT_SANDBOX_ENABLED`. |
 | `auditagent.agent.sandbox-image` | `auditagent-sandbox:latest` | Docker image tag for worker sandbox execution. Controlled via `AUDITAGENT_AGENT_SANDBOX_IMAGE` or alias `AUDITAGENT_SANDBOX_IMAGE`. |
 | `auditagent.agent.sandbox-memory-limit` | `2g` | Memory allocation limit for worker sandbox containers. Controlled via `AUDITAGENT_AGENT_SANDBOX_MEMORY_LIMIT` or alias `AUDITAGENT_SANDBOX_MEMORY`. |
@@ -394,6 +395,7 @@ Semgrep also requires a short, writable JVM OS-temp root (`java.io.tmpdir`), esp
 | `sandbox-image` | auditagent-sandbox:latest | Docker image for sandbox execution. |
 | `sandbox-memory-limit` | 2g | Memory limit for sandbox containers. |
 | `sandbox-cpu-limit` | 2.0 | CPU limit for sandbox containers. |
+| `stateless-workspaces` | true | Reconstruct workspaces from patch bundles and delete worker clones. |
 
 ### TypeSafe Jev Model Configuration
 

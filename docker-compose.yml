@@ -108,6 +108,7 @@ services:
       AUDITAGENT_AGENT_SANDBOX_IMAGE: ${AUDITAGENT_SANDBOX_IMAGE:-auditagent-sandbox:latest}
       AUDITAGENT_AGENT_SANDBOX_MEMORY_LIMIT: ${AUDITAGENT_SANDBOX_MEMORY:-2g}
       AUDITAGENT_AGENT_SANDBOX_CPU_LIMIT: ${AUDITAGENT_SANDBOX_CPU:-2.0}
+      AUDITAGENT_AGENT_STATELESS_WORKSPACES: ${AUDITAGENT_STATELESS_WORKSPACES:-true}
     volumes:
       # Persistent workspace storage for git clones
       - auditagent_workspaces:/var/lib/auditagent/workspaces

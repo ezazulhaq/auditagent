@@ -9,7 +9,7 @@ flowchart LR
     P1["Phase 1: Concurrency & Real-Time Stability<br/><i>(Implemented in v2.7.0)</i>"] --> P2["Phase 2: Database & Storage Hardening<br/><i>(Implemented in v2.8.0)</i>"]
     P2 --> P3["Phase 3: AI Framework Consolidation<br/><i>(Implemented in v2.9.0)</i>"]
     P3 --> P4["Phase 4: Multi-Agent Star Topology<br/><i>(Implemented in v2.11.0)</i>"]
-    P4 --> P5["Phase 5: Workspace & Sandbox Decoupling"]
+    P4 --> P5["Phase 5: Workspace & Sandbox Decoupling<br/><i>(Implemented in v2.13.0)</i>"]
     P5 --> P6["Phase 6: Frontend State Unification"]
 ```
 
@@ -21,7 +21,7 @@ flowchart LR
 | **Phase 2** | **Database & Storage Hardening** | Stored `tsvector` with GIN indexing, bulk finding upserts (eliminating N+1 queries), relational JSON bloat cleanup, real S3/Supabase Storage REST upload client. | **Implemented (v2.8.0)** |
 | **Phase 3** | **AI Framework Consolidation** | Standardize exclusively on LangChain4j (deprecating Spring AI duplication), decompose monolithic `LlmService.java` (1,313 lines), unify client caching pools. | **Implemented (v2.9.0)** |
 | **Phase 4** | **Multi-Agent Star Topology Hardening** | Structured JSON schema routing for `SupervisorNode`, milestone context window compression, decoupled supervisor iteration budgets from retry limits. | **Implemented (v2.11.0)** |
-| **Phase 5** | **Workspace & Sandbox Decoupling** | Stateless workspace reconstruction via patch bundles in object storage, true containerized sandbox execution for untrusted repository builds (`mvn`, `gradle`). | **Planned** |
+| **Phase 5** | **Workspace & Sandbox Decoupling** | Stateless workspace reconstruction via patch bundles in object storage, true containerized sandbox execution for untrusted repository builds (`mvn`, `gradle`). | **Implemented (v2.13.0)** |
 | **Phase 6** | **Frontend State & Protocol Unification** | Consolidate 12 fragmented `useState` maps in `useRemediationController.js` into a centralized reducer (`useRemediationReducer`), eliminate polling in favor of real-time server push. | **Planned** |
 
 ---
@@ -316,7 +316,7 @@ auditagent:
 
 ---
 
-## Phase 5: Workspace Storage Decoupling & Host Sandbox Hardening
+## Phase 5: Workspace Storage Decoupling & Host Sandbox Hardening *(Implemented in v2.13.0)*
 
 ### 5.1 Problem Statement & Objectives
 1. **Node-Local Workspace Dependency**: [PublicationNode.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/graph/workflow/PublicationNode.java#L80) reads `publication.workspacePath()` directly from the local filesystem. In a multi-pod cluster, if approval happens on a pod different from the worker, the directory does not exist.
@@ -371,13 +371,14 @@ auditagent:
 ```
 
 ### 5.4 Implementation and Verification Checklist (Phase 5)
-- [ ] **Patch Bundle Persistence**: Implement `PatchBundleService` to serialize, upload, and download verified unified diffs and file change manifests.
-- [ ] **Stateless Publication**: Refactor `PublicationNode.java` to reconstruct workspaces from patch bundles at publish time, removing reliance on `run_publications.workspace_path` persistence across nodes.
-- [ ] **Workspace Lifecycle Cleanup**: Ensure scan and remediation workspaces are deleted immediately upon task completion or failure.
-- [ ] **Containerized Process Runner**: Implement `ContainerizedProcessRunner.java` implementing `ManagedProcessRunner` with Docker/container CLI abstraction when sandbox is enabled.
-- [ ] **Automated Testing**:
+- [x] **Patch Bundle Persistence**: Implement `PatchBundleService` to serialize, upload, and download verified unified diffs and file change manifests.
+- [x] **Stateless Publication**: Refactor `PublicationNode.java` to reconstruct workspaces from patch bundles at publish time, removing reliance on `run_publications.workspace_path` persistence across nodes.
+- [x] **Workspace Lifecycle Cleanup**: Ensure scan and remediation workspaces are deleted immediately upon task completion or failure.
+- [x] **Containerized Process Runner**: Implement `ContainerizedProcessRunner.java` implementing `ManagedProcessRunner` with Docker/container CLI abstraction when sandbox is enabled.
+- [x] **Automated Testing**:
   - `StatelessPublicationTest`: Remediate on Node A double, publish on Node B double using only remote patch bundle.
   - `ContainerizedSandboxSecurityTest`: Verify environment variables, host filesystem boundaries, and resource limits inside sandbox containers.
+  - Full test suite: 230 tests run, 0 failures, 0 errors, 2 skipped (`BUILD SUCCESS`).
 
 ---
 
@@ -446,5 +447,5 @@ flowchart TD
 | **Phase 2** | **Database & Storage Hardening** | GIN `search_vector` FTS ranking + bulk batch upsert test ($<500\text{ms}$) + WireMock storage test. | **[x] Implemented (v2.8.0)** |
 | **Phase 3** | **AI Framework Consolidation** | Complete removal of Spring AI dependencies + decomposed `LlmService` unit tests. | **[x] Implemented (v2.9.0)** |
 | **Phase 4** | **Multi-Agent Star Topology** | Structured JSON schema supervisor test + token budget verification across 10+ hops. | **[x] Implemented (v2.11.0)** |
-| **Phase 5** | **Workspace & Sandbox Decoupling** | Stateless patch bundle PR publication test + container resource limit enforcement. | **[ ] Planned** |
+| **Phase 5** | **Workspace & Sandbox Decoupling** | Stateless patch bundle PR publication test + container resource limit enforcement. | **[x] Implemented (v2.13.0)** |
 | **Phase 6** | **Frontend State Unification** | Vitest suite verifying reducer state transitions without polling intervals. | **[ ] Planned** |
