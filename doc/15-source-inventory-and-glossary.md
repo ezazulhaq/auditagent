@@ -246,7 +246,8 @@
 | `src/types.js` | JSDoc API/state types. |
 | `src/api/auditApi.js` | Credentialed API/SSE client and result normalization. |
 | `src/api/sse.js` | Robust JSON SSE parser. |
-| `src/components/AppHeader.jsx` | Brand, scan summary, identity, logout. |
+| `src/components/AppHeader.jsx` | Brand, scan summary, identity, logout, and package.json version badge display. |
+| `src/components/AppHeader.test.jsx` | Unit tests for AppHeader rendering, user profile menu, Sign out, and version display. |
 | `src/components/CopyButton.jsx` | Reusable clipboard copy button supporting multiple sizes, accessible labels, and feedback states. |
 | `src/components/CustomSelect.jsx` | Accessible custom select primitive built on `@ui-sdk/react/select`. |
 | `src/components/Modal.jsx` | Accessible dialog container built on `@ui-sdk/react/dialog`. |
@@ -347,7 +348,7 @@
 | `scripts/install-git-hooks.ps1`                 | Configures repository hooks path to `.githooks` for PowerShell/Windows users. |
 | `scripts/install-git-hooks.sh`                  | Configures repository hooks path to `.githooks` and executable bit on Unix-like systems. |
 | `.devcontainer/devcontainer.json`               | Temurin Java 21, Node.js 24 & Python 3.12 development container. |
-| `release_notes/*.md`                            | Versioned release notes tracking product, tooling, and infrastructure updates (v2.0.0, v2.0.1, v2.1.0, v2.1.1, v2.2.0, v2.2.1, v2.3.0, v2.3.1, v2.3.2, v2.3.3, v2.4.0, v2.4.1, v2.5.0, v2.6.0, v2.6.1, v2.7.0, v2.8.0, v2.9.0, v2.9.1, v2.10.0, v2.11.0, v2.12.0, v2.13.0). |
+| `release_notes/*.md`                            | Versioned release notes tracking product, tooling, and infrastructure updates (v2.0.0, v2.0.1, v2.1.0, v2.1.1, v2.2.0, v2.2.1, v2.3.0, v2.3.1, v2.3.2, v2.3.3, v2.4.0, v2.4.1, v2.5.0, v2.6.0, v2.6.1, v2.7.0, v2.8.0, v2.9.0, v2.9.1, v2.10.0, v2.11.0, v2.12.0, v2.13.0, v2.13.1). |
 
 ## Test file map
 
