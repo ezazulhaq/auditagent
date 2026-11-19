@@ -214,7 +214,7 @@ Shows a responsive two-column enterprise access experience with product capabili
 
 ### `AppHeader`
 
-Shows brand and enterprise context, secure-session status, responsive repository scan summary, high/medium counts, GitHub avatar/name, and sign out.
+Shows brand and enterprise context, secure-session status, responsive repository scan summary, high/medium counts, interactive tour trigger, notification center, and user profile menu (linking to Profile & LLM Keys, Documentation, Token Usage, theme switcher, Sign out, and dynamic application version badge sourced from `package.json`).
 
 ### `NotificationDropdown`
 
