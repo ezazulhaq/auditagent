@@ -1,6 +1,7 @@
 import { Activity, LogOut, Moon, ShieldCheck, Sun, PlayCircle, BookOpen, ChevronDown, Menu, X, KeyRound } from 'lucide-react';
 import { NotificationDropdown } from './NotificationDropdown';
 import { useState, useRef, useEffect, memo } from 'react';
+import packageJson from '../../package.json';
 
 export const AppHeader = memo(function AppHeader({ metadata, counts, user, onLogout, findings = [], onSelectFinding, onShowFindings, onShowObservability, theme = 'dark', onToggleTheme, onTourClick, onShowDocs, onToggleSidebar, isSidebarOpen, onOpenProfileSettings, api }) {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -146,14 +147,19 @@ export const AppHeader = memo(function AppHeader({ metadata, counts, user, onLog
 
                   <div className="my-1 border-t border-[var(--border-subtle)]" />
 
-                  <button
-                    type="button"
-                    onClick={() => { setIsUserMenuOpen(false); onLogout(); }}
-                    className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-medium text-rose-500 transition hover:bg-rose-500/10 hover:text-rose-600 dark:text-rose-400 dark:hover:text-rose-300"
-                  >
-                    <LogOut size={15} className="shrink-0" />
-                    <span>Sign out</span>
-                  </button>
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => { setIsUserMenuOpen(false); onLogout(); }}
+                      className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-medium text-rose-500 transition hover:bg-rose-500/10 hover:text-rose-600 dark:text-rose-400 dark:hover:text-rose-300"
+                    >
+                      <LogOut size={15} className="shrink-0" />
+                      <span>Sign out</span>
+                    </button>
+                    <span className="mr-3 rounded border border-[var(--border-subtle)] bg-[var(--surface-inset)] px-1.5 py-0.5 text-[10px] font-mono text-[var(--text-muted)] select-none">
+                      v{packageJson.version}
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
