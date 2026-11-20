@@ -1,104 +1,36 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
+import {
+  initialRemediationState,
+  RemediationActionTypes,
+  useRemediationReducer,
+} from './useRemediationReducer';
 
-export function useRemediationController({ api, toast, onMessage, onReport, repositoryId, branch, onOpenProfileSettings, threadId }) {
-  const [selectedFinding, setSelectedFinding] = useState(null);
-
-  // Maps of vulnId -> run data
-  const [runs, setRuns] = useState({});
-  const [publications, setPublications] = useState({});
-  const [previews, setPreviews] = useState({});
-
-  const [isAnalyzingMap, setIsAnalyzingMap] = useState({});
-  const [isPublishingMap, setIsPublishingMap] = useState({});
-  const [isLoadingPreviewMap, setIsLoadingPreviewMap] = useState({});
-  const [isLoadingRunMap, setIsLoadingRunMap] = useState({});
-  const [hasCheckedRunMap, setHasCheckedRunMap] = useState({});
-  const [graphStepsMap, setGraphStepsMap] = useState({});
-  const [batchState, setBatchState] = useState(null);
+/**
+ * useRemediationController orchestrates vulnerability remediation workflows,
+ * 16-stage LangGraph4j graph updates, patch approval/rejection decisions,
+ * and real-time push event subscriptions.
+ * Refactored in Phase 6 to use a centralized domain reducer and zero-polling repository SSE streams.
+ */
+export function useRemediationController({
+  api,
+  toast,
+  onMessage,
+  onReport,
+  repositoryId,
+  branch,
+  onOpenProfileSettings,
+  threadId,
+}) {
+  const [state, dispatch, selectors] = useRemediationReducer(initialRemediationState);
 
   const abortRefs = useRef({});
   const batchAbortRef = useRef(null);
   const loadingRunVulnsRef = useRef(new Set());
 
+  // Clean up any ongoing network streams on unmount
   useEffect(() => () => {
     Object.values(abortRefs.current).forEach(c => c?.abort());
     if (batchAbortRef.current) batchAbortRef.current.abort();
-  }, []);
-
-  const hydrate = useCallback((data, { isPoll = false } = {}) => {
-    if (!data) return;
-    const newRuns = {};
-    const newPubs = {};
-
-    if (data.activeRuns) {
-      data.activeRuns.forEach(run => {
-        if (!run.vulnerabilityId && run.vulnerability_id) run.vulnerabilityId = run.vulnerability_id;
-        if (!run.runId && run.run_id) run.runId = run.run_id;
-        if (!run.vulnerabilityId && data.activeFinding) run.vulnerabilityId = data.activeFinding.id;
-        newRuns[run.vulnerabilityId] = run;
-      });
-    } else if (data.activeRun) {
-      const run = data.activeRun;
-      if (!run.vulnerabilityId && run.vulnerability_id) run.vulnerabilityId = run.vulnerability_id;
-      if (!run.runId && run.run_id) run.runId = run.run_id;
-      if (!run.vulnerabilityId && data.activeFinding) run.vulnerabilityId = data.activeFinding.id;
-      newRuns[run.vulnerabilityId] = run;
-    }
-
-    if (data.publications) {
-      Object.entries(data.publications).forEach(([runId, pub]) => {
-        const vulnId = Object.values(newRuns).find(r => r.runId === runId)?.vulnerabilityId;
-        if (vulnId) newPubs[vulnId] = pub;
-      });
-    } else if (data.publication && data.activeRun) {
-      newPubs[data.activeRun.vulnerabilityId] = data.publication;
-    }
-
-    setRuns(newRuns);
-    setPublications(newPubs);
-    setPreviews(prev => {
-      const next = {};
-      Object.entries(prev).forEach(([vulnId, preview]) => {
-        const matchingRun = newRuns[vulnId];
-        // Preserve loaded verified diffs as long as the run exists and its runId has not changed
-        if (matchingRun && (!preview?.runId || preview.runId === matchingRun.runId)) {
-          next[vulnId] = preview;
-        }
-      });
-      if (data.previews) {
-        Object.assign(next, data.previews);
-      }
-      return next;
-    });
-
-    if (isPoll) {
-      // During background polling: never open a closed finding drawer!
-      // Only refresh attributes if the drawer is already open for this finding.
-      setSelectedFinding(prev => {
-        if (!prev) return null;
-        if (data.activeFinding && prev.id === data.activeFinding.id) {
-          return { ...prev, ...data.activeFinding };
-        }
-        return prev;
-      });
-    } else {
-      setSelectedFinding(prev => {
-        if (prev) {
-          if (data.activeFinding && prev.id === data.activeFinding.id) {
-            return { ...prev, ...data.activeFinding };
-          }
-          return prev;
-        }
-        return data.activeFinding ?? null;
-      });
-    }
-  }, []);
-
-  const resetForScan = useCallback(() => {
-    setSelectedFinding(null);
-    setRuns({}); setPublications({}); setPreviews({});
-    setIsAnalyzingMap({}); setIsPublishingMap({}); setIsLoadingPreviewMap({}); setIsLoadingRunMap({}); setHasCheckedRunMap({}); setGraphStepsMap({});
-    loadingRunVulnsRef.current.clear();
   }, []);
 
   const notify = useCallback((type, message) => {
@@ -119,164 +51,137 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
     }
   }, [api]);
 
+  const setSelectedFinding = useCallback((finding) => {
+    dispatch({ type: RemediationActionTypes.SELECT_FINDING, finding });
+  }, [dispatch]);
+
+  const hydrate = useCallback((data, { isPoll = false } = {}) => {
+    if (!data) return;
+    dispatch({ type: RemediationActionTypes.HYDRATE, data, isPoll });
+  }, [dispatch]);
+
+  const resetForScan = useCallback(() => {
+    dispatch({ type: RemediationActionTypes.SCAN_RESET });
+    loadingRunVulnsRef.current.clear();
+  }, [dispatch]);
+
   const refreshReport = useCallback(async (repoId, br, silent = false) => {
     try {
       const result = await api.getReport(repoId, br);
       if (result) {
         if (Array.isArray(result.findings)) {
-          // Synchronize runs, publications, and previews with latest finding statuses
-          setRuns(prev => {
-            const next = { ...prev };
-            let changed = false;
-            result.findings.forEach(f => {
-              if (f.status === 'FIXED' || f.status === 'IGNORED') {
-                if (next[f.id]) {
-                  if (next[f.id].status === 'PR_OPEN' && f.status === 'FIXED') {
-                    notify('success', `Pull request merged: ${f.id} (${f.vulnType}) is now fixed.`);
-                    onMessage?.('agent', `Pull request merged on GitHub. Finding ${f.id} (${f.vulnType}) has been marked as fixed.`);
-                  }
-                  delete next[f.id];
-                  changed = true;
-                }
+          // Check for any PRs that transitioned to FIXED
+          result.findings.forEach(f => {
+            if (f.status === 'FIXED') {
+              const entity = state.entities[f.id];
+              if (entity?.run?.status === 'PR_OPEN') {
+                notify('success', `Pull request merged: ${f.id} (${f.vulnType}) is now fixed.`);
+                onMessage?.('agent', `Pull request merged on GitHub. Finding ${f.id} (${f.vulnType}) has been marked as fixed.`);
               }
-            });
-            return changed ? next : prev;
+            }
           });
-
-          setPublications(prev => {
-            const next = { ...prev };
-            let changed = false;
-            result.findings.forEach(f => {
-              if ((f.status === 'FIXED' || f.status === 'IGNORED') && next[f.id]) {
-                delete next[f.id];
-                changed = true;
-              }
-            });
-            return changed ? next : prev;
-          });
-
-          setPreviews(prev => {
-            const next = { ...prev };
-            let changed = false;
-            result.findings.forEach(f => {
-              if ((f.status === 'FIXED' || f.status === 'IGNORED') && next[f.id]) {
-                delete next[f.id];
-                changed = true;
-              }
-            });
-            return changed ? next : prev;
-          });
-
-          setSelectedFinding(prev => {
-            if (!prev) return prev;
-            const updated = result.findings.find(f => f.id === prev.id);
-            return updated ?? prev;
-          });
+          dispatch({ type: RemediationActionTypes.SYNC_FINDINGS, findings: result.findings });
         }
         if (onReport) onReport(result, silent);
       }
     } catch {
-      if (!silent) toast?.error("Failed to refresh scan results.");
+      if (!silent) toast?.error?.('Failed to refresh scan results.');
     }
-  }, [api, onReport, toast, notify, onMessage]);
+  }, [api, onReport, toast, notify, onMessage, state.entities, dispatch]);
 
-  const updateRun = useCallback((vulnId, updater) => {
-    setRuns(prev => ({ ...prev, [vulnId]: typeof updater === 'function' ? updater(prev[vulnId]) : updater }));
-  }, []);
-
-  const analyze = useCallback(async (finding, repoId, br, threadId) => {
+  const analyze = useCallback(async (finding, repoId, br, threadIdParam) => {
     const vulnId = finding?.id;
     const targetRepoId = repoId ?? repositoryId;
     const targetBranch = br ?? branch;
+    const targetThreadId = threadIdParam ?? threadId;
+
     if (!targetRepoId || !targetBranch) { toast?.error?.('No repository or branch selected.'); return; }
     if (!vulnId) { toast?.error?.('No vulnerability selected.'); return; }
 
-    setSelectedFinding(finding);
-    setHasCheckedRunMap(prev => { const n = { ...prev }; delete n[vulnId]; return n; });
     loadingRunVulnsRef.current.delete(vulnId);
-    setIsAnalyzingMap(prev => ({ ...prev, [vulnId]: true }));
-    setPreviews(prev => ({ ...prev, [vulnId]: null }));
-    updateRun(vulnId, null);
-    setPublications(prev => ({ ...prev, [vulnId]: null }));
-    setGraphStepsMap(prev => ({ ...prev, [vulnId]: [] }));
-
     if (abortRefs.current[vulnId]) abortRefs.current[vulnId].abort();
     const controller = new AbortController();
     abortRefs.current[vulnId] = controller;
 
-    try {
-      const runId = crypto.randomUUID();
-      updateRun(vulnId, { runId, status: 'ACTIVE', vulnerabilityId: vulnId });
+    const runId = crypto.randomUUID();
+    dispatch({ type: RemediationActionTypes.ANALYSIS_STARTED, vulnId, runId, finding });
 
-      await api.analyze({ vulnId, repositoryId: Number(targetRepoId), branch: targetBranch, threadId }, event => {
+    try {
+      await api.analyze({
+        vulnId,
+        repositoryId: Number(targetRepoId),
+        branch: targetBranch,
+        threadId: targetThreadId,
+      }, event => {
         if (event.type === 'queued') {
-          onMessage('system', event.message || 'Remediation task queued.');
+          onMessage?.('system', event.message || 'Remediation task queued.');
         } else if (event.type === 'graph_step') {
-          setGraphStepsMap(prev => {
-            const steps = prev[vulnId] || [];
-            if (!steps.find(s => s.node === event.node)) {
-              return { ...prev, [vulnId]: [...steps, { node: event.node, status: event.status, time: Date.now() }] };
-            }
-            return prev;
+          dispatch({
+            type: RemediationActionTypes.GRAPH_STEP_RECEIVED,
+            vulnId,
+            step: { node: event.node, status: event.status, time: Date.now() },
           });
         } else if (event.type === 'workspace_prepared') {
-          updateRun(vulnId, prev => ({ ...(prev || {}), status: 'ACTIVE', runId: event.runId }));
+          dispatch({ type: RemediationActionTypes.WORKSPACE_PREPARED, vulnId, runId: event.runId });
         } else if (event.type === 'status') {
           if (event.message?.startsWith('Remediation failed') || event.status === 'FAILED') {
             toast?.error?.(event.message);
             notify('error', event.message || `Analysis failed for ${vulnId}.`);
-            updateRun(vulnId, prev => ({ ...(prev || {}), status: 'FAILED' }));
-            refreshReport(targetRepoId, targetBranch, true).catch(() => { });
+            dispatch({ type: RemediationActionTypes.ANALYSIS_FAILED, vulnId, error: event.message });
+            refreshReport(targetRepoId, targetBranch, true).catch(() => {});
             if (event.requiresLlmConfig && onOpenProfileSettings) {
               onOpenProfileSettings();
             }
           } else {
-            onMessage('agent', event.message);
+            onMessage?.('agent', event.message);
           }
         } else if (event.type === 'error') {
           const msg = event.message || `Analysis failed for ${vulnId}.`;
           toast?.error?.(msg);
           notify('error', msg);
-          onMessage('agent', msg);
-          updateRun(vulnId, prev => ({ ...(prev || {}), status: 'FAILED' }));
-          refreshReport(targetRepoId, targetBranch, true).catch(() => { });
+          onMessage?.('agent', msg);
+          dispatch({ type: RemediationActionTypes.ANALYSIS_FAILED, vulnId, error: msg });
+          refreshReport(targetRepoId, targetBranch, true).catch(() => {});
           if (event.requiresLlmConfig && onOpenProfileSettings) {
             onOpenProfileSettings();
           }
         } else if (event.type === 'approval_ready') {
-          setPreviews(prev => ({ ...prev, [vulnId]: event.preview }));
-          updateRun(vulnId, prev => ({ ...(prev || {}), runId: event.runId, status: 'AWAITING_APPROVAL' }));
-          refreshReport(targetRepoId, targetBranch, true).catch(() => { });
+          dispatch({ type: RemediationActionTypes.APPROVAL_READY, vulnId, preview: event.preview, runId: event.runId });
+          refreshReport(targetRepoId, targetBranch, true).catch(() => {});
         } else if (event.type === 'analysis_complete') {
-          if (event.message) onMessage('agent', event.message);
-          if (event.preview) setPreviews(prev => ({ ...prev, [vulnId]: event.preview }));
-          updateRun(vulnId, prev => ({
-            ...(prev || {}), runId: event.runId ?? prev?.runId,
-            status: event.requires_approval ? 'AWAITING_APPROVAL' : (prev?.status || 'FAILED')
-          }));
-          refreshReport(targetRepoId, targetBranch, true).catch(() => { });
+          if (event.message) onMessage?.('agent', event.message);
+          dispatch({
+            type: RemediationActionTypes.ANALYSIS_COMPLETE,
+            vulnId,
+            preview: event.preview,
+            runId: event.runId,
+            requires_approval: event.requires_approval,
+            status: event.status,
+          });
+          refreshReport(targetRepoId, targetBranch, true).catch(() => {});
           if (event.requires_approval) {
             notify('success', `Analysis completed for ${vulnId}: Remediation verified and awaiting approval.`);
           } else if (event.status === 'FAILED') {
             notify('error', event.message || `Analysis failed for ${vulnId}.`);
           }
         } else if (event.type === 'publish_progress' && event.message) {
-          onMessage('system', event.message);
+          onMessage?.('system', event.message);
         } else if (event.type === 'pr_created') {
-          setPublications(prev => ({ ...prev, [vulnId]: event }));
-          updateRun(vulnId, prev => ({ ...(prev || {}), status: 'PR_OPEN' }));
+          dispatch({ type: RemediationActionTypes.PR_CREATED, vulnId, publication: event });
           if (event.pullRequestNumber) {
-            onMessage('agent', `Pull request #${event.pullRequestNumber} created: ${event.pullRequestUrl}`);
+            onMessage?.('agent', `Pull request #${event.pullRequestNumber} created: ${event.pullRequestUrl}`);
             notify('success', `Pull request #${event.pullRequestNumber} created for ${vulnId}.`);
           }
         } else if (event.type === 'complete') {
-          if (event.message) onMessage('agent', event.message);
-          updateRun(vulnId, prev => ({
-            ...(prev || {}), runId: event.runId ?? prev?.runId,
-            status: event.runStatus ?? prev?.status
-          }));
+          if (event.message) onMessage?.('agent', event.message);
+          dispatch({
+            type: RemediationActionTypes.ANALYSIS_COMPLETE,
+            vulnId,
+            runId: event.runId,
+            status: event.runStatus,
+          });
           if (event.runStatus === 'PUBLISHED' || event.runStatus === 'PR_OPEN') {
-            refreshReport(targetRepoId, targetBranch).catch(() => { });
+            refreshReport(targetRepoId, targetBranch).catch(() => {});
           }
         }
       }, controller.signal);
@@ -284,99 +189,67 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
       if (error.name !== 'AbortError') {
         const msg = `Analysis failed: ${error.message}`;
         toast?.error?.(msg);
-        onMessage('agent', msg);
+        onMessage?.('agent', msg);
         notify('error', `Analysis failed for ${vulnId}: ${error.message}`);
-        updateRun(vulnId, prev => ({ ...(prev || {}), status: 'FAILED' }));
-        refreshReport(targetRepoId, targetBranch, true).catch(() => { });
+        dispatch({ type: RemediationActionTypes.ANALYSIS_FAILED, vulnId, error: error.message });
+        refreshReport(targetRepoId, targetBranch, true).catch(() => {});
         if (error.message?.includes('Profile & LLM Settings') && onOpenProfileSettings) {
           onOpenProfileSettings();
         }
       }
     } finally {
-      setIsAnalyzingMap(prev => ({ ...prev, [vulnId]: false }));
+      dispatch({ type: RemediationActionTypes.SET_ANALYZING, vulnId, isAnalyzing: false });
     }
-  }, [api, onMessage, toast, refreshReport, repositoryId, branch, updateRun, notify, onOpenProfileSettings]);
+  }, [api, onMessage, toast, refreshReport, repositoryId, branch, threadId, notify, onOpenProfileSettings, dispatch]);
 
   const cancelBatch = useCallback(() => {
     if (batchAbortRef.current) {
       batchAbortRef.current.abort();
       batchAbortRef.current = null;
     }
-    setBatchState(null);
-    setIsAnalyzingMap({});
-  }, []);
+    dispatch({ type: RemediationActionTypes.BATCH_CANCEL });
+  }, [dispatch]);
 
-  const analyzeBatch = useCallback(async (findingsToAnalyze, repoId, br, threadId) => {
+  const analyzeBatch = useCallback(async (findingsToAnalyze, repoId, br, threadIdParam) => {
     const targetRepoId = repoId ?? repositoryId;
     const targetBranch = br ?? branch;
+    const targetThreadId = threadIdParam ?? threadId;
     if (!targetRepoId || !targetBranch) { toast?.error?.('No repository or branch selected.'); return; }
     if (!findingsToAnalyze || findingsToAnalyze.length === 0) { toast?.error?.('No vulnerabilities selected.'); return; }
 
     const vulnIds = findingsToAnalyze.map(f => typeof f === 'string' ? f : f?.id).filter(Boolean);
     if (vulnIds.length === 0) return;
 
-    setIsAnalyzingMap(prev => {
-      const next = { ...prev };
-      vulnIds.forEach(id => {
-        next[id] = true;
-        loadingRunVulnsRef.current.delete(id);
-      });
-      return next;
-    });
-    setHasCheckedRunMap(prev => {
-      const next = { ...prev };
-      vulnIds.forEach(id => { delete next[id]; });
-      return next;
-    });
-    setPreviews(prev => {
-      const next = { ...prev };
-      vulnIds.forEach(id => { delete next[id]; });
-      return next;
-    });
-    setRuns(prev => {
-      const next = { ...prev };
-      vulnIds.forEach(id => { next[id] = { status: 'QUEUED', vulnerabilityId: id }; });
-      return next;
-    });
-    setGraphStepsMap(prev => {
-      const next = { ...prev };
-      vulnIds.forEach(id => { next[id] = []; });
-      return next;
-    });
-
     if (batchAbortRef.current) batchAbortRef.current.abort();
     const controller = new AbortController();
     batchAbortRef.current = controller;
 
-    setBatchState({
-      active: true,
-      total: vulnIds.length,
-      completed: 0,
-      failed: 0,
-      cancel: () => controller.abort()
+    dispatch({
+      type: RemediationActionTypes.BATCH_STARTED,
+      vulnIds,
+      cancel: () => controller.abort(),
     });
 
     try {
       await api.analyzeBatch({
         repositoryId: Number(targetRepoId),
         branch: targetBranch,
-        threadId,
-        vulnIds
+        threadId: targetThreadId,
+        vulnIds,
       }, event => {
         const eventVulnId = event.vulnId;
 
         if (event.type === 'batch_start') {
-          setBatchState(prev => ({ ...(prev || {}), active: true, total: event.total ?? vulnIds.length }));
+          dispatch({ type: RemediationActionTypes.BATCH_PROGRESS, total: event.total ?? vulnIds.length });
         } else if (event.type === 'batch_progress') {
-          setBatchState(prev => ({
-            ...(prev || {}),
-            active: true,
-            total: event.total ?? prev?.total ?? vulnIds.length,
-            completed: event.completed ?? prev?.completed ?? 0,
-            failed: event.failed ?? prev?.failed ?? 0,
-          }));
+          dispatch({
+            type: RemediationActionTypes.BATCH_PROGRESS,
+            total: event.total,
+            completed: event.completed,
+            failed: event.failed,
+          });
         } else if (event.type === 'batch_complete') {
-          setBatchState(null);
+          dispatch({ type: RemediationActionTypes.BATCH_COMPLETE });
           refreshReport(targetRepoId, targetBranch, true).catch(() => {});
           const total = event.total ?? vulnIds.length;
           const completed = event.completed ?? 0;
@@ -387,40 +260,34 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
 
         if (eventVulnId) {
           if (event.type === 'graph_step') {
-            setGraphStepsMap(prev => {
-              const steps = prev[eventVulnId] || [];
-              if (!steps.find(s => s.node === event.node)) {
-                return { ...prev, [eventVulnId]: [...steps, { node: event.node, status: event.status, time: Date.now() }] };
-              }
-              return prev;
+            dispatch({
+              type: RemediationActionTypes.GRAPH_STEP_RECEIVED,
+              vulnId: eventVulnId,
+              step: { node: event.node, status: event.status, time: Date.now() },
             });
           } else if (event.type === 'workspace_prepared') {
-            updateRun(eventVulnId, prev => ({ ...(prev || {}), status: 'ACTIVE', runId: event.runId }));
+            dispatch({ type: RemediationActionTypes.WORKSPACE_PREPARED, vulnId: eventVulnId, runId: event.runId });
           } else if (event.type === 'approval_ready') {
-            setPreviews(prev => ({ ...prev, [eventVulnId]: event.preview }));
-            updateRun(eventVulnId, prev => ({ ...(prev || {}), runId: event.runId, status: 'AWAITING_APPROVAL' }));
+            dispatch({ type: RemediationActionTypes.APPROVAL_READY, vulnId: eventVulnId, preview: event.preview, runId: event.runId });
           } else if (event.type === 'analysis_complete') {
-            if (event.preview) setPreviews(prev => ({ ...prev, [eventVulnId]: event.preview }));
-            updateRun(eventVulnId, prev => ({
-              ...(prev || {}), runId: event.runId ?? prev?.runId,
-              status: event.requires_approval ? 'AWAITING_APPROVAL' : (prev?.status || 'FAILED')
-            }));
-            setIsAnalyzingMap(prev => ({ ...prev, [eventVulnId]: false }));
+            dispatch({
+              type: RemediationActionTypes.ANALYSIS_COMPLETE,
+              vulnId: eventVulnId,
+              preview: event.preview,
+              runId: event.runId,
+              requires_approval: event.requires_approval,
+              status: event.status,
+            });
             if (event.requires_approval) {
               notify('success', `Analysis completed for ${eventVulnId}: Remediation verified.`);
             } else if (event.status === 'FAILED') {
               notify('error', event.message || `Analysis failed for ${eventVulnId}.`);
             }
-          } else if (event.type === 'status') {
-            if (event.status === 'FAILED' || event.message?.startsWith('Remediation failed')) {
-              updateRun(eventVulnId, prev => ({ ...(prev || {}), status: 'FAILED' }));
-              setIsAnalyzingMap(prev => ({ ...prev, [eventVulnId]: false }));
+          } else if (event.type === 'status' || event.type === 'error') {
+            if (event.status === 'FAILED' || event.message?.startsWith('Remediation failed') || event.type === 'error') {
+              dispatch({ type: RemediationActionTypes.ANALYSIS_FAILED, vulnId: eventVulnId, error: event.message });
               notify('error', event.message || `Analysis failed for ${eventVulnId}.`);
             }
-          } else if (event.type === 'error') {
-            updateRun(eventVulnId, prev => ({ ...(prev || {}), status: 'FAILED' }));
-            setIsAnalyzingMap(prev => ({ ...prev, [eventVulnId]: false }));
-            notify('error', event.message || `Analysis failed for ${eventVulnId}.`);
           }
         }
       }, controller.signal);
@@ -431,125 +298,173 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
         notify('error', `Batch analysis failed: ${error.message}`);
       }
     } finally {
-      setBatchState(null);
-      setIsAnalyzingMap(prev => {
-        const next = { ...prev };
-        vulnIds.forEach(id => { next[id] = false; });
-        return next;
-      });
+      dispatch({ type: RemediationActionTypes.BATCH_COMPLETE });
       refreshReport(targetRepoId, targetBranch, true).catch(() => {});
     }
-  }, [api, onMessage, toast, refreshReport, repositoryId, branch, updateRun, notify]);
+  }, [api, onMessage, toast, refreshReport, repositoryId, branch, threadId, notify, dispatch]);
 
-  // Fallback run association: when an active finding has a status suggesting remediation state
-  // (e.g. AWAITING_APPROVAL, PR_OPEN, PUBLISH_FAILED, ACTIVE) but no run is present in memory,
-  // query the backend for the active run and publication.
+  // Fallback run lookup when an active finding has an unresolved run state
   useEffect(() => {
-    if (!selectedFinding?.id || !api?.getActiveRunForVulnerability) return undefined;
-    const vulnId = selectedFinding.id;
-    if (runs[vulnId] || hasCheckedRunMap[vulnId] || loadingRunVulnsRef.current.has(vulnId)) return undefined;
+    const finding = state.selectedFinding;
+    if (!finding?.id || !api?.getActiveRunForVulnerability) return undefined;
+    const vulnId = finding.id;
+    const entity = state.entities[vulnId];
+    if (entity?.run || entity?.hasCheckedRun || loadingRunVulnsRef.current.has(vulnId)) return undefined;
 
-    if (['AWAITING_APPROVAL', 'PR_OPEN', 'PUBLISH_FAILED', 'PUBLISHING', 'ACTIVE'].includes(selectedFinding.status)) {
+    if (['AWAITING_APPROVAL', 'PR_OPEN', 'PUBLISH_FAILED', 'PUBLISHING', 'ACTIVE'].includes(finding.status)) {
       let isCurrent = true;
       loadingRunVulnsRef.current.add(vulnId);
+
       api.getActiveRunForVulnerability(vulnId)
         .then(data => {
           if (!isCurrent) return;
-          if (data?.run) {
-            const run = data.run;
-            if (!run.vulnerabilityId && run.vulnerability_id) run.vulnerabilityId = run.vulnerability_id;
-            if (!run.runId && run.run_id) run.runId = run.run_id;
-            if (!run.vulnerabilityId) run.vulnerabilityId = vulnId;
-            setRuns(prev => ({ ...prev, [vulnId]: run }));
-            if (data.publication) {
-              setPublications(prev => ({ ...prev, [vulnId]: data.publication }));
-            }
-          }
+          dispatch({
+            type: RemediationActionTypes.RUN_LOADED,
+            vulnId,
+            run: data?.run,
+            publication: data?.publication,
+          });
         })
         .catch(err => {
           console.warn(`Failed to fetch active run for finding ${vulnId}:`, err);
+          if (isCurrent) {
+            dispatch({
+              type: RemediationActionTypes.RUN_LOADED,
+              vulnId,
+              run: null,
+              publication: null,
+            });
+          }
         })
         .finally(() => {
           loadingRunVulnsRef.current.delete(vulnId);
-          if (isCurrent) {
-            setHasCheckedRunMap(prev => ({ ...prev, [vulnId]: true }));
-            setIsLoadingRunMap(prev => ({ ...prev, [vulnId]: false }));
-          }
         });
 
       return () => { isCurrent = false; };
     }
     return undefined;
-  }, [selectedFinding?.id, selectedFinding?.status, runs, hasCheckedRunMap, api]);
+  }, [state.selectedFinding?.id, state.selectedFinding?.status, state.entities, api, dispatch]);
 
   const loadApprovalPreview = useCallback(async (vulnId) => {
-    let runId = runs[vulnId]?.runId;
+    let runId = state.entities[vulnId]?.run?.runId;
     if (!runId && api?.getActiveRunForVulnerability) {
       try {
         const data = await api.getActiveRunForVulnerability(vulnId);
         if (data?.run?.runId) {
           runId = data.run.runId;
-          const run = data.run;
-          if (!run.vulnerabilityId && run.vulnerability_id) run.vulnerabilityId = run.vulnerability_id;
-          if (!run.runId && run.run_id) run.runId = run.run_id;
-          if (!run.vulnerabilityId) run.vulnerabilityId = vulnId;
-          setRuns(prev => ({ ...prev, [vulnId]: run }));
-          if (data.publication) setPublications(prev => ({ ...prev, [vulnId]: data.publication }));
+          dispatch({
+            type: RemediationActionTypes.RUN_LOADED,
+            vulnId,
+            run: data.run,
+            publication: data.publication,
+          });
         }
       } catch (err) {
         console.warn('Failed fallback run lookup in loadApprovalPreview:', err);
       }
     }
     if (!runId) return null;
-    setIsLoadingPreviewMap(prev => ({ ...prev, [vulnId]: true }));
+    dispatch({ type: RemediationActionTypes.PREVIEW_LOADING, vulnId, isLoading: true });
     try {
       const preview = await api.approvalPreview(runId);
-      setPreviews(prev => ({ ...prev, [vulnId]: preview }));
+      dispatch({ type: RemediationActionTypes.PREVIEW_LOADED, vulnId, preview });
       return preview;
     } catch (error) {
-      toast?.error(error.message || 'Failed to load preview');
+      toast?.error?.(error.message || 'Failed to load preview');
       return null;
     } finally {
-      setIsLoadingPreviewMap(prev => ({ ...prev, [vulnId]: false }));
+      dispatch({ type: RemediationActionTypes.PREVIEW_LOADING, vulnId, isLoading: false });
     }
-  }, [runs, api, toast]);
+  }, [state.entities, api, toast, dispatch]);
 
-  // Poll the report periodically if ANY run is PR_OPEN
+  // Real-time server push: subscribe to repository SSE events (PR merges, closures, status changes)
+  // Completely eliminates the 5-second polling loop during healthy SSE connection.
   useEffect(() => {
-    let intervalId;
-    const hasOpenPr = Object.values(runs).some(r => r?.status === 'PR_OPEN');
-    if (hasOpenPr && repositoryId && branch) {
-      intervalId = setInterval(async () => {
-        try {
-          if (threadId && api?.getThread) {
-            try {
-              const threadData = await api.getThread(threadId);
-              if (threadData) hydrate(threadData, { isPoll: true });
-            } catch {
-              // ignore thread reconcile error during polling
+    if (!repositoryId || !api?.subscribeRepositoryEvents) return undefined;
+
+    const controller = new AbortController();
+    let sseActive = false;
+    let fallbackTimer = null;
+
+    const startStream = async () => {
+      try {
+        await api.subscribeRepositoryEvents(repositoryId, branch, (event) => {
+          sseActive = true;
+          if (event.type === 'pr_lifecycle' && event.vulnId) {
+            dispatch({
+              type: RemediationActionTypes.PR_STATUS_UPDATED,
+              vulnId: event.vulnId,
+              merged: event.merged,
+              pullRequestState: event.pullRequestState,
+            });
+            if (event.merged) {
+              notify('success', `Pull request merged: ${event.vulnId} is now fixed.`);
+              onMessage?.('agent', `Pull request merged on GitHub. Finding ${event.vulnId} has been marked as fixed.`);
             }
+            refreshReport(repositoryId, branch, true).catch(() => {});
+          } else if (event.type === 'report_updated' || event.type === 'scan_complete') {
+            refreshReport(repositoryId, branch, true).catch(() => {});
           }
-          await refreshReport(repositoryId, branch, true);
-        } catch {
-          // ignore background polling refresh error
+        }, controller.signal);
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          sseActive = false;
         }
-      }, 5000);
-    }
-    return () => { if (intervalId) clearInterval(intervalId); };
-  }, [runs, repositoryId, branch, refreshReport, threadId, api, hydrate]);
+      }
+    };
+
+    startStream();
+
+    // Resilient adaptive fallback: only backoff polls if SSE connection is disconnected
+    // and there is an open PR, pausing when document is hidden.
+    let backoffMs = 15000;
+    const scheduleFallback = () => {
+      if (controller.signal.aborted) return;
+      fallbackTimer = setTimeout(async () => {
+        if (!sseActive && selectors.hasOpenPr && document.visibilityState !== 'hidden') {
+          try {
+            if (threadId && api?.getThread) {
+              try {
+                const threadData = await api.getThread(threadId);
+                if (threadData) hydrate(threadData, { isPoll: true });
+              } catch {}
+            }
+            await refreshReport(repositoryId, branch, true);
+            backoffMs = Math.min(backoffMs * 1.5, 60000);
+          } catch {}
+        }
+        scheduleFallback();
+      }, backoffMs);
+    };
+
+    scheduleFallback();
+
+    return () => {
+      controller.abort();
+      if (fallbackTimer) clearTimeout(fallbackTimer);
+    };
+  }, [repositoryId, branch, api, refreshReport, threadId, hydrate, notify, onMessage, selectors.hasOpenPr, dispatch]);
 
   const decide = useCallback(async (vulnId, decision, repoId, br, reason = null) => {
-    const run = runs[vulnId];
-    const preview = previews[vulnId];
+    const entity = state.entities[vulnId];
+    const run = entity?.run;
+    const preview = entity?.preview;
+
     if (!run?.runId) {
-      onMessage('agent', 'This approval is stale. Reload the conversation before responding.');
+      onMessage?.('agent', 'This approval is stale. Reload the conversation before responding.');
       return;
     }
     if (decision === 'APPROVE_AND_CREATE_PR' && !preview) {
-      onMessage('agent', 'Load and review the current diff before approving publication.');
+      onMessage?.('agent', 'Load and review the current diff before approving publication.');
       return;
     }
-    setIsPublishingMap(prev => ({ ...prev, [vulnId]: decision === 'APPROVE_AND_CREATE_PR' }));
+
+    dispatch({
+      type: RemediationActionTypes.DECISION_STARTED,
+      vulnId,
+      isPublishing: decision === 'APPROVE_AND_CREATE_PR',
+    });
+
     try {
       await api.decide(run.runId, {
         vulnId: preview?.vulnerabilityId ?? run.vulnerabilityId,
@@ -557,132 +472,137 @@ export function useRemediationController({ api, toast, onMessage, onReport, repo
         approvalDigest: preview?.approvalDigest ?? null,
         reason,
       }, event => {
-        if (event.type === 'publish_progress' && event.message) onMessage('system', event.message);
+        if (event.type === 'publish_progress' && event.message) onMessage?.('system', event.message);
         if (event.type === 'publish_failed') {
-          updateRun(vulnId, prev => ({ ...(prev || {}), status: event.runStatus ?? 'PUBLISH_FAILED' }));
-          setPublications(prev => ({ ...prev, [vulnId]: { ...prev[vulnId], publishError: event.message } }));
-          onMessage('agent', `Publication failed: ${event.message}`);
+          dispatch({
+            type: RemediationActionTypes.DECISION_FAILED,
+            vulnId,
+            error: event.message,
+            runStatus: event.runStatus,
+          });
+          onMessage?.('agent', `Publication failed: ${event.message}`);
           notify('error', `Publication failed for ${vulnId}: ${event.message}`);
         }
         if (event.type === 'pr_created') {
-          setPublications(prev => ({ ...prev, [vulnId]: event }));
-          updateRun(vulnId, prev => ({ ...(prev || {}), status: 'PR_OPEN' }));
-          onMessage('agent', `Pull request #${event.pullRequestNumber} created: ${event.pullRequestUrl}`);
+          dispatch({ type: RemediationActionTypes.PR_CREATED, vulnId, publication: event });
+          onMessage?.('agent', `Pull request #${event.pullRequestNumber} created: ${event.pullRequestUrl}`);
           notify('success', `Pull request #${event.pullRequestNumber} created for ${vulnId}.`);
         }
-        if (event.type === 'complete' && event.message) onMessage('agent', event.message);
+        if (event.type === 'complete' && event.message) onMessage?.('agent', event.message);
       });
       await refreshReport(repoId, br);
       if (decision === 'REJECT') {
-        updateRun(vulnId, null);
-        setPublications(prev => { const n = { ...prev }; delete n[vulnId]; return n; });
+        dispatch({ type: RemediationActionTypes.DISCARD_RUN, vulnId });
       }
-      setPreviews(prev => { const n = { ...prev }; delete n[vulnId]; return n; });
     } catch (error) {
-      onMessage('agent', `Decision failed: ${error.message}`);
+      onMessage?.('agent', `Decision failed: ${error.message}`);
       notify('error', `Decision failed for ${vulnId}: ${error.message}`);
+      dispatch({ type: RemediationActionTypes.DECISION_FAILED, vulnId, error: error.message });
     } finally {
-      setIsPublishingMap(prev => ({ ...prev, [vulnId]: false }));
+      dispatch({ type: RemediationActionTypes.DECISION_STARTED, vulnId, isPublishing: false });
     }
-  }, [runs, previews, api, onMessage, refreshReport, updateRun, notify]);
+  }, [state.entities, api, onMessage, refreshReport, notify, dispatch]);
 
   const retryPublish = useCallback(async (vulnId, repoId, br) => {
-    const runId = runs[vulnId]?.runId;
+    const runId = state.entities[vulnId]?.run?.runId;
     if (!runId) return;
-    setIsPublishingMap(prev => ({ ...prev, [vulnId]: true }));
+    dispatch({ type: RemediationActionTypes.DECISION_STARTED, vulnId, isPublishing: true });
     try {
       await api.retryPublish(runId, event => {
-        if (event.message) onMessage(event.type === 'publish_failed' ? 'agent' : 'system', event.message);
+        if (event.message) onMessage?.(event.type === 'publish_failed' ? 'agent' : 'system', event.message);
         if (event.type === 'publish_failed') {
           notify('error', `Retry publication failed for ${vulnId}: ${event.message}`);
         }
         if (event.type === 'pr_created') {
-          setPublications(prev => ({ ...prev, [vulnId]: event }));
-          updateRun(vulnId, prev => ({ ...(prev || {}), status: 'PR_OPEN' }));
+          dispatch({ type: RemediationActionTypes.PR_CREATED, vulnId, publication: event });
           notify('success', `Pull request #${event.pullRequestNumber} created for ${vulnId}.`);
         }
       });
       await refreshReport(repoId, br);
-    } finally { setIsPublishingMap(prev => ({ ...prev, [vulnId]: false })); }
-  }, [runs, api, onMessage, refreshReport, updateRun, notify]);
+    } finally {
+      dispatch({ type: RemediationActionTypes.DECISION_STARTED, vulnId, isPublishing: false });
+    }
+  }, [state.entities, api, onMessage, refreshReport, notify, dispatch]);
 
-  const resume = useCallback(async (vulnId, threadId) => {
-    const runId = runs[vulnId]?.runId;
-    if (!runId || !threadId) return;
-    setIsAnalyzingMap(prev => ({ ...prev, [vulnId]: true }));
+  const resume = useCallback(async (vulnId, threadIdParam) => {
+    const runId = state.entities[vulnId]?.run?.runId;
+    if (!runId || !threadIdParam) return;
+    dispatch({ type: RemediationActionTypes.SET_ANALYZING, vulnId, isAnalyzing: true });
     try {
-      await api.resumeRun(runId, threadId, event => {
-        if (event.message) onMessage(event.type === 'status' ? 'agent' : 'system', event.message);
+      await api.resumeRun(runId, threadIdParam, event => {
+        if (event.message) onMessage?.(event.type === 'status' ? 'agent' : 'system', event.message);
         if (event.type === 'analysis_complete' && event.requires_approval) {
-          updateRun(vulnId, prev => ({ ...(prev || {}), status: 'AWAITING_APPROVAL' }));
+          dispatch({
+            type: RemediationActionTypes.ANALYSIS_COMPLETE,
+            vulnId,
+            requires_approval: true,
+            runId,
+          });
         } else if (event.type === 'publish_progress' && event.message) {
-          onMessage('system', event.message);
+          onMessage?.('system', event.message);
         } else if (event.type === 'pr_created') {
-          setPublications(prev => ({ ...prev, [vulnId]: event }));
-          updateRun(vulnId, prev => ({ ...(prev || {}), status: 'PR_OPEN' }));
+          dispatch({ type: RemediationActionTypes.PR_CREATED, vulnId, publication: event });
           if (event.pullRequestNumber) {
-            onMessage('agent', `Pull request #${event.pullRequestNumber} created: ${event.pullRequestUrl}`);
+            onMessage?.('agent', `Pull request #${event.pullRequestNumber} created: ${event.pullRequestUrl}`);
             notify('success', `Pull request #${event.pullRequestNumber} created for ${vulnId}.`);
           }
         } else if (event.type === 'complete') {
-          if (event.message) onMessage('agent', event.message);
-          updateRun(vulnId, prev => ({
-            ...(prev || {}), runId: event.runId ?? prev?.runId,
-            status: event.runStatus ?? prev?.status
-          }));
+          if (event.message) onMessage?.('agent', event.message);
+          dispatch({
+            type: RemediationActionTypes.ANALYSIS_COMPLETE,
+            vulnId,
+            runId: event.runId ?? runId,
+            status: event.runStatus,
+          });
         }
       });
-      if (runs[vulnId]?.status !== 'PUBLISH_FAILED') await loadApprovalPreview(vulnId);
+      if (state.entities[vulnId]?.status !== 'PUBLISH_FAILED') await loadApprovalPreview(vulnId);
     } catch (error) {
-      onMessage('agent', `Resume failed: ${error.message}`);
+      onMessage?.('agent', `Resume failed: ${error.message}`);
       notify('error', `Resume failed for ${vulnId}: ${error.message}`);
+    } finally {
+      dispatch({ type: RemediationActionTypes.SET_ANALYZING, vulnId, isAnalyzing: false });
     }
-    finally { setIsAnalyzingMap(prev => ({ ...prev, [vulnId]: false })); }
-  }, [runs, api, loadApprovalPreview, onMessage, updateRun, notify]);
+  }, [state.entities, api, loadApprovalPreview, onMessage, notify, dispatch]);
 
   const discard = useCallback(async (vulnId) => {
-    const runId = runs[vulnId]?.runId;
+    const runId = state.entities[vulnId]?.run?.runId;
     if (!runId) return;
     try {
       const data = await api.discardRun(runId);
-      onMessage('agent', data.rolledBack ? 'Run discarded; the isolated workspace was removed.' : 'Run discarded.');
-      setPreviews(prev => { const n = { ...prev }; delete n[vulnId]; return n; });
-      updateRun(vulnId, null);
-    } catch (error) { onMessage('agent', `Discard failed: ${error.message}`); }
-  }, [runs, api, onMessage, updateRun]);
-
-  // Provide derived values for the currently selected finding to keep App.jsx happy
-  const activeRun = selectedFinding ? (runs[selectedFinding.id] ?? null) : null;
-  const activeRunId = activeRun?.runId ?? null;
-  const isAnalyzing = selectedFinding ? isAnalyzingMap[selectedFinding.id] : false;
-  const isPublishing = selectedFinding ? isPublishingMap[selectedFinding.id] : false;
-  const isLoadingPreview = selectedFinding ? Boolean(isLoadingPreviewMap[selectedFinding.id]) : false;
-  const isCheckingRun = Boolean(
-    selectedFinding?.status === 'AWAITING_APPROVAL' &&
-    !runs[selectedFinding.id] &&
-    !hasCheckedRunMap[selectedFinding.id]
-  );
-  const isLoadingRun = selectedFinding
-    ? (Boolean(isLoadingRunMap[selectedFinding.id]) || isCheckingRun)
-    : false;
-  const awaitingApproval = Boolean(
-    activeRun?.status === 'AWAITING_APPROVAL' ||
-    (Boolean(activeRun?.runId) && selectedFinding?.status === 'AWAITING_APPROVAL') ||
-    (selectedFinding?.status === 'AWAITING_APPROVAL' && isLoadingRun)
-  );
-  const approvalPreview = selectedFinding ? (previews[selectedFinding.id] ?? null) : null;
-  const publication = selectedFinding ? publications[selectedFinding.id] : null;
-  const graphSteps = selectedFinding ? graphStepsMap[selectedFinding.id] : [];
+      onMessage?.('agent', data?.rolledBack ? 'Run discarded; the isolated workspace was removed.' : 'Run discarded.');
+      dispatch({ type: RemediationActionTypes.DISCARD_RUN, vulnId });
+    } catch (error) {
+      onMessage?.('agent', `Discard failed: ${error.message}`);
+    }
+  }, [state.entities, api, onMessage, dispatch]);
 
   return {
-    selectedFinding, setSelectedFinding, isAnalyzing, isPublishing, isLoadingPreview, isLoadingRun, awaitingApproval,
-    approvalPreview, loadApprovalPreview: () => selectedFinding && loadApprovalPreview(selectedFinding.id),
-    activeRun, activeRunId, publication, graphSteps, runs, isAnalyzingMap,
-    hydrate, resetForScan, analyze, analyzeBatch, cancelBatch, batchState,
-    decide: (decision, repoId, br, reason) => decide(selectedFinding?.id, decision, repoId, br, reason),
-    retryPublish: (repoId, br) => retryPublish(selectedFinding?.id, repoId, br),
-    resume: (threadId) => resume(selectedFinding?.id, threadId),
-    discard: () => discard(selectedFinding?.id),
+    selectedFinding: state.selectedFinding,
+    setSelectedFinding,
+    isAnalyzing: selectors.isAnalyzing,
+    isPublishing: selectors.isPublishing,
+    isLoadingPreview: selectors.isLoadingPreview,
+    isLoadingRun: selectors.isLoadingRun,
+    awaitingApproval: selectors.awaitingApproval,
+    approvalPreview: selectors.approvalPreview,
+    loadApprovalPreview: () => state.selectedFinding && loadApprovalPreview(state.selectedFinding.id),
+    activeRun: selectors.activeRun,
+    activeRunId: selectors.activeRunId,
+    publication: selectors.publication,
+    graphSteps: selectors.graphSteps,
+    runs: selectors.runsMap,
+    isAnalyzingMap: selectors.isAnalyzingMap,
+    hydrate,
+    resetForScan,
+    analyze,
+    analyzeBatch,
+    cancelBatch,
+    batchState: state.batch,
+    decide: (decision, repoId, br, reason) => decide(state.selectedFinding?.id, decision, repoId, br, reason),
+    retryPublish: (repoId, br) => retryPublish(state.selectedFinding?.id, repoId, br),
+    resume: (tId) => resume(state.selectedFinding?.id, tId),
+    discard: () => discard(state.selectedFinding?.id),
     refreshReport,
   };
 }

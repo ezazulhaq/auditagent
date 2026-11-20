@@ -159,4 +159,21 @@ describe('audit API scan adapter', () => {
     );
     expect(result).toEqual(runData);
   });
+
+  it('subscribes to repository events via GET /api/repositories/{id}/events', async () => {
+    const events = [];
+    const eventPayload = { type: 'pr_lifecycle', vulnId: 'VULN-1', status: 'FIXED', merged: true };
+    const fetchImpl = vi.fn().mockResolvedValue(response(
+      `data:${JSON.stringify(eventPayload)}\n\n`, 'text/event-stream'
+    ));
+    const api = createAuditApi({ fetchImpl });
+
+    await api.subscribeRepositoryEvents(42, 'main', event => events.push(event));
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      '/api/repositories/42/events?branch=main',
+      expect.objectContaining({ credentials: 'include' }),
+    );
+    expect(events).toEqual([eventPayload]);
+  });
 });

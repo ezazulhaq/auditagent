@@ -131,9 +131,11 @@ npm test
 - SSE whitespace, CRLF, comments, chunking, multiline data, EOF flush, and malformed JSON.
 - Stable High/Medium/Low/Info finding ordering without source-array mutation.
 - Multi-term metadata search, combined severity/status filtering, dynamic lifecycle choices, reset/no-result recovery, and unchanged finding selection.
-- Drawer polls webhook status and shows PR state.
+- Drawer updates PR state via real-time repository SSE events (`/api/repositories/{id}/events`) and optimistic updates without continuous polling.
 - Preview must load before publish action.
-- Remediation controller clears stale state for a new scan.
+- Remediation normalizer parses runs, publications, previews, and 16-stage LangGraph4j timeline steps into a consistent schema (`remediationNormalizer.test.js`).
+- Remediation reducer processes 20 atomic action types and computes memoized selectors without cascading re-renders (`useRemediationReducer.test.js`).
+- Remediation controller clears stale state for a new scan, subscribes to repository push events, and maintains backoff resilience (`useRemediationController.test.jsx`).
 - Decision binds run, finding, and digest and records PR state.
 - Old memory restore response is ignored.
 - Scan panel progress/error display.
