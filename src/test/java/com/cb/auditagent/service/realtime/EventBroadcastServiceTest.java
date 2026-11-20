@@ -132,4 +132,35 @@ class EventBroadcastServiceTest {
         assertEquals(1, received.size());
         assertTrue(received.get(0).contains("\"type\":\"graph_step\""));
     }
+
+    @Test
+    void shouldStreamRepositoryEventsToSubscriber() throws Exception {
+        long repositoryId = 12345L;
+        Flux<String> stream = eventBroadcastService.listenRepositoryEvents(repositoryId, "main");
+
+        List<String> received = new CopyOnWriteArrayList<>();
+        CountDownLatch latch = new CountDownLatch(1);
+        stream.subscribe(event -> {
+            if (!event.contains("keepalive")) {
+                received.add(event);
+                latch.countDown();
+            }
+        });
+
+        eventBroadcastService.broadcastEvent("repo-" + repositoryId, "run-pr-1", "pr_lifecycle", Map.of(
+                "type", "pr_lifecycle",
+                "repositoryId", repositoryId,
+                "branch", "main",
+                "pullRequestNumber", 42,
+                "vulnId", "VULN-001",
+                "vulnerabilityStatus", "FIXED",
+                "merged", true
+        ));
+
+        assertTrue(latch.await(3, TimeUnit.SECONDS), "Repository stream should receive pr_lifecycle event");
+        assertEquals(1, received.size());
+        assertTrue(received.get(0).contains("\"type\":\"pr_lifecycle\""));
+        assertTrue(received.get(0).contains("\"merged\":true"));
+        assertTrue(received.get(0).contains("\"vulnId\":\"VULN-001\""));
+    }
 }

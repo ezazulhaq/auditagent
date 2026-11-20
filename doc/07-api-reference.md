@@ -236,6 +236,37 @@ Returns a list of tracked GitHub issues for the specified repository after reval
 ]
 ```
 
+### `GET /api/repositories/{repositoryId}/events?branch=main` — SSE
+
+Subscribes to real-time lifecycle events for the specified repository and optional branch. Streams events directly to connected web clients over Server-Sent Events (`text/event-stream`), eliminating frontend HTTP polling intervals for PR resolution and background tasks.
+
+Connection behaviors:
+- Emits keepalive heartbeat frames (`{"type":"keepalive"}`) every 15 seconds to prevent browser/proxy connection timeouts.
+- Automatically cleans up subscription sinks on client disconnect (`doFinally`).
+
+Sample streamed event payloads:
+
+1. **Pull Request Merged or Closed (`pr_lifecycle`)**:
+```json
+{
+  "type": "pr_lifecycle",
+  "repositoryId": 42,
+  "branch": "main",
+  "pullRequestNumber": 19,
+  "vulnId": "VULN-000042",
+  "vulnerabilityStatus": "FIXED",
+  "pullRequestState": "MERGED",
+  "merged": true
+}
+```
+
+2. **Keepalive Heartbeat**:
+```json
+{
+  "type": "keepalive"
+}
+```
+
 ## Threads and memory
 
 ### `POST /api/memory/threads`
