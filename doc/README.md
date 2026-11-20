@@ -15,6 +15,7 @@ The implementation in `src/`, `frontend/src/`, `rules/`, and `.auditagent/skills
 | Database or memory maintainer                    | [Data and persistence](08-data-and-persistence.md)                            | [AI and remediation](09-ai-and-remediation.md)                   |
 | DevOps or platform engineer                      | [Setup, configuration, and operations](11-setup-configuration-operations.md) | [Security model](10-security-model.md), [Scalability & messaging](18-scalability-and-messaging-architecture.md), [Concurrency & stability](19-concurrency-and-realtime-stability-plan.md) |
 | Test engineer                                    | [Testing and quality](12-testing-and-quality.md)                              | [Change guide](14-change-guide.md)                               |
+| AI architect or agent engineer                   | [LangGraph4j orchestration](17-langgraph4j-orchestration.md)                  | [AI and remediation](09-ai-and-remediation.md), [Agent orchestration optimization plan](20-agent-orchestration-optimization-plan.md) |
 
 ## Complete document set
 
@@ -37,6 +38,7 @@ The implementation in `src/`, `frontend/src/`, `rules/`, and `.auditagent/skills
 17. [LangGraph4j orchestration](17-langgraph4j-orchestration.md) — dedicated state machine orchestration guide for agentic loops and workflows.
 18. [Scalability and messaging architecture](18-scalability-and-messaging-architecture.md) — architectural roadmap for horizontal scaling, task queuing via RabbitMQ, and unified persistence with self-hosted Supabase.
 19. [Scalability, stability, and maintainability roadmap (Phases 1–6)](19-concurrency-and-realtime-stability-plan.md) — comprehensive multi-phase architectural roadmap covering Phase 1 concurrency/real-time stability (implemented in v2.7.0), Phase 2 database & storage hardening, Phase 3 AI framework consolidation, Phase 4 multi-agent supervisor hardening, Phase 5 workspace & sandbox decoupling, and Phase 6 frontend state unification.
+20. [Agent orchestration optimization plan](20-agent-orchestration-optimization-plan.md) — architectural roadmap and technical specification for optimizing the dual-layer LangGraph4j state machine and LangChain4j execution engine with adaptive stage pruning, deterministic short-circuiting, tool execution caching, and TypeSafe Jev routing acceleration.
 
 ## Documentation conventions
 

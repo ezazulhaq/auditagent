@@ -31,3 +31,7 @@ The single agent graph was evolved into a specialized multi-agent graph:
 - **Dynamic prompts**: Agent system prompts are dynamically loaded via `SkillManagerService` reading markdown files exported under `.auditagent/skills/stage-*/SKILL.md`.
 
 Additionally, `AuditWorkflowGraph` provides a unified graph over scan, chat, and remediation processes, and streams real-time state change events (`graph_step`) to the frontend's Graph Timeline UI using Server-Sent Events (SSE). Token streaming is also enabled for live chat interactions.
+
+## Future optimization roadmap
+
+For the next evolution of this orchestration layer (including deterministic short-circuit routing, adaptive execution profiles, idempotent tool caching, and parallel stage execution), consult [20-agent-orchestration-optimization-plan.md](20-agent-orchestration-optimization-plan.md).
