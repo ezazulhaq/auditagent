@@ -10,7 +10,7 @@ flowchart LR
     P2 --> P3["Phase 3: AI Framework Consolidation<br/><i>(Implemented in v2.9.0)</i>"]
     P3 --> P4["Phase 4: Multi-Agent Star Topology<br/><i>(Implemented in v2.11.0)</i>"]
     P4 --> P5["Phase 5: Workspace & Sandbox Decoupling<br/><i>(Implemented in v2.13.0)</i>"]
-    P5 --> P6["Phase 6: Frontend State Unification"]
+    P5 --> P6["Phase 6: Frontend State & Protocol Unification<br/><i>(Implemented in v2.14.0)</i>"]
 ```
 
 ### Roadmap Summary
@@ -22,7 +22,7 @@ flowchart LR
 | **Phase 3** | **AI Framework Consolidation** | Standardize exclusively on LangChain4j (deprecating Spring AI duplication), decompose monolithic `LlmService.java` (1,313 lines), unify client caching pools. | **Implemented (v2.9.0)** |
 | **Phase 4** | **Multi-Agent Star Topology Hardening** | Structured JSON schema routing for `SupervisorNode`, milestone context window compression, decoupled supervisor iteration budgets from retry limits. | **Implemented (v2.11.0)** |
 | **Phase 5** | **Workspace & Sandbox Decoupling** | Stateless workspace reconstruction via patch bundles in object storage, true containerized sandbox execution for untrusted repository builds (`mvn`, `gradle`). | **Implemented (v2.13.0)** |
-| **Phase 6** | **Frontend State & Protocol Unification** | Consolidate 12 fragmented `useState` maps in `useRemediationController.js` into a centralized reducer (`useRemediationReducer`), eliminate polling in favor of real-time server push. | **Planned** |
+| **Phase 6** | **Frontend State & Protocol Unification** | Centralize 12 fragmented `useState` maps into `useRemediationReducer`, expose repository SSE event stream (`GET /api/repositories/{id}/events`), eliminate PR polling in favor of real-time server push. | **Implemented (v2.14.0)** |
 
 ---
 
@@ -382,70 +382,254 @@ auditagent:
 
 ---
 
-## Phase 6: Frontend State Decomposition & Protocol Unification
+## Phase 6: Frontend State Decomposition & Protocol Unification *(Implemented in v2.14.0)*
 
-### 6.1 Problem Statement & Objectives
-1. **State Fragmentation in `useRemediationController.js` (688 lines)**: State is scattered across 12 distinct `useState` maps keyed by `vulnId` (`runs`, `publications`, `previews`, `isAnalyzingMap`, `isPublishingMap`, `isLoadingPreviewMap`, `isLoadingRunMap`, etc.).
-2. **Imperative Data Normalization**: Manual snake_case and camelCase field checks (`run.vulnerabilityId = run.vulnerability_id`) cause race conditions during rapid user tab switching.
-3. **Redundant HTTP Polling**: The frontend uses polling intervals to check PR status (`PR_OPEN`, `AWAITING_APPROVAL`) instead of reacting to server-pushed events.
+### 6.1 Architectural Context & Post-Phase 5 Evolution
 
-### 6.2 Technical Design
+Since the original Phase 6 outline was drafted, AuditAgent has undergone major architectural advances that fundamentally expand the scope and requirements of frontend state and real-time event streaming:
 
-#### 1. Reducer Architecture (`useRemediationReducer`)
-Consolidate 12 state maps into a single domain state model:
-```javascript
-const initialState = {
-  selectedFindingId: null,
-  remediations: {
-    // [vulnId]: { status, run, publication, preview, isAnalyzing, isPublishing, error, graphSteps }
-  },
-  batch: null
-};
+1. **Multi-Agent Star Topology with 16 Review Stages (Phase 4, v2.11.0)**:
+   - Remediation workflows transitioned to a 16-stage LangGraph4j state machine (`SupervisorNode` + `WorkerAgentGraphFactory`).
+   - The execution engine streams granular `graph_step` events (`node`, `status`, `time`) to the frontend for live visualization in `GraphTimeline.jsx` and `RemediationTimeline.jsx`.
+   - In the legacy frontend, `graphStepsMap` was grafted on as another ad-hoc dictionary in `useRemediationController.js`, worsening map fragmentation and state divergence.
 
-function remediationReducer(state, action) {
-  switch (action.type) {
-    case 'ANALYSIS_STARTED': ...
-    case 'GRAPH_STEP_UPDATED': ...
-    case 'APPROVAL_READY': ...
-    case 'PUBLISH_STARTED': ...
-    case 'PR_CREATED': ...
-    case 'REMEDIATION_FAILED': ...
-    default: return state;
-  }
+2. **Vercel UI SDK Primitives & Agent-Readiness Integration (v2.12.0)**:
+   - The UI modernized its interactive layer using `@ui-sdk/react` (`CustomSelect`, `Modal`, `ConfirmDialog`, `WorkspaceTabs`, `Switch`) and `@layer ui-sdk;` DevSecOps token bindings.
+   - Introduced `frontend/src/utils/agentBridge.js` connecting `createAgent` and `registerTools` for WebMCP and AI assistant actuation.
+   - Frontend state must now expose clean, deterministic snapshot structures that autonomous agents can query (`agent.snapshot()`) and actuate (`agent.act()`) without triggering UI layout thrashing or cascading re-renders.
+
+3. **Stateless Patch Bundles & Containerized Sandboxes (Phase 5, v2.13.0)**:
+   - Remediations produce `PatchBundle` records stored in Supabase Storage and `run_changes`.
+   - Approval previews fetch verified diffs and approval digests (`approvalDigest`) via `/api/runs/{runId}/approval-preview`.
+   - Ephemeral workspaces are reconstructed on-demand during publication, creating asynchronous state transitions (`PUBLISHING`, `PUBLISHED`, `PUBLISH_FAILED`, `PR_OPEN`).
+
+4. **Notifications Subsystem (v2.10.0)**:
+   - The frontend integrates server-persisted notifications (`/api/notifications`) and custom events (`notification-added`).
+   - Currently, `useRemediationController.js` interleaves 10 raw `notify()` calls across various asynchronous callback branches, mixing side-effect delivery with state mutation.
+
+5. **Batch Remediation Analysis**:
+   - `analyzeBatch` allows running remediation across multiple vulnerabilities concurrently, managing batch progress (`batchState`) and per-vulnerability SSE routing.
+   - The current hook manually iterates over arrays of IDs and mutates up to 6 different maps imperatively.
+
+6. **The Real-Time Transport Reality**:
+   - The original roadmap assumed frontend could simply "remove setInterval in favor of SSE terminal event handling".
+   - In actual implementation, `POST /api/runs/{runId}/decision` SSE streams close immediately after `pr_created`.
+   - When the PR is merged on GitHub minutes or days later, the GitHub webhook hits `/api/webhooks/github` -> `PullRequestLifecycleService.handlePullRequestEvent()`, updating DuckDB/PostgreSQL.
+   - However, because the backend lacked a persistent repository push stream, `useRemediationController.js` was forced to introduce a 5-second polling loop (`setInterval(..., 5000)`) querying `/api/reports` and `/api/memory/threads`.
+   - To genuinely eliminate polling, Phase 6 must bridge both ends: implement a server-side repository event stream (`GET /api/repositories/{id}/events`) and connect the frontend reducer directly to server push.
+
+---
+
+### 6.2 Problem Statement & Current Bottlenecks
+
+1. **State Map Fragmentation in `useRemediationController.js` (688 lines)**:
+   - State is scattered across 12 distinct `useState` maps keyed by `vulnId`:
+     `runs`, `publications`, `previews`, `isAnalyzingMap`, `isPublishingMap`, `isLoadingPreviewMap`, `isLoadingRunMap`, `hasCheckedRunMap`, `graphStepsMap`, `batchState`, `selectedFinding`, plus 3 mutable refs (`abortRefs`, `batchAbortRef`, `loadingRunVulnsRef`).
+   - When SSE events arrive (`graph_step`, `workspace_prepared`, `approval_ready`, `pr_created`), up to 7 separate `setState` calls are invoked in sequence.
+   - This causes cascading re-renders across the drawer, findings table, and timeline, as well as temporary state tears where `runs[id]` reflects a new status but `previews[id]` or `graphStepsMap[id]` lag behind.
+
+2. **Duplicated Imperative Normalization**:
+   - Snake_case vs camelCase field reconciliation (`vulnerability_id` -> `vulnerabilityId`, `run_id` -> `runId`) is manually duplicated across `hydrate`, `getActiveRunForVulnerability` fallback, and `loadApprovalPreview`.
+
+3. **HTTP Polling Storms & Latency Window**:
+   - Whenever any run has status `PR_OPEN`, `useRemediationController.js` polls every 5 seconds via `setInterval`.
+   - In multi-tab or multi-user environments, this creates continuous $N \times (1 / 5\text{s})$ request traffic against web ingress pods, and adds up to 5,000ms latency before a merged PR is reflected in the UI.
+
+4. **Scattered Side Effects & Notification Coupling**:
+   - 10 distinct callbacks directly invoke `notify('success' | 'error', ...)` and `toast.*`, tightly coupling presentation side-effects to network event handlers.
+
+---
+
+### 6.3 Technical Design (Revised)
+
+#### 1. Centralized Domain Reducer Architecture (`useRemediationReducer`)
+
+Consolidate all 12 fragmented state maps into a single normalized entity state tree:
+
+```typescript
+interface RemediationEntity {
+  vulnId: string;
+  status: 'DETECTED' | 'QUEUED' | 'ACTIVE' | 'AWAITING_APPROVAL' | 'PUBLISHING' | 'PUBLISHED' | 'PUBLISH_FAILED' | 'PR_OPEN' | 'FIXED' | 'IGNORED' | 'FAILED';
+  run: AgentRunRecord | null;
+  publication: RunPublicationRecord | null;
+  preview: ApprovalPreview | null;
+  graphSteps: GraphStep[];
+  isAnalyzing: boolean;
+  isPublishing: boolean;
+  isLoadingPreview: boolean;
+  isLoadingRun: boolean;
+  hasCheckedRun: boolean;
+  error: string | null;
+}
+
+interface RemediationState {
+  selectedFindingId: string | null;
+  entities: Record<string, RemediationEntity>;
+  batch: {
+    active: boolean;
+    total: number;
+    completed: number;
+    failed: number;
+    vulnIds: string[];
+  } | null;
 }
 ```
 
-#### 2. Real-Time Push Event Subscriptions
-- Eliminate background polling loops in `useRemediationController.js`.
-- Leverage Phase 1's RabbitMQ event stream to receive terminal events (`pr_created`, `complete`, `error`) and dispatch directly to `remediationReducer`.
+```javascript
+// Pure reducer action types
+export const RemediationActionTypes = {
+  SELECT_FINDING: 'SELECT_FINDING',
+  DESELECT_FINDING: 'DESELECT_FINDING',
+  SCAN_RESET: 'SCAN_RESET',
+  HYDRATE: 'HYDRATE',
+  ANALYSIS_QUEUED: 'ANALYSIS_QUEUED',
+  WORKSPACE_PREPARED: 'WORKSPACE_PREPARED',
+  GRAPH_STEP_RECEIVED: 'GRAPH_STEP_RECEIVED',
+  APPROVAL_READY: 'APPROVAL_READY',
+  ANALYSIS_COMPLETE: 'ANALYSIS_COMPLETE',
+  ANALYSIS_FAILED: 'ANALYSIS_FAILED',
+  DECISION_STARTED: 'DECISION_STARTED',
+  DECISION_FAILED: 'DECISION_FAILED',
+  PR_CREATED: 'PR_CREATED',
+  RUN_LOADED: 'RUN_LOADED',
+  PREVIEW_LOADED: 'PREVIEW_LOADED',
+  BATCH_STARTED: 'BATCH_STARTED',
+  BATCH_PROGRESS: 'BATCH_PROGRESS',
+  BATCH_COMPLETE: 'BATCH_COMPLETE',
+  BATCH_CANCELLED: 'BATCH_CANCELLED',
+  PR_STATUS_UPDATED: 'PR_STATUS_UPDATED',
+  SYNC_FINDINGS: 'SYNC_FINDINGS',
+};
+```
+
+#### 2. Centralized Entity Normalizer (`remediationNormalizer.js`)
+
+Extract a dedicated normalization module obeying SRP:
+- Takes raw backend payloads (`activeRuns`, `activeRun`, `publications`, `previews`, `activeFinding`, `findings`) and produces clean, camelCase entity records.
+- Guarantees consistent mapping of `vulnerabilityId`, `runId`, `commitSha`, and `approvalDigest` in one place.
+
+#### 3. Real-Time Repository SSE Event Stream (`GET /api/repositories/{repositoryId}/events`)
+
+To eliminate the 5-second polling loop permanently:
+1. **Backend Event Emitter**:
+   - In [PullRequestLifecycleService.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/service/PullRequestLifecycleService.java), when GitHub webhooks report a PR merged or closed, publish a `pr_lifecycle` event to RabbitMQ `auditagent.events`:
+     ```java
+     eventBroadcastService.broadcastEvent(
+         "repo-" + repositoryId,
+         publication.runId(),
+         "pr_lifecycle",
+         Map.of(
+             "type", "pr_lifecycle",
+             "repositoryId", repositoryId,
+             "branch", publication.baseBranch(),
+             "pullRequestNumber", prNumber,
+             "vulnId", vulnerability.getId(),
+             "vulnerabilityStatus", vulnerability.getStatus().name(),
+             "pullRequestState", merged ? "MERGED" : "CLOSED",
+             "merged", merged
+         )
+     );
+     ```
+2. **Repository Event Stream Endpoint**:
+   - In [AuditController.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/controller/AuditController.java), add `GET /api/repositories/{repositoryId}/events?branch={branch}`:
+     ```java
+     @GetMapping(value = "/repositories/{repositoryId}/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+     public Flux<String> streamRepositoryEvents(
+             @PathVariable long repositoryId,
+             @RequestParam(required = false) String branch,
+             Authentication authentication) {
+         AuthenticatedUser user = requireUser(authentication);
+         repositoryAccess.requireRepositoryAccess(user, repositoryId);
+         return eventBroadcastService.listenRepositoryEvents(repositoryId, branch);
+     }
+     ```
+3. **Frontend Real-Time Listener**:
+   - When a repository and branch are selected in `AuditContext`, open an SSE stream to `/api/repositories/{repositoryId}/events?branch={branch}`.
+   - When a `pr_lifecycle` event arrives with `merged: true`:
+     - Dispatch `PR_STATUS_UPDATED` directly to `remediationReducer` (updating the entity to `FIXED` instantly with zero polling).
+     - Automatically refresh report findings lazily without background interval churn.
+4. **Resilient Adaptive Fallback**:
+   - Completely eliminate the fixed 5-second `setInterval` loop.
+   - If the SSE connection drops or remote transport fails, fallback to an adaptive backoff poll (15s -> 30s -> 60s) that immediately pauses when `document.visibilityState === 'hidden'` and resets as soon as SSE reconnects.
+
+#### 4. Architecture Data Flow & Sequences
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Dev as Developer on GitHub
+    participant GH as GitHub Webhook
+    participant Ingress as Web Ingress Pod
+    participant RMQ as RabbitMQ (auditagent.events)
+    participant Client as React Client (SSE Stream)
+    participant Reducer as useRemediationReducer
+
+    Dev->>GH: Merges PR #42 on GitHub
+    GH->>Ingress: POST /api/webhooks/github (action: closed, merged: true)
+    Ingress->>Ingress: PullRequestLifecycleService updates DB (status: FIXED)
+    Ingress->>RMQ: broadcastEvent("repo-123", "pr_lifecycle", merged=true)
+    RMQ->>Ingress: Fanout delivers event to Ingress Pods
+    Ingress->>Client: SSE Push: {"type":"pr_lifecycle","vulnId":"VULN-42","status":"FIXED"}
+    Client->>Reducer: dispatch({ type: 'PR_STATUS_UPDATED', vulnId: 'VULN-42', status: 'FIXED' })
+    Reducer-->>Client: Instant React UI Update (Timeline -> FIXED, Drawer reflects resolution)
+```
 
 ```mermaid
 flowchart TD
-    SSE["SSE Stream / EventBroadcast"] --> D["remediationReducer Dispatch"]
-    D --> UI["Centralized React View State"]
-    UI --> FD["FindingDrawer (Reactive)"]
-    UI --> RT["RemediationTimeline (Reactive)"]
-    UI --> FV["FindingsView (Reactive)"]
+    subgraph Server Pod
+        RMQ["RabbitMQ auditagent.events"] --> EB["EventBroadcastService"]
+        EB --> ES["GET /api/repositories/{id}/events (SSE)"]
+        AS["POST /analyze SSE Stream"]
+        DS["POST /runs/{id}/decision SSE Stream"]
+    end
+
+    subgraph React Client State
+        ES -.->|pr_lifecycle, scan_complete| R["useRemediationReducer"]
+        AS -.->|graph_step, approval_ready| R
+        DS -.->|pr_created, publish_failed| R
+        R --> Selector["Memoized Selectors (activeRun, graphSteps, isAnalyzing)"]
+        Selector --> FD["FindingDrawer (ui-sdk Dialog)"]
+        Selector --> GT["GraphTimeline (16 Stages)"]
+        Selector --> RT["RemediationTimeline"]
+        Selector --> AB["agentBridge (WebMCP Autonomous Agent)"]
+    end
 ```
 
-### 6.3 Implementation and Verification Checklist (Phase 6)
-- [ ] **Reducer Refactoring**: Extract `useRemediationReducer.js` and migrate state from 12 separate `useState` hooks.
-- [ ] **Eliminate Polling**: Remove `setInterval` polling loops for `PR_OPEN` and `AWAITING_APPROVAL` in favor of SSE terminal event handling.
-- [ ] **Contract Normalization**: Implement strict TypeScript/JSDoc types for SSE payloads in `frontend/src/types.js`.
-- [ ] **Automated Testing**:
-  - `useRemediationReducer.test.js`: Unit tests for every state transition and error condition.
-  - `FindingDrawer.test.jsx`: Component test verifying timeline updates reactively without polling.
-  - End-to-end Vitest run: All frontend tests pass (`npm test`).
+#### 5. Integration with ui-sdk Primitives & Agent Bridge
+
+- **Zero-Thrash Selectors**: Expose memoized derived selectors (`selectActiveEntity`, `selectAwaitingApproval`, `selectActiveRun`, `selectGraphSteps`) so that updates to one vulnerability in a batch do not re-render unaffected components.
+- **WebMCP Tool Registration in `agentBridge.js`**:
+  - Expose `getRemediationState`: Returns active finding analysis, graph steps, and approval preview for LLM tooling.
+  - Expose `triggerRemediationDecision`: Dispatches approval/rejection with human confirmation guard (`step.confirm`).
+
+---
+
+### 6.4 Implementation and Verification Checklist (Phase 6)
+
+- [x] **Data Normalizer**: Implement `frontend/src/features/remediation/remediationNormalizer.js` with comprehensive camelCase/snake_case mapping and entity creation.
+- [x] **Domain Reducer**: Implement `frontend/src/features/remediation/useRemediationReducer.js` handling all action types, entity updates, and batch states.
+- [x] **Backend Event Emitter**: In `PullRequestLifecycleService.java`, broadcast `pr_lifecycle` events to RabbitMQ upon PR merge/closure.
+- [x] **Repository Event Endpoint**: In `EventBroadcastService.java` and `AuditController.java`, implement `listenRepositoryEvents` and `GET /api/repositories/{repositoryId}/events`.
+- [x] **Hook Modernization**: Refactor `useRemediationController.js` to use `useRemediationReducer`, connect to the repository SSE stream, and remove the legacy 5-second `setInterval` polling loop.
+- [x] **Contract Normalization**: Update `frontend/src/types.js` with TypeScript/JSDoc types for `RemediationEntity`, `GraphStep`, and repository SSE payloads.
+- [x] **Agent Bridge Alignment**: Register remediation state query and action tools in `frontend/src/utils/agentBridge.js`.
+- [x] **Automated Testing Suite**:
+  - `remediationNormalizer.test.js`: Unit tests for entity creation, snake_case normalization, and diff preview preservation.
+  - `useRemediationReducer.test.js`: Comprehensive tests for all state transitions, graph steps, batch remediation, and errors.
+  - `useRemediationController.test.jsx`: Verify hook integration, event handling, decision flow, and zero-polling behavior.
+  - `FindingDrawer.test.jsx`: Component tests verifying reactive updates to 16-stage graph steps and PR status.
+  - `RepositoryEventsControllerTest.java`: Backend test verifying repository SSE stream receives and pushes `pr_lifecycle` events.
+  - Full suite verification: Backend `./mvnw test` (232 tests passed, 0 failures) and frontend `npm --prefix frontend test:run` (143 tests passed across 30 test files).
 
 ---
 
 ## Complete Multi-Phase Verification & Execution Checklist
 
 | Phase | Milestone | Primary Verification Gate | Status |
-| :---: | :--- | :--- | :---: |
+| :--- | :--- | :--- | :--- |
 | **Phase 1** | **Concurrency & Real-Time Stability** | RabbitMQ cross-pod event SSE test + non-blocking virtual thread lock tests. | **[x] Implemented (v2.7.0)** |
 | **Phase 2** | **Database & Storage Hardening** | GIN `search_vector` FTS ranking + bulk batch upsert test ($<500\text{ms}$) + WireMock storage test. | **[x] Implemented (v2.8.0)** |
 | **Phase 3** | **AI Framework Consolidation** | Complete removal of Spring AI dependencies + decomposed `LlmService` unit tests. | **[x] Implemented (v2.9.0)** |
 | **Phase 4** | **Multi-Agent Star Topology** | Structured JSON schema supervisor test + token budget verification across 10+ hops. | **[x] Implemented (v2.11.0)** |
 | **Phase 5** | **Workspace & Sandbox Decoupling** | Stateless patch bundle PR publication test + container resource limit enforcement. | **[x] Implemented (v2.13.0)** |
-| **Phase 6** | **Frontend State Unification** | Vitest suite verifying reducer state transitions without polling intervals. | **[ ] Planned** |
+| **Phase 6** | **Frontend State & Protocol Unification** | Reducer state transitions + zero-polling repository SSE event stream verification. | **[x] Implemented (v2.14.0)** |

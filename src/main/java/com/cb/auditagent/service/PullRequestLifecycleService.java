@@ -6,10 +6,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.cb.auditagent.domain.*;
+import com.cb.auditagent.service.realtime.EventBroadcastService;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class PullRequestLifecycleService {
@@ -22,6 +25,7 @@ public class PullRequestLifecycleService {
     private final ReporterService reporter;
     private final RepositoryAccessService repositoryAccess;
     private final MeterRegistry meterRegistry;
+    private final EventBroadcastService eventBroadcastService;
 
     public PullRequestLifecycleService(
             DatabaseService database,
@@ -31,6 +35,19 @@ public class PullRequestLifecycleService {
             ReporterService reporter,
             RepositoryAccessService repositoryAccess,
             MeterRegistry meterRegistry) {
+        this(database, github, pullRequests, llm, reporter, repositoryAccess, meterRegistry, null);
+    }
+
+    @Autowired
+    public PullRequestLifecycleService(
+            DatabaseService database,
+            GitHubApiClient github,
+            PullRequestProvider pullRequests,
+            LlmService llm,
+            ReporterService reporter,
+            RepositoryAccessService repositoryAccess,
+            MeterRegistry meterRegistry,
+            @Autowired(required = false) EventBroadcastService eventBroadcastService) {
         this.database = database;
         this.github = github;
         this.pullRequests = pullRequests;
@@ -38,6 +55,7 @@ public class PullRequestLifecycleService {
         this.reporter = reporter;
         this.repositoryAccess = repositoryAccess;
         this.meterRegistry = meterRegistry;
+        this.eventBroadcastService = eventBroadcastService;
     }
 
     public void handlePullRequestEvent(long repositoryId, int prNumber, boolean merged, boolean closed) {
@@ -154,6 +172,28 @@ public class PullRequestLifecycleService {
         database.updateTrackedIssueStatusByPr(prNumber, merged ? "FIXED" : "DISCARDED",
                 merged ? "CLOSED" : "OPEN",
                 merged ? "Resolved via merged PR #" + prNumber : "PR closed unmerged");
+
+        if (eventBroadcastService != null) {
+            try {
+                eventBroadcastService.broadcastEvent(
+                        "repo-" + repositoryId,
+                        publication.runId(),
+                        "pr_lifecycle",
+                        Map.of(
+                                "type", "pr_lifecycle",
+                                "repositoryId", repositoryId,
+                                "branch", publication.baseBranch() != null ? publication.baseBranch() : "",
+                                "pullRequestNumber", prNumber,
+                                "vulnId", vulnerability.getId(),
+                                "vulnerabilityStatus", vulnerability.getStatus().name(),
+                                "pullRequestState", merged ? "MERGED" : "CLOSED",
+                                "merged", merged
+                        )
+                );
+            } catch (Exception e) {
+                logger.warn("Failed to broadcast PR lifecycle event for repo {}: {}", repositoryId, e.getMessage());
+            }
+        }
     }
 
     public void reconcilePullRequest(AuthenticatedUser user, String runId) {

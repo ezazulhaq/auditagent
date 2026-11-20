@@ -364,4 +364,55 @@ describe('useRemediationController', () => {
     expect(result.current.awaitingApproval).toBe(false);
     expect(result.current.activeRun).toBeNull();
   });
+
+  it('subscribes to repository events and reactively updates PR resolution without interval polling', async () => {
+    let pushEventHandler = null;
+    const api = {
+      subscribeRepositoryEvents: vi.fn((repoId, branch, onEvent) => {
+        pushEventHandler = onEvent;
+        return Promise.resolve();
+      }),
+      getReport: vi.fn().mockResolvedValue({
+        findings: [{ id: 'VULN-000042', status: 'FIXED', vulnType: 'SQL Injection' }],
+        metadata: null,
+      }),
+      saveNotification: vi.fn().mockResolvedValue({}),
+    };
+    const onMessage = vi.fn();
+
+    const { result } = renderHook(() => useRemediationController({
+      api,
+      onMessage,
+      onReport: vi.fn(),
+      repositoryId: 42,
+      branch: 'main',
+    }));
+
+    act(() => {
+      result.current.setSelectedFinding({ id: 'VULN-000042', status: 'PR_OPEN' });
+      result.current.hydrate({
+        activeRuns: [{ runId: 'run-77', vulnerabilityId: 'VULN-000042', status: 'PR_OPEN' }],
+        publications: { 'run-77': { pullRequestNumber: 12 } },
+      });
+    });
+
+    expect(api.subscribeRepositoryEvents).toHaveBeenCalledWith(42, 'main', expect.any(Function), expect.any(AbortSignal));
+    expect(result.current.activeRun.status).toBe('PR_OPEN');
+
+    // Simulate backend pushing PR merge event via repository SSE stream
+    await act(async () => {
+      pushEventHandler?.({
+        type: 'pr_lifecycle',
+        vulnId: 'VULN-000042',
+        merged: true,
+        pullRequestState: 'MERGED',
+      });
+      await Promise.resolve();
+    });
+
+    expect(result.current.selectedFinding.status).toBe('FIXED');
+    expect(result.current.runs['VULN-000042']).toBeUndefined();
+    expect(api.saveNotification).toHaveBeenCalledWith('success', expect.stringContaining('VULN-000042'));
+    expect(onMessage).toHaveBeenCalledWith('agent', expect.stringContaining('Pull request merged on GitHub'));
+  });
 });

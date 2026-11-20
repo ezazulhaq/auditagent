@@ -135,6 +135,11 @@ export function createAuditApi({ baseUrl = API_BASE_URL, fetchImpl = fetch } = {
       if (!response.ok) throw await errorFor(response);
     },
 
+    subscribeRepositoryEvents(repositoryId, branch, onEvent, signal) {
+      const query = branch ? `?branch=${encodeURIComponent(branch)}` : '';
+      return stream(`/repositories/${encodeURIComponent(repositoryId)}/events${query}`, { signal }, onEvent);
+    },
+
     async reportArtifact(repositoryId, branch, format, signal) {
       const query = `repositoryId=${encodeURIComponent(repositoryId)}&branch=${encodeURIComponent(branch)}&format=${encodeURIComponent(format)}`;
       const response = await request(`/reports/export?${query}`, { signal });

@@ -22,6 +22,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
@@ -40,6 +41,7 @@ public class EventBroadcastService {
     private final ObjectMapper objectMapper;
     private final RabbitTemplate rabbitTemplate;
     private final Map<String, Sinks.Many<String>> jobSinks = new ConcurrentHashMap<>();
+    private final Map<Long, Set<Sinks.Many<String>>> repositorySinks = new ConcurrentHashMap<>();
     private final Timer cleanupTimer = new Timer("event-cleanup-timer", true);
 
     @Value("${auditagent.messaging.events-exchange:" + RabbitMqConfig.EVENTS_EXCHANGE + "}")
@@ -79,6 +81,37 @@ public class EventBroadcastService {
         return sink.asFlux().doFinally(signalType -> {
             timer.cancel();
             jobSinks.remove(jobId);
+        });
+    }
+
+    /**
+     * Subscribe to real-time events for a specific repository and optional branch as an SSE Flux stream.
+     * Stays connected while the repository is selected; keeps alive every 15 seconds.
+     */
+    public Flux<String> listenRepositoryEvents(long repositoryId, String branch) {
+        Sinks.Many<String> sink = Sinks.many().multicast().onBackpressureBuffer();
+        repositorySinks.computeIfAbsent(repositoryId, k -> ConcurrentHashMap.newKeySet()).add(sink);
+
+        Timer timer = new Timer("repo-keepalive-" + repositoryId + "-" + System.currentTimeMillis(), true);
+        timer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                try {
+                    sink.tryEmitNext("{\"type\":\"keepalive\"}");
+                } catch (Exception ignore) {
+                }
+            }
+        }, 15000, 15000);
+
+        return sink.asFlux().doFinally(signalType -> {
+            timer.cancel();
+            Set<Sinks.Many<String>> sinks = repositorySinks.get(repositoryId);
+            if (sinks != null) {
+                sinks.remove(sink);
+                if (sinks.isEmpty()) {
+                    repositorySinks.remove(repositoryId);
+                }
+            }
         });
     }
 
@@ -124,8 +157,14 @@ public class EventBroadcastService {
         }
 
         // If RabbitMQ is not available or publish failed, emit directly to local sink
-        if (!publishedToRabbit && jobId != null) {
-            emitToLocalSink(jobId, payloadJson, eventType);
+        if (!publishedToRabbit) {
+            if (jobId != null) {
+                emitToLocalSink(jobId, payloadJson, eventType);
+            }
+            Long repoId = resolveRepositoryId(jobId, enrichedPayload);
+            if (repoId != null) {
+                emitToRepositorySinks(repoId, payloadJson);
+            }
         }
 
         return saved;
@@ -145,9 +184,42 @@ public class EventBroadcastService {
                 String eventType = node.has("type") ? node.get("type").asText() : null;
                 emitToLocalSink(jobId, eventJson, eventType);
             }
+            Long repoId = resolveRepositoryId(jobId, node);
+            if (repoId != null) {
+                emitToRepositorySinks(repoId, eventJson);
+            }
         } catch (Exception e) {
             logger.debug("Failed to dispatch remote event from RabbitMQ: {}", e.getMessage());
         }
+    }
+
+    private Long resolveRepositoryId(String jobId, Map<String, Object> payload) {
+        if (payload != null && payload.containsKey("repositoryId")) {
+            try {
+                return Long.parseLong(String.valueOf(payload.get("repositoryId")));
+            } catch (Exception ignore) {
+            }
+        }
+        if (jobId != null && jobId.startsWith("repo-")) {
+            try {
+                return Long.parseLong(jobId.substring(5));
+            } catch (Exception ignore) {
+            }
+        }
+        return null;
+    }
+
+    private Long resolveRepositoryId(String jobId, JsonNode node) {
+        if (node != null && node.has("repositoryId")) {
+            return node.get("repositoryId").asLong();
+        }
+        if (jobId != null && jobId.startsWith("repo-")) {
+            try {
+                return Long.parseLong(jobId.substring(5));
+            } catch (Exception ignore) {
+            }
+        }
+        return null;
     }
 
     void emitToLocalSink(String jobId, String payloadJson, String eventType) {
@@ -164,6 +236,19 @@ public class EventBroadcastService {
                     jobSinks.remove(jobId);
                 }
             }, 30000);
+        }
+    }
+
+    public void emitToRepositorySinks(long repositoryId, String payloadJson) {
+        Set<Sinks.Many<String>> sinks = repositorySinks.get(repositoryId);
+        if (sinks != null && !sinks.isEmpty() && payloadJson != null) {
+            for (Sinks.Many<String> sink : sinks) {
+                try {
+                    sink.tryEmitNext(payloadJson);
+                } catch (Exception e) {
+                    logger.debug("Failed to emit to repository sink: {}", e.getMessage());
+                }
+            }
         }
     }
 

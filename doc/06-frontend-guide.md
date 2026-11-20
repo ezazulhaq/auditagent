@@ -168,29 +168,15 @@ It does not use browser `EventSource` because protected mutations need POST bodi
 
 ### `useRemediationController`
 
-Tracks:
+Orchestrates remediation workflows, 16-stage LangGraph4j review step visualization, patch approvals, and zero-polling real-time event updates. In Phase 6 (v2.14.0), it was refactored from 12 fragmented `useState` maps into a centralized reducer (`useRemediationReducer.js`) and normalization module (`remediationNormalizer.js`).
 
-- selected finding;
-- analysis and publication activity;
-- active run and run ID;
-- automated PR publication progress state;
-- PR preview data;
-- grouped finding status tracking;
-- batch analysis state (`batchState`: active, total, completed, failed, currentVulnId);
-- active analyzing status per vulnerability (`isAnalyzingMap`).
-
-It:
-
-- hydrates recoverable state;
-- clears stale remediation when a new scan begins;
-- starts analysis and consumes run-bound events;
-- executes multi-finding concurrent batch analysis (`analyzeBatch`) with cancellation (`cancelBatch`);
-- loads the current preview;
-- sends the exact vulnerability and digest in a decision;
-- refreshes the report after decisions/publication;
-- retries publication;
-- resumes interrupted work;
-- discards unpublished work.
+Architecture & Key Capabilities:
+- **Centralized Entity State Tree (`useRemediationReducer`)**: Manages `selectedFinding`, a normalized `entities` map keyed by `vulnId`, and `batchState`. Each entity encapsulates status, durable run record, publication, approval preview diff/digest, 16-stage `graphSteps`, loading flags (`isLoadingPreview`, `isLoadingRun`), and errors.
+- **Dedicated Entity Normalization (`remediationNormalizer`)**: Obeying SRP, centralizes all snake_case/camelCase field normalization (`vulnerability_id` -> `vulnerabilityId`, `run_id` -> `runId`, `approval_digest` -> `approvalDigest`) across hydration, fallback queries, and stream events.
+- **Real-Time Server Push Stream (`GET /api/repositories/{id}/events`)**: Subscribes to the repository SSE stream upon repository/branch selection. When GitHub webhooks report a PR merged (`pr_lifecycle`), the reducer immediately marks the finding as `FIXED`, emits desktop notifications, and lazily refreshes reports—completely eliminating the legacy 5-second `setInterval` polling loop.
+- **Adaptive Resilience Fallback**: If the repository SSE stream disconnects, gracefully degrades to visibility-aware backoff polling (15s to 60s) paused on hidden browser tabs, restoring zero-polling push upon reconnection.
+- **Batch Remediation Execution**: Orchestrates concurrent multi-finding analysis (`analyzeBatch`) with progress tracking and cancellation (`cancelBatch`).
+- **Zero-Layout-Thrashing Selectors**: Provides memoized selectors (`selectActiveEntity`, `selectAwaitingApproval`, `selectActiveRun`, `selectGraphSteps`, `selectRunsMap`) guaranteeing pure, optimized re-renders for `FindingDrawer` and timeline components.
 
 ### `useChatState`
 

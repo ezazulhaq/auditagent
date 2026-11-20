@@ -57,4 +57,48 @@
  * @property {string=} phase
  */
 
+/**
+ * @typedef {Object} GraphStep
+ * @property {string} node
+ * @property {string} status
+ * @property {number} time
+ */
+
+/**
+ * @typedef {Object} ApprovalPreview
+ * @property {string} runId
+ * @property {string=} vulnerabilityId
+ * @property {string=} approvalDigest
+ * @property {string=} diff
+ * @property {Array<string>=} files
+ */
+
+/**
+ * @typedef {Object} RemediationEntity
+ * @property {string} vulnId
+ * @property {'DETECTED'|'QUEUED'|'ACTIVE'|'AWAITING_APPROVAL'|'PUBLISHING'|'PUBLISHED'|'PUBLISH_FAILED'|'PR_OPEN'|'FIXED'|'IGNORED'|'FAILED'} status
+ * @property {DurableRunState|null} run
+ * @property {Object|null} publication
+ * @property {ApprovalPreview|null} preview
+ * @property {Array<GraphStep>} graphSteps
+ * @property {boolean} isAnalyzing
+ * @property {boolean} isPublishing
+ * @property {boolean} isLoadingPreview
+ * @property {boolean} isLoadingRun
+ * @property {boolean} hasCheckedRun
+ * @property {string|null} error
+ */
+
+/**
+ * @typedef {Object} RepositoryStreamEvent
+ * @property {'pr_lifecycle'|'scan_complete'|'report_updated'|'keepalive'|'ready'} type
+ * @property {number=} repositoryId
+ * @property {string=} branch
+ * @property {string=} vulnId
+ * @property {number=} pullRequestNumber
+ * @property {string=} pullRequestState
+ * @property {boolean=} merged
+ * @property {string=} status
+ */
+
 export {};

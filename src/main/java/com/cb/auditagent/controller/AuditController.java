@@ -5,6 +5,7 @@ import org.springframework.http.ContentDisposition;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -12,7 +13,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ServerWebExchange;
+import org.springframework.beans.factory.annotation.Autowired;
 
+import com.cb.auditagent.domain.AuthenticatedUser;
 import com.cb.auditagent.domain.ReportArtifact;
 import com.cb.auditagent.domain.ScanSnapshot;
 import com.cb.auditagent.dto.AnalyzeRequest;
@@ -26,6 +29,7 @@ import com.cb.auditagent.service.RemediationWorkflowService;
 import com.cb.auditagent.service.RepositoryAccessService;
 import com.cb.auditagent.service.ScanOrchestratorService;
 import com.cb.auditagent.service.SkillManagerService;
+import com.cb.auditagent.service.realtime.EventBroadcastService;
 
 import reactor.core.publisher.Flux;
 
@@ -41,6 +45,7 @@ public class AuditController {
     private final RepositoryAccessService repositoryAccess;
     private final GitHubAuthService auth;
     private final DatabaseService database;
+    private final EventBroadcastService eventBroadcastService;
 
     public AuditController(SkillManagerService skills, ChatService llm,
             ScanOrchestratorService scanOrchestrator,
@@ -48,6 +53,17 @@ public class AuditController {
             RepositoryAccessService repositoryAccess,
             GitHubAuthService auth,
             DatabaseService database) {
+        this(skills, llm, scanOrchestrator, remediationWorkflow, repositoryAccess, auth, database, null);
+    }
+
+    @Autowired
+    public AuditController(SkillManagerService skills, ChatService llm,
+            ScanOrchestratorService scanOrchestrator,
+            RemediationWorkflowService remediationWorkflow,
+            RepositoryAccessService repositoryAccess,
+            GitHubAuthService auth,
+            DatabaseService database,
+            @Autowired(required = false) EventBroadcastService eventBroadcastService) {
         this.skills = skills;
         this.llm = llm;
         this.scanOrchestrator = scanOrchestrator;
@@ -55,6 +71,7 @@ public class AuditController {
         this.repositoryAccess = repositoryAccess;
         this.auth = auth;
         this.database = database;
+        this.eventBroadcastService = eventBroadcastService;
     }
 
     @PostMapping("/scan")
@@ -107,6 +124,19 @@ public class AuditController {
         repositoryAccess.requireRepositoryAccess(auth.requireUser(exchange), repositoryId);
         database.deleteScanHistory(repositoryId, branch);
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping(value = "/repositories/{repositoryId}/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<String> streamRepositoryEvents(
+            @PathVariable long repositoryId,
+            @RequestParam(required = false) String branch,
+            ServerWebExchange exchange) {
+        AuthenticatedUser user = auth.requireUser(exchange);
+        repositoryAccess.requireRepositoryAccess(user, repositoryId);
+        if (eventBroadcastService != null) {
+            return eventBroadcastService.listenRepositoryEvents(repositoryId, branch);
+        }
+        return Flux.just("{\"type\":\"ready\",\"repositoryId\":" + repositoryId + "}");
     }
 
     @GetMapping("/reports/export")

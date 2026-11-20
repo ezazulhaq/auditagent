@@ -124,7 +124,7 @@ Provides bounded finding triage against LLM endpoints during scan execution. Enf
 
 ### `EventBroadcastService`
 
-Bridges lifecycle events across pods using the RabbitMQ `auditagent.events` Fanout exchange. Emits enriched payloads containing `jobId`, `runId`, and `type`, persists events in PostgreSQL `job_event_log`, and matches incoming events to local ephemeral queue listeners (`EventIngressListener`) on web pods, streaming directly into Reactor SSE Flux sinks.
+Bridges lifecycle events across pods using the RabbitMQ `auditagent.events` Fanout exchange. Emits enriched payloads containing `jobId`, `runId`, and `type`, persists events in PostgreSQL `job_event_log`, and matches incoming events to local ephemeral queue listeners (`EventIngressListener`) on web pods, streaming directly into Reactor SSE Flux sinks. Manages both job-scoped sinks (`listenEvents`) and repository-scoped sinks (`listenRepositoryEvents(repositoryId, branch)`), dispatching real-time notifications such as `pr_lifecycle` events to all connected clients on `GET /api/repositories/{repositoryId}/events` with automated 15-second keepalive heartbeats and disconnect cleanup.
 
 ### `ProjectUploadService` and `ZipArchiveExtractor`
 
@@ -136,7 +136,7 @@ Orchestrates the AI remediation lifecycle for individual vulnerabilities and mul
 
 ### `PullRequestLifecycleService`
 
-Processes GitHub pull request events via webhooks or manual reconciliation. It updates vulnerability states and handles positive memory creation and metrics tracking when PRs are merged or closed.
+Processes GitHub pull request events via webhooks or manual reconciliation. It updates vulnerability states and handles positive memory creation and metrics tracking when PRs are merged or closed. When a pull request status transitions (merged or closed), it broadcasts a real-time `pr_lifecycle` event through `EventBroadcastService` across the cluster to update all active frontend clients reactively without polling.
 
 ### `IssueLifecycleService`
 
