@@ -131,7 +131,6 @@
 |---|---|
 | `AuditWorkflowGraph.java` | Unified end-to-end graph orchestrating scan, chat, remediation, and publication. |
 | `DatabaseCheckpointSaver.java` | Native LangGraph4j state persistence backed by PostgreSQL / Supabase with thread-safe serialization and recovery. |
-| `DuckDbCheckpointSaver.java` | Deprecated compatibility subclass extending `DatabaseCheckpointSaver`. |
 | `MultiAgentRemediationGraph.java` | 15-stage Star Topology orchestration graph with a supervisor. |
 | `RemediationGraph.java` | Inner LangGraph4j state machine for agent execution. |
 | `RemediationState.java` | State definition for the remediation loop. |
@@ -171,7 +170,6 @@
 | `MemoryRedactor.java` | Secret masks and caps. |
 | `MemoryReflectionService.java` | Asynchronously distills positive remediation patterns (`summarizeDiffForGlobalPattern`) and failure anti-patterns (`reflectOnFailure`) via LangChain4j. |
 | `PostgresKnowledgeBaseService.java` | Native PostgreSQL/Supabase full-text search (`tsvector`/`tsquery`), candidate retrieval, and domain ranking weights for approved remediation memory. |
-| `DuckDbKnowledgeBaseService.java` | Deprecated compatibility subclass extending `PostgresKnowledgeBaseService`. |
 | `PullRequestLifecycleService.java` | Pull request webhook events, and vulnerability state transitions. |
 | `PullRequestProvider.java` | Pull-request abstraction. |
 | `PdfReportRenderer.java` | Paginated enterprise PDF generation through Apache PDFBox. |

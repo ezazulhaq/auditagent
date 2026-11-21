@@ -134,14 +134,14 @@ This catalog connects each feature to its user/business outcome and main impleme
 | Supervisor routing acceleration (TypeSafe Jev) | Routes stage transitions within the multi-agent review workflow via Jev non-autoregressive multiple-choice queries (`POST /api/v1/systemone`) in <2s with ~98% token cost reduction, automatically falling back to standard `ChatModel` if Jev times out (3s) or encounters an error. | `SupervisorNode`, `JevClient`, `auditagent.jev.supervisor` |
 | Context summarization | When conversation turns are dropped due to context budget limits, an LLM-based summary preserves key context instead of silently discarding it. Tool outputs are aggressively truncated before persistence. | `ConversationMemoryService`, `MemoryConfig.summarizationEnabled` |
 | Docker sandbox | Optionally wraps agent shell commands (compile, test, lint) inside an isolated Docker container with no network access, read-only root filesystem, and configurable resource limits. | `AgentToolService.buildDockerCommand()`, `AgentConfig.sandboxEnabled` |
-| PostgreSQL checkpoints | Graph state is persisted to PostgreSQL after every step for durability and recovery. | `DatabaseCheckpointSaver (formerly DuckDbCheckpointSaver)` |
+| PostgreSQL checkpoints | Graph state is persisted to PostgreSQL after every step for durability and recovery. | `DatabaseCheckpointSaver` |
 | Idempotent tool execution | Prevents duplicate tool calls during graph replays using state-based tracking. | `ToolExecutionNode` |
 | Human-in-the-loop workflow pause | Graph execution pauses before decision evaluation (via `interruptBefore("process_decision")`), checkpoints state in PostgreSQL, and waits for explicit user decision (`APPROVE_AND_CREATE_PR` or `REJECT`) before routing to `publish` or `reject`. | `CompileConfig.interruptBefore("process_decision")`, `RemediationWorkflowGraph`, `RemediationWorkflowService.decide()` |
 | Workflow automation | End-to-end orchestration of workspace clone, agent remediation loop, verification, approval gate, PR creation, and webhook status reconciliation. | `RemediationWorkflowGraph`, `RemediationWorkflowService` |
 | Unified audit workflow | Scan, chat, and remediation are orchestrated under a single unified graph timeline. | `AuditWorkflowGraph` |
 | Graph visualization | Real-time graph execution timeline with node-level progress and tool details. | `GraphTimeline.jsx`, `graph_step` SSE events |
 | Token streaming | Real-time chat token streaming via SSE to improve UX. | `ChatNode`, `ChatWidget.jsx` |
-| Batch remediation pipeline | Analyzes multiple vulnerabilities concurrently via a dedicated bounded-concurrency worker pool (`auditagent.agent.batch-concurrency`, default 2) on virtual threads. Each vulnerability receives an isolated Git workspace, independent run, DuckDB checkpoints, and separate verified PR preview up to `AWAITING_APPROVAL`. Failures are isolated, and the SSE stream multiplexes batch progress and item events. | `POST /api/analyze/batch`, `RemediationWorkflowService.analyzeBatch()`, `BatchAnalyzeRequest`, `useRemediationController` |
+| Batch remediation pipeline | Analyzes multiple vulnerabilities concurrently via a dedicated bounded-concurrency worker pool (`auditagent.agent.batch-concurrency`, default 2) on virtual threads. Each vulnerability receives an isolated Git workspace, independent run, PostgreSQL checkpoints, and separate verified PR preview up to `AWAITING_APPROVAL`. Failures are isolated, and the SSE stream multiplexes batch progress and item events. | `POST /api/analyze/batch`, `RemediationWorkflowService.analyzeBatch()`, `BatchAnalyzeRequest`, `useRemediationController` |
 
 ## Agent tools and verification
 
@@ -210,8 +210,8 @@ This catalog connects each feature to its user/business outcome and main impleme
 | Detail retention | Messages/tool detail expire after 30 days by default; durable outcomes remain. | hourly scheduled cleanup |
 | Restart interruption | `ACTIVE` and `PUBLISHING` become `INTERRUPTED` at startup. | `markActiveRunsInterrupted()` |
 | Safe resume | Applied after-hashes must match before model work resumes. | `RemediationWorkflowService.resume()` |
-| Structured retrieval fallback | Metadata ranking remains when DuckDB FTS is unavailable. | `searchRepositoryMemories()` |
-| Lexical FTS | Porter stemmer, English stopwords, lowercasing, accent stripping, BM25. | DuckDB FTS extension |
+| Structured retrieval fallback | Metadata ranking remains when PostgreSQL FTS is unavailable. | `searchRepositoryMemories()` |
+| Lexical FTS | Native PostgreSQL text search (`tsvector`/`tsquery`), English stopwords, lowercasing, and ranking. | PostgreSQL FTS |
 | Deterministic ranking | Fingerprint, rule, category/type, BM25, language/framework/file, confidence, use, recency. | weighted score |
 | Retrieval health | Frontend thread restore receives `ftsAvailable`. | memory response |
 | Forget scopes | Conversation/run detail and approved repository memory are separate operations. | memory DELETE endpoints |

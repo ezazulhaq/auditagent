@@ -18,7 +18,7 @@ import org.springframework.stereotype.Service;
 import java.util.*;
 
 /**
- * DuckDB-backed conversation memory. DuckDB, not the process heap, owns
+ * PostgreSQL-backed conversation memory. PostgreSQL, not the process heap, owns
  * history.
  */
 @Service

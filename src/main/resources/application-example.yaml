@@ -77,7 +77,6 @@ auditagent:
       enabled: ${AUDITAGENT_JEV_SUPERVISOR_ENABLED:true}
       fallback-to-chat-model: true
   database:
-    path: ${AUDITAGENT_DB_PATH:audit_reports.duckdb}
     batch-size: ${AUDITAGENT_DB_BATCH_SIZE:100}
   scanner:
     queue-priority: ${AUDITAGENT_SCANNER_QUEUE_PRIORITY:5}
