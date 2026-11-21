@@ -3,7 +3,7 @@ package com.cb.auditagent.service;
 import com.cb.auditagent.config.AgentConfig;
 import com.cb.auditagent.config.MemoryConfig;
 import com.cb.auditagent.domain.*;
-import com.cb.auditagent.graph.DuckDbCheckpointSaver;
+import com.cb.auditagent.graph.DatabaseCheckpointSaver;
 import com.cb.auditagent.graph.MultiAgentRemediationGraph;
 import com.cb.auditagent.graph.RemediationGraph;
 import com.cb.auditagent.graph.workflow.*;
@@ -75,7 +75,7 @@ class RemediationWorkflowBatchTest {
         workflowGraph = new RemediationWorkflowGraph(
                 validateAccessNode, cloneWorkspaceNode, approvalReadyNode, rejectNode, publicationNode,
                 remediationGraph, mock(MultiAgentRemediationGraph.class),
-                mock(DuckDbCheckpointSaver.class), agentConfig);
+                mock(DatabaseCheckpointSaver.class), agentConfig);
 
         user = new AuthenticatedUser("github:42", 42, "testuser", "Test User", "test@example.com", "csrf-token");
         repository = new ManagedRepository(100L, 10L, "owner", "repo", "owner/repo",

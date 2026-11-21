@@ -137,7 +137,7 @@ In multi-pod deployments, Server-Sent Events (SSE) connections remain bound to s
 
 ### Message payloads
 
-Tasks are serialized with `Jackson2JsonMessageConverter`:
+Tasks are serialized with `JacksonJsonMessageConverter` (Jackson 3 / Spring AMQP 4.2):
 
 #### `ScanTaskPayload`
 ```json
@@ -366,7 +366,7 @@ When deploying via Docker Compose or PaaS orchestrators (like Dokploy) on Linux:
 ## 7. Migration and execution phases
 
 1. **Phase 1: Database consolidation:** Add `RepositoryMemoryPostgresRepository`, migrate memories from DuckDB, update `RemediationDataService`, and remove `duckdb_jdbc` dependency.
-2. **Phase 2: Messaging foundation:** Add `spring-boot-starter-amqp`, configure `RabbitMqConfig`, payloads, and dead-letter exchanges.
+2. **Phase 2: Messaging foundation:** Add `spring-boot-starter-rabbitmq`, configure `RabbitMqConfig`, payloads, and dead-letter exchanges.
 3. **Phase 3: Worker integration:** Implement `ScanTaskConsumer` and `RemediationTaskConsumer`, adapt `ScanOrchestratorService` and `RemediationWorkflowService` to enqueue tasks and return `202 Accepted`.
 4. **Phase 4: Realtime and storage:** Implement `SupabaseStorageService` and `JobEventLogEntity`, connect React client to Supabase Realtime channel.
 5. **Phase 5: Verification and documentation:** Run end-to-end regression tests, verify worker crash recovery, and enforce `.githooks/pre-commit` compliance.

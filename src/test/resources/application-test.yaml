@@ -28,8 +28,6 @@ auditagent:
     enabled: false
   messaging:
     events-exchange: auditagent.events
-  database:
-    path: test.duckdb
   memory:
     enabled: true
     fts-enabled: false

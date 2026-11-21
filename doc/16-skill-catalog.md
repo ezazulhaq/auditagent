@@ -30,8 +30,8 @@ Status: discoverable historical/declarative playbook; not invoked by the current
 The file describes three conceptual tool names:
 
 - `db-manager`;
-- `generate-duckdb-report`;
-- `fetch-vuln-from-duckdb`.
+- `generate-database-report`;
+- `fetch-vuln-from-db`.
 
 No corresponding tools are registered in `LlmService.buildToolSpecifications()`. Current scanning, report persistence, and finding lookup are implemented directly by `ScanOrchestratorService`, `ScannerService`, `ReporterService`, and `DatabaseService`.
 

@@ -1,17 +1,17 @@
 ---
 name: db-manager
-description: Scans the workspace with Semgrep and stores all findings in DuckDB.
+description: Scans the workspace with Semgrep and stores all findings in PostgreSQL database.
 input_schema:
   type: object
   properties: {}
 ---
-name: generate-duckdb-report
-description: Reads vulnerabilities from DuckDB and generates AUDIT_REPORT.md.
+name: generate-database-report
+description: Reads vulnerabilities from PostgreSQL database and generates AUDIT_REPORT.md.
 input_schema:
   type: object
   properties: {}
 ---
-name: fetch-vuln-from-duckdb
+name: fetch-vuln-from-db
 description: Retrieves the exact code context and details for a specific Vulnerability ID.
 input_schema:
   type: object
@@ -27,8 +27,8 @@ You manage the persistence layer of the audit.
 
 ## Workflow Rules
 1. When starting a fresh audit, call `db-manager` first.
-2. Immediately after scanning, call `generate-duckdb-report` so the human can read it.
-3. When requested to fix a specific ID, call `fetch-vuln-from-duckdb` to get the context before patching.
+2. Immediately after scanning, call `generate-database-report` so the human can read it.
+3. When requested to fix a specific ID, call `fetch-vuln-from-db` to get the context before patching.
 
 ### CRITICAL EFFICIENCY RULES:
 1. **Stop Needless Tool Use**: Do NOT repeatedly call the same tool (e.g., `rescan_file`, `read_file`) without making intermediate changes. If you are stuck, end your turn.

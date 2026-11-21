@@ -84,12 +84,6 @@
     "defaultValue": 4096
   },
   {
-    "name": "auditagent.database.path",
-    "type": "java.lang.String",
-    "description": "Path to the DuckDB database file.",
-    "defaultValue": "audit_reports.duckdb"
-  },
-  {
     "name": "auditagent.memory.enabled",
     "type": "java.lang.Boolean",
     "description": "Enable durable memory persistence and retrieval.",
@@ -98,7 +92,7 @@
   {
     "name": "auditagent.memory.fts-enabled",
     "type": "java.lang.Boolean",
-    "description": "Enable DuckDB FTS BM25 retrieval with metadata fallback.",
+    "description": "Enable PostgreSQL FTS BM25 retrieval with metadata fallback.",
     "defaultValue": true
   },
   {

@@ -8,7 +8,7 @@ import static org.bsc.langgraph4j.action.AsyncNodeAction.node_async;
 import org.springframework.stereotype.Component;
 
 import com.cb.auditagent.config.AgentConfig;
-import com.cb.auditagent.graph.DuckDbCheckpointSaver;
+import com.cb.auditagent.graph.DatabaseCheckpointSaver;
 import com.cb.auditagent.graph.MultiAgentRemediationGraph;
 import com.cb.auditagent.graph.RemediationGraph;
 
@@ -25,7 +25,7 @@ public class RemediationWorkflowGraph {
     private final PublicationNode publicationNode;
     private final RemediationGraph remediationGraph;
     private final MultiAgentRemediationGraph multiAgentRemediationGraph;
-    private final DuckDbCheckpointSaver checkpointSaver;
+    private final DatabaseCheckpointSaver checkpointSaver;
     private final AgentConfig agentConfig;
 
     private final CompiledGraph<WorkflowState> graph;
@@ -38,7 +38,7 @@ public class RemediationWorkflowGraph {
             PublicationNode publicationNode,
             RemediationGraph remediationGraph,
             MultiAgentRemediationGraph multiAgentRemediationGraph,
-            DuckDbCheckpointSaver checkpointSaver,
+            DatabaseCheckpointSaver checkpointSaver,
             AgentConfig agentConfig) throws Exception {
 
         this.validateAccessNode = validateAccessNode;

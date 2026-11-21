@@ -223,7 +223,7 @@ Creates a portable enterprise Markdown assessment and delegates management-ready
 
 `DatabaseService` serves as the unified facade for application persistence, delegating domain queries and mutations to four specialized domain data services in `com.cb.auditagent.service.data`:
 - **`ConversationDataService`**: Manages the `MemoryThread` aggregate root and associated `MemoryMessage` collections, handling thread existence, message appending with token estimates, filtered message retrieval, and cascade deletion.
-- **`RemediationDataService`**: Manages the `AgentRun` aggregate root and dependent entities (`AgentStep`, `VerificationResult`, `RunChange`, `GraphCheckpoint`, `GraphNodeEvent`, `SubagentState`, `RunPublication`, `RepositoryMemory`, `GlobalRemediationPattern`). Encapsulates run creation/updates, checkpoint state, evidence logging, publication records, and DuckDB knowledge base FTS sync.
+- **`RemediationDataService`**: Manages the `AgentRun` aggregate root and dependent entities (`AgentStep`, `VerificationResult`, `RunChange`, `GraphCheckpoint`, `GraphNodeEvent`, `SubagentState`, `RunPublication`, `RepositoryMemory`, `GlobalRemediationPattern`). Encapsulates run creation/updates, checkpoint state, evidence logging, publication records, and PostgreSQL knowledge base FTS sync.
 - **`UserDataService`**: Manages the `AppUser` aggregate root, user sessions, GitHub authorizations, OAuth state verifiers, and user notifications.
 - **`ScanDataService`**: Manages the `ManagedRepository` aggregate root, scan snapshots, scan history stats, scan reports, vulnerability findings, webhook delivery deduplication, and token usage metrics.
 - **`DatabasePreflightCleanup`**: A specialized pre-flight startup bean that executes via `DataSource` before `entityManagerFactory` boots to purge legacy orphaned child records across messages, runs, steps, and checkpoints before PostgreSQL foreign key constraints are applied.
@@ -260,7 +260,7 @@ The backend now uses `langgraph4j` to orchestrate agents and workflows:
 - `GitHubWebhookController`: Handles asynchronous `pull_request` webhook payloads, identifying merges and instantly updating the grouped vulnerability findings.
 - `MultiAgentRemediationGraph`: A 3-agent orchestration graph (Triage, Patch, Verification) with retry edges, subsuming the single-agent `RemediationGraph`.
 - `AuditWorkflowGraph`: Unified end-to-end graph orchestrating scan, chat, remediation, and publication workflows into a single timeline.
-- `DatabaseCheckpointSaver (formerly DuckDbCheckpointSaver)`: Connects LangGraph4j's state-saving mechanisms natively to PostgreSQL, enabling durable suspend/resume operations.
+- `DatabaseCheckpointSaver`: Connects LangGraph4j's state-saving mechanisms natively to PostgreSQL, enabling durable suspend/resume operations.
 - `WorkflowState`, `RemediationState`, & `MultiAgentState`: Custom state objects to hold parameters during graph execution and multi-agent handoffs.
 
 ## Domain states

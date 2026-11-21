@@ -86,7 +86,7 @@ class RemediationWorkflowPreparationTest {
                                 validateAccessNode, cloneWorkspaceNode, approvalReadyNode, rejectNode, publicationNode,
                                 mock(com.cb.auditagent.graph.RemediationGraph.class),
                                 mock(com.cb.auditagent.graph.MultiAgentRemediationGraph.class),
-                                mock(com.cb.auditagent.graph.DuckDbCheckpointSaver.class),
+                                mock(com.cb.auditagent.graph.DatabaseCheckpointSaver.class),
                                 new AgentConfig());
 
                 RepositoryAccessService repoAccess = new RepositoryAccessService(database, source, auth);

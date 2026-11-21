@@ -61,7 +61,7 @@ class DatabaseMemoryServiceTest {
 
                 List<RepositoryMemory> results = database.searchRepositoryMemories(repo, target);
                 assertFalse(results.isEmpty());
-                // Results might not be ranked properly depending on DuckDbKnowledgeBaseService
+                // Results might not be ranked properly depending on PostgresKnowledgeBaseService
                 // mocking/delegate,
                 // but it should return at least some.
                 assertTrue(results.stream().allMatch(memory -> memory.repoPath().equals(database.normalizePath(repo))));

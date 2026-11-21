@@ -131,7 +131,6 @@
 |---|---|
 | `AuditWorkflowGraph.java` | Unified end-to-end graph orchestrating scan, chat, remediation, and publication. |
 | `DatabaseCheckpointSaver.java` | Native LangGraph4j state persistence backed by PostgreSQL / Supabase with thread-safe serialization and recovery. |
-| `DuckDbCheckpointSaver.java` | Deprecated compatibility subclass extending `DatabaseCheckpointSaver`. |
 | `MultiAgentRemediationGraph.java` | 15-stage Star Topology orchestration graph with a supervisor. |
 | `RemediationGraph.java` | Inner LangGraph4j state machine for agent execution. |
 | `RemediationState.java` | State definition for the remediation loop. |
@@ -171,7 +170,6 @@
 | `MemoryRedactor.java` | Secret masks and caps. |
 | `MemoryReflectionService.java` | Asynchronously distills positive remediation patterns (`summarizeDiffForGlobalPattern`) and failure anti-patterns (`reflectOnFailure`) via LangChain4j. |
 | `PostgresKnowledgeBaseService.java` | Native PostgreSQL/Supabase full-text search (`tsvector`/`tsquery`), candidate retrieval, and domain ranking weights for approved remediation memory. |
-| `DuckDbKnowledgeBaseService.java` | Deprecated compatibility subclass extending `PostgresKnowledgeBaseService`. |
 | `PullRequestLifecycleService.java` | Pull request webhook events, and vulnerability state transitions. |
 | `PullRequestProvider.java` | Pull-request abstraction. |
 | `PdfReportRenderer.java` | Paginated enterprise PDF generation through Apache PDFBox. |
@@ -350,7 +348,7 @@
 | `scripts/install-git-hooks.ps1`                 | Configures repository hooks path to `.githooks` for PowerShell/Windows users. |
 | `scripts/install-git-hooks.sh`                  | Configures repository hooks path to `.githooks` and executable bit on Unix-like systems. |
 | `.devcontainer/devcontainer.json`               | Temurin Java 21, Node.js 24 & Python 3.12 development container. |
-| `release_notes/*.md`                            | Versioned release notes tracking product, tooling, and infrastructure updates (v2.0.0, v2.0.1, v2.1.0, v2.1.1, v2.2.0, v2.2.1, v2.3.0, v2.3.1, v2.3.2, v2.3.3, v2.4.0, v2.4.1, v2.5.0, v2.6.0, v2.6.1, v2.7.0, v2.8.0, v2.9.0, v2.9.1, v2.10.0, v2.11.0, v2.12.0, v2.13.0, v2.13.1, v2.14.0). |
+| `release_notes/*.md`                            | Versioned release notes tracking product, tooling, and infrastructure updates (v2.0.0, v2.0.1, v2.1.0, v2.1.1, v2.2.0, v2.2.1, v2.3.0, v2.3.1, v2.3.2, v2.3.3, v2.4.0, v2.4.1, v2.5.0, v2.6.0, v2.6.1, v2.7.0, v2.8.0, v2.9.0, v2.9.1, v2.10.0, v2.11.0, v2.12.0, v2.13.0, v2.13.1, v2.14.0, v2.14.1). |
 
 ## Test file map
 
