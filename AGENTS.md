@@ -133,7 +133,7 @@ POST /api/analyze → OrchestratorService.analyzeVulnerability()
     → Fetch vulnerability from DB
     → Orchestrate remediation via LangGraph4j graph (`MultiAgentRemediationGraph`)
     → 15-Stage Star Topology (Supervisor LLM routes to specialized code review sub-agents)
-    → Agents dynamically load instructions via `SkillManagerService` from `.auditagent/skills/stage-*/SKILL.md`
+    → Agents dynamically load instructions via `SkillManagerService` from `src/main/resources/skills/stage-*/SKILL.md` (loaded as Spring Boot classpath resources `classpath*:skills/**/SKILL.md`)
     → Autonomously verify and create a PR
     → Mark status as PR_OPEN and stream back to frontend
     ↓
@@ -176,7 +176,7 @@ GitHub Webhook (`action: closed`, `merged: true`)
 
 **Implementation**: `MultiAgentRemediationGraph` (LangGraph4j)
 
-**Skill Configuration**: Prompts are dynamically loaded from `.auditagent/skills/stage-*/SKILL.md` (e.g., `stage-discovery`, `stage-security`, `stage-data-flow`).
+**Skill Configuration**: Prompts are dynamically loaded from `src/main/resources/skills/stage-*/SKILL.md` (e.g., `stage-discovery`, `stage-security`, `stage-data-flow`) via Spring Boot classpath resources (`classpath*:skills/**/SKILL.md`).
 
 **Architecture**: 
 - **Star Topology**: A `SupervisorNode` acts as the router. It observes the `MultiAgentState` (which includes all outputs from previous agents) and selects the next worker agent to execute.
@@ -534,7 +534,7 @@ if (fixMatch) {
 - **Model Configuration**: `application.yaml:11-13` (model ID, region, credentials)
 - **Prompt Engineering**: 
   - Chat Agent: `LlmService.java:119-131`
-  - Patch Engineer: `.auditagent/skills/patch-engineer/SKILL.md`
+  - Patch Engineer: `src/main/resources/skills/patch-engineer/SKILL.md`
 - **Response Parsing**: Always handle null responses (`Optional` pattern used throughout)
 - **Command Tags**: Frontend regex in `App.jsx` (lines ~800-850)
 
@@ -545,7 +545,7 @@ if (fixMatch) {
 - **Report Regeneration**: Required after any vulnerability status update
 
 ### When Adding New Agent Capabilities
-1. Define skill in `.auditagent/skills/<skill-name>/SKILL.md`
+1. Define skill in `src/main/resources/skills/<skill-name>/SKILL.md`
 2. Add frontmatter:
    ```yaml
    ---

@@ -43,8 +43,8 @@ This guide records the critical invariants and ground truths of the AuditAgent c
   - A `SupervisorNode` reviews the collective state (`MultiAgentState`) and routes execution to specialized worker nodes.
   - Stage 1 is always `stage-planning`, which outputs a structured multi-agent remediation plan.
 - **Dynamic Skill Loading**:
-  - System prompts are dynamically loaded by `SkillManagerService` from `.auditagent/skills/stage-*/SKILL.md` (e.g., `stage-planning`, `stage-discovery`, `stage-security`, `stage-data-flow`).
-  - Runtime skills live in `.auditagent/skills/`; developer/agent workspace skills live in `.agents/skills/`.
+  - System prompts are dynamically loaded by `SkillManagerService` from `src/main/resources/skills/stage-*/SKILL.md` (e.g., `stage-planning`, `stage-discovery`, `stage-security`, `stage-data-flow`) via Spring Boot classpath resources (`classpath*:skills/**/SKILL.md`).
+  - Runtime skills live in `src/main/resources/skills/`; developer/agent workspace skills live in `.agents/skills/`.
 - **Recursion Limits**:
   - Due to multi-stage complexity, graph compilation explicitly sets `.recursionLimit(150)`.
 - **Automated Verification & PR Publication**:

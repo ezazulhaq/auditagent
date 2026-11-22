@@ -42,7 +42,7 @@ Use this lookup matrix to quickly route queries and code investigation to the ex
 | `MultiAgentRemediationGraph` | LangGraph4j 16-stage state machine for autonomous fix | `doc/17-langgraph4j-orchestration.md`, `doc/09-ai-and-remediation.md` |
 | `SupervisorNode` | Supervisor router node in the 16-stage LangGraph4j star topology | `doc/17-langgraph4j-orchestration.md`, `doc/09-ai-and-remediation.md` |
 | `WorkerAgentGraphFactory` | Factory producing specialized stage workers | `doc/17-langgraph4j-orchestration.md`, `doc/05-backend-guide.md` |
-| `SkillManagerService` | Dynamic skill discovery from `.auditagent/skills/stage-*/SKILL.md` | `doc/05-backend-guide.md`, `doc/16-skill-catalog.md` |
+| `SkillManagerService` | Dynamic skill discovery from `src/main/resources/skills/stage-*/SKILL.md` (via classpath) | `doc/05-backend-guide.md`, `doc/16-skill-catalog.md` |
 | `PullRequestLifecycleService` | Branch creation, PR submission, merge webhook processing | `doc/05-backend-guide.md`, `doc/07-api-reference.md` |
 | `DatabaseService` | DuckDB/PostgreSQL persistence, migrations, lexical FTS index | `doc/08-data-and-persistence.md`, `doc/05-backend-guide.md` |
 | `TokenCipher` | AES-GCM-256 encryption/decryption for OAuth tokens | `doc/10-security-model.md`, `doc/05-backend-guide.md` |
@@ -81,7 +81,7 @@ Use this lookup matrix to quickly route queries and code investigation to the ex
 | `/api/chat` | POST | SSE | Chat agent dialogue and triage | `doc/07-api-reference.md` |
 | `/api/analyze` | POST | SSE | Triggers 16-stage LangGraph4j remediation | `doc/07-api-reference.md` |
 | `/api/webhooks/github` | POST | JSON | Receives GitHub events (PR merged/closed) | `doc/07-api-reference.md` |
-| `/api/skills` | GET | JSON | Lists discovered skills in `.auditagent/skills` | `doc/07-api-reference.md` |
+| `/api/skills` | GET | JSON | Lists discovered skills in `src/main/resources/skills` (classpath) | `doc/07-api-reference.md` |
 
 ---
 

@@ -2,14 +2,14 @@
 
 AuditAgent distinguishes between two categories of skills:
 
-1. **Runtime Remediation Skills** (`.auditagent/skills/`): Dynamic prompt playbooks loaded at runtime by `SkillManagerService` and injected into the backend's LangGraph4j code review graph.
+1. **Runtime Remediation Skills** (`src/main/resources/skills/`): Dynamic prompt playbooks packaged on the classpath and loaded at runtime by `SkillManagerService` using Spring Boot resource resolution into the backend's LangGraph4j code review graph.
 2. **Developer & AI Assistant Workspace Skills** (`.agents/skills/`): Context and procedural skills discovered by Antigravity / AGY pair-programming assistants to guide development, debugging, design, and documentation navigation within this repository.
 
 ---
 
-## 1. Runtime Remediation Skills (`.auditagent/skills/`)
+## 1. Runtime Remediation Skills (`src/main/resources/skills/`)
 
-`AuditAgent` dynamically discovers folders under `.auditagent/skills`. A skill folder name may contain lowercase letters, numbers, and hyphens, and must contain `SKILL.md`. Skills are rediscovered for each lookup or `/api/skills` listing.
+`AuditAgent` dynamically discovers skills under `classpath*:skills/**/SKILL.md` (packaged from `src/main/resources/skills/`), with support for custom patterns (`auditagent.skills.pattern`), locations (`auditagent.skills.location`), and a filesystem fallback (`auditagent.skills.fallback-dir`). A skill folder name may contain lowercase letters, numbers, and hyphens, and must contain `SKILL.md`. Skills are rediscovered for each lookup or `/api/skills` listing.
 
 ### `stage-*` (the 16 code review stages)
 
@@ -53,7 +53,7 @@ Do not connect this historical playbook directly to the model as an alternate pu
 
 ### Adding or changing a runtime skill
 
-1. Add `.auditagent/skills/<lowercase-name>/SKILL.md`.
+1. Add `src/main/resources/skills/<lowercase-name>/SKILL.md`.
 2. Put one frontmatter block at the top with `name` and `description`.
 3. Put the instruction body after the closing `---`.
 4. Register any actual tool schemas and implementations explicitly; a skill file alone does not create tools.

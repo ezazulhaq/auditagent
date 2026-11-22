@@ -397,6 +397,14 @@ Semgrep also requires a short, writable JVM OS-temp root (`java.io.tmpdir`), esp
 | `sandbox-cpu-limit` | 2.0 | CPU limit for sandbox containers. |
 | `stateless-workspaces` | true | Reconstruct workspaces from patch bundles and delete worker clones. |
 
+### Skills Configuration
+
+| Property | Environment Variable | Default | Meaning |
+|---|---|---|---|
+| `auditagent.skills.location` | `AUDITAGENT_SKILLS_LOCATION` | `classpath:skills/` | Base location for runtime remediation skills. |
+| `auditagent.skills.pattern` | `AUDITAGENT_SKILLS_PATTERN` | `classpath*:skills/**/SKILL.md` | Spring resource pattern for discovering skill playbooks. |
+| `auditagent.skills.fallback-dir` | `AUDITAGENT_SKILLS_FALLBACK_DIR` | `.auditagent/skills` | Filesystem fallback directory when classpath discovery is empty. |
+
 ### TypeSafe Jev Model Configuration
 
 | Property | Environment Variable | Default | Meaning |
@@ -516,7 +524,7 @@ The production `Dockerfile` builds a Debian-based container equipped with the fu
    ```bash
    cp .env.example .env
    ```
-   Edit `.env` to configure your PostgreSQL connection parameters (`POSTGRES_HOSTNAME`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` or `POSTGRES_URL`), finding batch upsert size (`AUDITAGENT_DB_BATCH_SIZE=100`), RabbitMQ broker host (`RABBITMQ_HOST=rabbitmq` for Docker Compose / Dokploy on Linux instances; `RABBITMQ_HOST=localhost` only for bare-metal host development), RabbitMQ credentials (`RABBITMQ_USER`, `RABBITMQ_PASSWORD`), deployment mode (`AUDITAGENT_MODE=all|web|worker`), cross-pod event exchange (`AUDITAGENT_EVENTS_EXCHANGE=auditagent.events`), scan priority (`AUDITAGENT_SCANNER_QUEUE_PRIORITY=5`), Supabase integration and storage offloading settings (`SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_STORAGE_BUCKET`, `AUDITAGENT_STORAGE_REMOTE_ENABLED=true`, `AUDITAGENT_STORAGE_TIMEOUT_SECONDS=15`), OpenAI/OpenRouter credentials, TypeSafe Jev triage/supervisor settings (`AUDITAGENT_JEV_*`, `AUDITAGENT_JEV_TRIAGE_CONCURRENCY=8`), and GitHub App keys.
+   Edit `.env` to configure your PostgreSQL connection parameters (`POSTGRES_HOSTNAME`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` or `POSTGRES_URL`), finding batch upsert size (`AUDITAGENT_DB_BATCH_SIZE=100`), RabbitMQ broker host (`RABBITMQ_HOST=rabbitmq` for Docker Compose / Dokploy on Linux instances; `RABBITMQ_HOST=localhost` only for bare-metal host development), RabbitMQ credentials (`RABBITMQ_USER`, `RABBITMQ_PASSWORD`), deployment mode (`AUDITAGENT_MODE=all|web|worker`), cross-pod event exchange (`AUDITAGENT_EVENTS_EXCHANGE=auditagent.events`), scan priority (`AUDITAGENT_SCANNER_QUEUE_PRIORITY=5`), Supabase integration and storage offloading settings (`SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_STORAGE_BUCKET`, `AUDITAGENT_STORAGE_REMOTE_ENABLED=true`, `AUDITAGENT_STORAGE_TIMEOUT_SECONDS=15`), runtime remediation skills configuration (`AUDITAGENT_SKILLS_LOCATION=classpath:skills/`, `AUDITAGENT_SKILLS_PATTERN`, `AUDITAGENT_SKILLS_FALLBACK_DIR`), OpenAI/OpenRouter credentials, TypeSafe Jev triage/supervisor settings (`AUDITAGENT_JEV_*`, `AUDITAGENT_JEV_TRIAGE_CONCURRENCY=8`), and GitHub App keys.
 
 2. **Start the application and messaging infrastructure**:
    ```bash

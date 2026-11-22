@@ -101,7 +101,7 @@ WORKDIR ${AUDITAGENT_HOME}
 # Copy the packaged Spring Boot executable JAR
 COPY --from=backend-builder --chown=auditagent:auditagent /app/target/auditagent-*.jar ${AUDITAGENT_HOME}/auditagent.jar
 
-# Copy security scanning rules and dynamic stage skills
+# Copy security scanning rules (runtime remediation skills are packaged in JAR from src/main/resources/skills)
 COPY --chown=auditagent:auditagent rules/ ${AUDITAGENT_HOME}/rules/
 COPY --chown=auditagent:auditagent .auditagent/ ${AUDITAGENT_HOME}/.auditagent/
 

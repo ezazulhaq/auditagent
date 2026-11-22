@@ -2,7 +2,7 @@
 
 This directory is the maintained documentation set for AuditAgent. It explains the product in plain language, then progressively adds the technical detail needed to operate, troubleshoot, test, or change it.
 
-The implementation in `src/`, `frontend/src/`, `rules/`, and `.auditagent/skills/` is the source of truth. Older descriptions of local repository paths, browser-generated identities, chat-based approval, or direct file application are historical; the current shared application uses GitHub App authentication, managed clones, durable run state, structured approval, and pull requests.
+The implementation in `src/`, `frontend/src/`, `rules/`, and `src/main/resources/skills/` is the source of truth. Older descriptions of local repository paths, browser-generated identities, chat-based approval, or direct file application are historical; the current shared application uses GitHub App authentication, managed clones, durable run state, structured approval, and pull requests.
 
 ## Choose your starting point
 

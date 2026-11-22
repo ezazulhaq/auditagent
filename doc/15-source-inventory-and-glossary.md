@@ -318,10 +318,10 @@
 | `src/main/resources/application-{local,dev,prod}.yaml` | Ignored environment overlays; local convenience only and never a committed secret source. |
 | `src/main/resources/META-INF/additional-spring-configuration-metadata.json` | IDE metadata for scanner/agent/database/memory settings. |
 | `src/main/resources/static/` | Compiled frontend served by Spring. |
-| .auditagent/skills/stage-*/SKILL.md | Active dynamic prompts for the 16 code review stages. |
-| .auditagent/skills/patch-engineer/SKILL.md | Legacy remediation model playbook. |
-| .auditagent/skills/db-manager/SKILL.md | Discoverable historical database/reporting playbook; its named tools are not registered in the current runtime. |
-| .auditagent/skills/github-pr-manager/SKILL.md | Discoverable historical PR playbook; current publication instead uses automated publication and managed services. |
+| `src/main/resources/skills/stage-*/SKILL.md` | Active dynamic prompts for the 16 code review stages (loaded via classpath). |
+| `src/main/resources/skills/patch-engineer/SKILL.md` | Legacy remediation model playbook. |
+| `src/main/resources/skills/db-manager/SKILL.md` | Discoverable historical database/reporting playbook; its named tools are not registered in the current runtime. |
+| `src/main/resources/skills/github-pr-manager/SKILL.md` | Discoverable historical PR playbook; current publication instead uses automated publication and managed services. |
 | `.agents/skills/doc-navigator/SKILL.md` | Developer assistant skill for navigating and searching `@doc`. |
 | `.agents/skills/git-feature-workflow/SKILL.md` | Developer assistant skill for Mandatory Step 0 Pre-Flight Reflex, branch isolation, grouped commits, and release workflow. |
 | `.agents/skills/systematic-debugging/SKILL.md` | Developer assistant skill for structured root-cause debugging. |

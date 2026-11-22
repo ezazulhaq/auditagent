@@ -64,7 +64,7 @@ The frontend independently supports exact local commands before calling the mode
 
 ## Remediation playbook
 
-The remediation workflow uses a 16-stage Star Topology orchestrated by a Supervisor node. A mandatory PLANNING stage runs first to generate a structured remediation plan that guides subsequent agent routing. Prompts are dynamically loaded from `.auditagent/skills/stage-*/SKILL.md` (e.g., `stage-planning`, `stage-discovery`, `stage-security`, `stage-data-flow`). The service injects context including:
+The remediation workflow uses a 16-stage Star Topology orchestrated by a Supervisor node. A mandatory PLANNING stage runs first to generate a structured remediation plan that guides subsequent agent routing. Prompts are dynamically loaded from `classpath*:skills/**/SKILL.md` (packaged under `src/main/resources/skills/stage-*/SKILL.md`, e.g., `stage-planning`, `stage-discovery`, `stage-security`, `stage-data-flow`). The service injects context including:
 
 - managed workspace path;
 - exact finding ID;

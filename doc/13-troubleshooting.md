@@ -66,7 +66,7 @@
 
 **Remedy:**
 1. AuditAgent's `ScannerService` automatically detects empty rule directories and falls back to Semgrep's built-in `--config auto` instead of failing, while capturing detailed diagnostics from Semgrep's JSON stdout.
-2. In `docker-compose.yml` and `docker-compose-dev.yml`, host bind mounts for `rules/` and `.auditagent/skills/` are kept commented out by default because `Dockerfile` already copies rules and skills into the image at build time. Leaving them commented out prevents host inode desyncs in CI/CD and Dokploy environments. If hot-reloading rules during local development, uncomment the mount and restart the container after host Git updates.
+2. In `docker-compose.yml` and `docker-compose-dev.yml`, host bind mounts for `rules/` are kept commented out by default because `Dockerfile` copies rules into the image and runtime remediation skills are bundled directly inside the Spring Boot JAR from `src/main/resources/skills/`. Leaving them commented out prevents host inode desyncs in CI/CD and Dokploy environments. If hot-reloading rules during local development, uncomment the mount and restart the container after host Git updates.
 
 ## Scan returns no findings and zero files unexpectedly
 

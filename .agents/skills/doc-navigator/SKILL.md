@@ -32,7 +32,7 @@ AuditAgent documents are numbered and organized by topic. Match your question or
 | **Troubleshooting** | Diagnosing errors, scan failures, OAuth issues, DB locks | [`doc/13-troubleshooting.md`](file:///home/coder/workspace/auditagent/doc/13-troubleshooting.md) |
 | **Change Recipes** | Step-by-step recipes for adding APIs, scanner rules, tools | [`doc/14-change-guide.md`](file:///home/coder/workspace/auditagent/doc/14-change-guide.md) |
 | **Glossary & Inventory** | Production files, rule counts, finding status lifecycle | [`doc/15-source-inventory-and-glossary.md`](file:///home/coder/workspace/auditagent/doc/15-source-inventory-and-glossary.md) |
-| **Skill Catalog** | Runtime review stage skills under `.auditagent/skills/` | [`doc/16-skill-catalog.md`](file:///home/coder/workspace/auditagent/doc/16-skill-catalog.md) |
+| **Skill Catalog** | Runtime review stage skills under `src/main/resources/skills/` | [`doc/16-skill-catalog.md`](file:///home/coder/workspace/auditagent/doc/16-skill-catalog.md) |
 | **LangGraph4j Orchestration**| LangGraph4j state machine, SupervisorNode, worker factory | [`doc/17-langgraph4j-orchestration.md`](file:///home/coder/workspace/auditagent/doc/17-langgraph4j-orchestration.md) |
 | **Doc Index & Conventions** | Documentation hub, personas, conventions, sync rules | [`doc/README.md`](file:///home/coder/workspace/auditagent/doc/README.md) |
 
@@ -84,7 +84,7 @@ When interpreting documentation, strictly uphold these ground truths:
 1. **Authentication Identity**: The authenticated server session is the only security identity. Browser `clientId`, `threadId`, model output, paths, and request usernames are never trusted.
 2. **Repository Source**: Repositories come solely through installed GitHub Apps; shared APIs reject client-supplied filesystem paths. Clones are isolated under `AUDITAGENT_WORKSPACE_ROOT`.
 3. **Token Security**: OAuth access/refresh tokens are stored as AES-GCM ciphertext via `TokenCipher`. Plaintext tokens are never logged, persisted, or returned to clients.
-4. **Remediation Orchestration**: Uses a 16-stage LangGraph4j state machine with `SupervisorNode`. Dynamic stage prompts load from `.auditagent/skills/stage-*/SKILL.md`. Recursion limit is 150.
+4. **Remediation Orchestration**: Uses a 16-stage LangGraph4j state machine with `SupervisorNode`. Dynamic stage prompts load from `src/main/resources/skills/stage-*/SKILL.md` (via classpath). Recursion limit is 150.
 5. **PR Lifecycle**: PRs are generated autonomously upon verification. Merging a PR sends a GitHub webhook that transitions finding status to `FIXED`.
 6. **Data Storage & Retrieval**: PostgreSQL/DuckDB is transactional. Memory retrieval uses lexical FTS/BM25 enriched by security concepts; there are **no vector embeddings or external vector databases**.
 
