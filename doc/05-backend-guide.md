@@ -224,9 +224,16 @@ Creates a portable enterprise Markdown assessment and delegates management-ready
 `DatabaseService` serves as the unified facade for application persistence, delegating domain queries and mutations to four specialized domain data services in `com.cb.auditagent.service.data`:
 - **`ConversationDataService`**: Manages the `MemoryThread` aggregate root and associated `MemoryMessage` collections, handling thread existence, message appending with token estimates, filtered message retrieval, and cascade deletion.
 - **`RemediationDataService`**: Manages the `AgentRun` aggregate root and dependent entities (`AgentStep`, `VerificationResult`, `RunChange`, `GraphCheckpoint`, `GraphNodeEvent`, `SubagentState`, `RunPublication`, `RepositoryMemory`, `GlobalRemediationPattern`). Encapsulates run creation/updates, checkpoint state, evidence logging, publication records, and PostgreSQL knowledge base FTS sync.
-- **`UserDataService`**: Manages the `AppUser` aggregate root, user sessions, GitHub authorizations, OAuth state verifiers, and user notifications.
+- **`UserDataService`**: Manages the `AppUser` aggregate root, user sessions, GitHub authorizations, OAuth state verifiers, and user notifications. Implements server-side time-window deduplication (60 seconds) in `saveNotification()` to prevent duplicate notifications when both background workers and active frontend SSE listeners report the same outcome.
 - **`ScanDataService`**: Manages the `ManagedRepository` aggregate root, scan snapshots, scan history stats, scan reports, vulnerability findings, webhook delivery deduplication, and token usage metrics.
 - **`DatabasePreflightCleanup`**: A specialized pre-flight startup bean that executes via `DataSource` before `entityManagerFactory` boots to purge legacy orphaned child records across messages, runs, steps, and checkpoints before PostgreSQL foreign key constraints are applied.
+
+### Background Worker Durable Notifications
+
+Both `RemediationWorkflowService` and `ScanOrchestratorService` directly persist user notifications to `user_notifications` via `DatabaseService.saveNotification()`:
+- **Terminal Task Failures**: If a background remediation task fails (e.g., `STALE_BASE` branch desynchronization, LLM API error, compilation error) or a security scan fails (e.g., `SCAN_TIMEOUT`, execution error), the worker persists an `error` notification with the classified error message.
+- **Milestone Completions**: When a pull request is created autonomously (`publish` node) or a scan finishes, the worker persists a `success` notification with the PR number or findings count.
+- **Browser-Independent Delivery**: Because notifications are written to the database by background workers, notifications are never lost if the user navigates away, closes their browser tab, or experiences network interruptions during asynchronous execution.
 
 ### GitHub services
 

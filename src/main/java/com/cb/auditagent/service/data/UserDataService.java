@@ -162,11 +162,24 @@ public class UserDataService {
 
     @Transactional
     public void saveNotification(Notification notification) {
+        if (notification == null || notification.getUserId() == null || notification.getUserId().isBlank()
+                || notification.getMessage() == null || notification.getMessage().isBlank()) {
+            return;
+        }
+        String type = notification.getType() != null ? notification.getType() : "info";
+        String message = notification.getMessage().trim();
+        LocalDateTime window = LocalDateTime.now(ZoneOffset.UTC).minusSeconds(60);
+
+        if (userNotificationRepository.existsByUserIdAndTypeAndMessageAndCreatedAtAfter(
+                notification.getUserId(), type, message, window)) {
+            return;
+        }
+
         UserNotification u = new UserNotification();
         u.setId(notification.getId() != null ? notification.getId() : UUID.randomUUID().toString());
         u.setUserId(notification.getUserId());
-        u.setType(notification.getType());
-        u.setMessage(notification.getMessage());
+        u.setType(type);
+        u.setMessage(message);
         u.setIsRead(notification.isRead());
         u.setCreatedAt(notification.getCreatedAt() != null
                 ? LocalDateTime.ofInstant(notification.getCreatedAt(), ZoneOffset.UTC)

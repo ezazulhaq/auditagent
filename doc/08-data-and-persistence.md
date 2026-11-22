@@ -461,7 +461,7 @@ AuditAgent organizes persistence around Domain-Driven Design (DDD) Aggregate Roo
      - `UserSession` (`user_sessions`): `@ManyToOne` to `AppUser`.
      - `UserLlmConfig` (`user_llm_configs`): `@OneToOne` to `AppUser` with `@JoinColumn(name = "user_id")` and `CascadeType.ALL`.
      - `GithubAuthorization` (`github_authorizations`): `@OneToOne` to `AppUser` with `@JoinColumn(insertable = false, updatable = false, foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))`.
-     - `UserNotification` (`user_notifications`): `@ManyToOne` to `AppUser`.
+     - `UserNotification` (`user_notifications`): `@ManyToOne` to `AppUser`. Stores durable notifications (`type`, `message`, `is_read`, `created_at`). `UserDataService.saveNotification` implements deduplication via `existsByUserIdAndTypeAndMessageAndCreatedAtAfter` within a 60-second window, ensuring reliable notifications from background workers without duplicating entries dispatched by connected frontend SSE streams.
 
 4. **Repository & Scanning Aggregate**:
    - Aggregate Root: `ManagedRepository` (`managed_repositories`)

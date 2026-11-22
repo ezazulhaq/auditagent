@@ -22,4 +22,11 @@ public interface UserNotificationRepository extends JpaRepository<UserNotificati
     @Modifying(clearAutomatically = true)
     @Query("DELETE FROM UserNotification n WHERE n.user.userId = :userId")
     int deleteAllByUserId(@Param("userId") String userId);
+
+    @Query("SELECT CASE WHEN COUNT(n) > 0 THEN true ELSE false END FROM UserNotification n WHERE n.user.userId = :userId AND n.type = :type AND n.message = :message AND n.createdAt >= :since")
+    boolean existsByUserIdAndTypeAndMessageAndCreatedAtAfter(
+            @Param("userId") String userId,
+            @Param("type") String type,
+            @Param("message") String message,
+            @Param("since") java.time.LocalDateTime since);
 }

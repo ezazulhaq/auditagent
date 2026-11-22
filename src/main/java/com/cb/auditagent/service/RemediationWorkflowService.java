@@ -200,30 +200,32 @@ public class RemediationWorkflowService {
                     String nodeName = node.node();
                     com.cb.auditagent.graph.workflow.WorkflowState s = node.state();
 
-                    emit(sink, java.util.Map.of("type", "graph_step", "node", nodeName,
+                    emit(sink, Map.of("type", "graph_step", "node", nodeName,
                             "status", "completed"));
 
                     if ("clone_workspace".equals(nodeName)) {
-                        emit(sink, java.util.Map.of("type", "workspace_prepared", "runId", s.getRunId(),
+                        emit(sink, Map.of("type", "workspace_prepared", "runId", s.getRunId(),
                                 "repository", repository.fullName(), "branch", branch, "baseSha", snapshot.baseSha()));
                     } else if ("approval_ready".equals(nodeName)) {
-                        emit(sink, java.util.Map.of("type", "approval_ready", "runId", s.getRunId(), "preview",
+                        emit(sink, Map.of("type", "approval_ready", "runId", s.getRunId(), "preview",
                                 s.getApprovalPreview()));
-                        emit(sink, java.util.Map.of("type", "analysis_complete", "runId", s.getRunId(),
+                        emit(sink, Map.of("type", "analysis_complete", "runId", s.getRunId(),
                                 "requires_approval", true, "preview", s.getApprovalPreview(),
                                 "message", s.getWorkflowMessage() != null ? s.getWorkflowMessage()
                                         : "Remediation verified. Awaiting human approval."));
                     } else if ("publish".equals(nodeName)) {
-                        emit(sink, java.util.Map.of("type", "publish_progress", "runId", s.getRunId(), "phase",
+                        emit(sink, Map.of("type", "publish_progress", "runId", s.getRunId(), "phase",
                                 "TRACKING_PR",
                                 "message",
                                 s.getWorkflowMessage() != null ? s.getWorkflowMessage() : "Pull request created."));
                         if (s.getPullRequestNumber() != null && s.getPullRequestUrl() != null) {
-                            emit(sink, java.util.Map.of("type", "pr_created", "runId", s.getRunId(),
+                            emit(sink, Map.of("type", "pr_created", "runId", s.getRunId(),
                                     "pullRequestNumber", s.getPullRequestNumber(), "pullRequestUrl",
                                     s.getPullRequestUrl()));
+                            recordNotification(user.userId(), "success",
+                                    "Pull request #" + s.getPullRequestNumber() + " created for " + vulnerabilityId + ".");
                         }
-                        emit(sink, java.util.Map.of("type", "complete", "runId", s.getRunId(),
+                        emit(sink, Map.of("type", "complete", "runId", s.getRunId(),
                                 "runStatus", "PUBLISHED", "message",
                                 s.getWorkflowMessage() != null ? s.getWorkflowMessage() : "Pull request created."));
                     }
@@ -232,7 +234,9 @@ public class RemediationWorkflowService {
             } catch (Exception e) {
                 LlmErrorClassifier.ClassifiedError classified = LlmErrorClassifier.classify(e);
                 logger.error("Managed remediation failed [{}]: {}", classified.errorCode(), classified.userMessage());
-                emit(sink, java.util.Map.of(
+                recordNotification(user.userId(), "error",
+                        "Remediation failed for " + vulnerabilityId + ": " + classified.userMessage());
+                emit(sink, Map.of(
                         "type", "error",
                         "errorCode", classified.errorCode(),
                         "requiresLlmConfig", classified.requiresLlmConfig(),
@@ -363,6 +367,8 @@ public class RemediationWorkflowService {
                                 "message", s.getWorkflowMessage() != null ? s.getWorkflowMessage() : "Pull request created."
                         ));
                         if (s.getPullRequestNumber() != null && s.getPullRequestUrl() != null) {
+                            recordNotification(task.userId(), "success",
+                                    "Pull request #" + s.getPullRequestNumber() + " created for " + task.vulnerabilityId() + ".");
                             eventBroadcastService.broadcastEvent(task.jobId(), s.getRunId(), "pr_created", Map.of(
                                     "type", "pr_created",
                                     "vulnId", task.vulnerabilityId(),
@@ -385,6 +391,8 @@ public class RemediationWorkflowService {
             LlmErrorClassifier.ClassifiedError classified = LlmErrorClassifier.classify(e);
             logger.error("Remediation task execution failed for job {}: [{}] {}", task.jobId(),
                     classified.errorCode(), classified.userMessage());
+            recordNotification(task.userId(), "error",
+                    "Remediation failed for " + task.vulnerabilityId() + ": " + classified.userMessage());
             if (eventBroadcastService != null) {
                 eventBroadcastService.broadcastEvent(task.jobId(), activeRunId, "error", Map.of(
                         "type", "error",
@@ -476,6 +484,8 @@ public class RemediationWorkflowService {
                             failedCount.incrementAndGet();
                             LlmErrorClassifier.ClassifiedError classified = LlmErrorClassifier.classify(e);
                             logger.error("Remediation failed for vuln {}: {}", vulnId, classified.userMessage());
+                            recordNotification(user.userId(), "error",
+                                    "Remediation failed for " + vulnId + ": " + classified.userMessage());
                             try {
                                 database.getVulnerabilityById(vulnId).ifPresent(v -> {
                                     if (v.getStatus() == VulnerabilityStatus.ANALYZING) {
@@ -520,13 +530,16 @@ public class RemediationWorkflowService {
                 completeEvent.put("completed", completedCount.get());
                 completeEvent.put("failed", failedCount.get());
                 completeEvent.put("cancelled", cancelled.get());
-                completeEvent.put("message", String.format("Batch completed: %d succeeded, %d failed of %d total.",
-                        completedCount.get(), failedCount.get(), total));
+                String batchMsg = String.format("Batch completed: %d succeeded, %d failed of %d total.",
+                        completedCount.get(), failedCount.get(), total);
+                completeEvent.put("message", batchMsg);
+                recordNotification(user.userId(), failedCount.get() > 0 ? "warning" : "success", batchMsg);
                 emit(sink, completeEvent);
                 sink.tryEmitComplete();
             } catch (Exception e) {
                 LlmErrorClassifier.ClassifiedError classified = LlmErrorClassifier.classify(e);
                 logger.error("Batch remediation failed: {}", classified.userMessage());
+                recordNotification(user.userId(), "error", "Batch remediation failed: " + classified.userMessage());
                 emit(sink, Map.of(
                         "type", "error",
                         "errorCode", classified.errorCode(),
@@ -623,6 +636,8 @@ public class RemediationWorkflowService {
                     prEvent.put("runId", s.getRunId());
                     prEvent.put("pullRequestNumber", s.getPullRequestNumber());
                     prEvent.put("pullRequestUrl", s.getPullRequestUrl());
+                    recordNotification(user.userId(), "success",
+                            "Pull request #" + s.getPullRequestNumber() + " created for " + vulnerabilityId + ".");
                     emit(sink, prEvent);
                 }
 
@@ -697,23 +712,23 @@ public class RemediationWorkflowService {
                     com.cb.auditagent.graph.workflow.WorkflowState s = node.state();
                     if ("reject".equals(nodeName)) {
                         database.saveRejectedRepositoryMemory(runId, reason);
-                        emit(sink, java.util.Map.of("type", "complete", "runId", runId,
+                        emit(sink, Map.of("type", "complete", "runId", runId,
                                 "runStatus", "REJECTED", "message",
                                 s.getWorkflowMessage() != null ? s.getWorkflowMessage()
                                         : "Fix rejected. No branch or pull request was created."));
                     } else if ("publish".equals(nodeName)) {
-                        emit(sink, java.util.Map.of("type", "publish_progress", "runId", runId, "phase", "TRACKING_PR",
+                        emit(sink, Map.of("type", "publish_progress", "runId", runId, "phase", "TRACKING_PR",
                                 "message",
                                 s.getWorkflowMessage() != null ? s.getWorkflowMessage() : "Pull request created."));
                         if (s.getPullRequestNumber() != null && s.getPullRequestUrl() != null) {
-                            emit(sink, java.util.Map.of("type", "pr_created", "runId", runId,
+                            emit(sink, Map.of("type", "pr_created", "runId", runId,
                                     "runStatus", "PR_OPEN",
                                     "pullRequestNumber", s.getPullRequestNumber(),
                                     "pullRequestUrl", s.getPullRequestUrl(),
                                     "message",
                                     "Pull request created. The finding will be marked FIXED only after merge."));
                         }
-                        emit(sink, java.util.Map.of("type", "complete", "runId", runId,
+                        emit(sink, Map.of("type", "complete", "runId", runId,
                                 "runStatus", "PUBLISHED", "message",
                                 s.getWorkflowMessage() != null ? s.getWorkflowMessage() : "Pull request created."));
                     }
@@ -736,7 +751,7 @@ public class RemediationWorkflowService {
                             p.commitSha(), "FAILED", null, null, null, safeMessage(e));
                     database.saveRunPublication(failedPub);
                 });
-                emit(sink, java.util.Map.of("type", "publish_failed", "runId", runId, "runStatus", "PUBLISH_FAILED",
+                emit(sink, Map.of("type", "publish_failed", "runId", runId, "runStatus", "PUBLISH_FAILED",
                         "message", safeMessage(e)));
                 sink.tryEmitComplete();
             }
@@ -1136,6 +1151,17 @@ public class RemediationWorkflowService {
                 logger.info("Cleaned {} stale workspaces", cleaned);
         } catch (Exception e) {
             logger.warn("Stale workspace cleanup failed: {}", safeMessage(e));
+        }
+    }
+
+    private void recordNotification(String userId, String type, String message) {
+        if (database == null || userId == null || userId.isBlank() || message == null || message.isBlank()) {
+            return;
+        }
+        try {
+            database.saveNotification(new Notification(userId, type, message));
+        } catch (Exception ex) {
+            logger.warn("Could not persist notification for user {}: {}", userId, ex.getMessage());
         }
     }
 }

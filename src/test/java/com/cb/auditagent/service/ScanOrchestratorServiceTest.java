@@ -135,5 +135,39 @@ class ScanOrchestratorServiceTest {
                 org.junit.jupiter.api.Assertions.assertEquals("<html>findings report</html>", payload.get("html_report"));
                 org.junit.jupiter.api.Assertions.assertEquals(true, payload.get("report_available"));
                 org.junit.jupiter.api.Assertions.assertEquals(42L, payload.get("repositoryId"));
+
+                verify(database).saveNotification(org.mockito.ArgumentMatchers.argThat(
+                                n -> "success".equals(n.getType()) && n.getMessage().contains("Security scan completed on branch main")
+                ));
+        }
+
+        @Test
+        void executeScanTaskRecordsErrorNotificationOnFailure() {
+                ManagedRepository repository = new ManagedRepository(42, 9, "octo", "repo", "octo/repo",
+                                "https://github.test/octo/repo.git", "main", true, "WRITE");
+                GitHubApiClient github = mock(GitHubApiClient.class);
+                when(github.installationToken(9)).thenThrow(new IllegalStateException("STALE_BASE"));
+                GitHubAuthService auth = mock(GitHubAuthService.class);
+                RepositoryAccessService repoAccess = new RepositoryAccessService(database, source, auth);
+
+                ScanOrchestratorService orchestrator = new ScanOrchestratorService(
+                                database, source, github, scanner, mock(ReporterService.class), repoAccess,
+                                null, null, null, null
+                );
+
+                com.cb.auditagent.dto.queue.ScanTaskPayload task = new com.cb.auditagent.dto.queue.ScanTaskPayload(
+                                "job-102", user.userId(), "thread-1", 42, "main", "base-sha",
+                                "semgrep", true, java.time.Instant.now()
+                );
+
+                org.junit.jupiter.api.Assertions.assertThrows(RuntimeException.class, () -> orchestrator.executeScanTask(task));
+
+                org.mockito.ArgumentCaptor<com.cb.auditagent.domain.Notification> notifCaptor =
+                                org.mockito.ArgumentCaptor.forClass(com.cb.auditagent.domain.Notification.class);
+                verify(database).saveNotification(notifCaptor.capture());
+                com.cb.auditagent.domain.Notification saved = notifCaptor.getValue();
+                org.junit.jupiter.api.Assertions.assertEquals(user.userId(), saved.getUserId());
+                org.junit.jupiter.api.Assertions.assertEquals("error", saved.getType());
+                org.junit.jupiter.api.Assertions.assertTrue(saved.getMessage().contains("Security scan failed on branch main"));
         }
 }

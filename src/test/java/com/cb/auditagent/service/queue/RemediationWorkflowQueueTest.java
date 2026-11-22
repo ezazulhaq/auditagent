@@ -115,4 +115,21 @@ class RemediationWorkflowQueueTest {
         verify(eventBroadcastService).broadcastEvent(eq(jobId), isNull(), eq("queued"), anyMap());
         verify(taskProducerService).enqueueRemediation(any(RemediationTaskPayload.class), eq(5));
     }
+
+    @Test
+    void executeRemediationTaskRecordsErrorNotificationOnFailure() {
+        RemediationTaskPayload payload = new RemediationTaskPayload(
+                "remed-101", "github:42", "thread-1", 100L, "main", "VULN-000042", null, java.time.Instant.now()
+        );
+        when(database.getManagedRepository(100L)).thenReturn(Optional.empty());
+
+        assertThrows(RuntimeException.class, () -> remediationWorkflow.executeRemediationTask(payload));
+
+        ArgumentCaptor<Notification> notifCaptor = ArgumentCaptor.forClass(Notification.class);
+        verify(database).saveNotification(notifCaptor.capture());
+        Notification saved = notifCaptor.getValue();
+        assertEquals("github:42", saved.getUserId());
+        assertEquals("error", saved.getType());
+        assertTrue(saved.getMessage().contains("Remediation failed for VULN-000042"));
+    }
 }
