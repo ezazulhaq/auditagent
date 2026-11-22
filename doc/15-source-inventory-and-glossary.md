@@ -318,10 +318,10 @@
 | `src/main/resources/application-{local,dev,prod}.yaml` | Ignored environment overlays; local convenience only and never a committed secret source. |
 | `src/main/resources/META-INF/additional-spring-configuration-metadata.json` | IDE metadata for scanner/agent/database/memory settings. |
 | `src/main/resources/static/` | Compiled frontend served by Spring. |
-| .auditagent/skills/stage-*/SKILL.md | Active dynamic prompts for the 16 code review stages. |
-| .auditagent/skills/patch-engineer/SKILL.md | Legacy remediation model playbook. |
-| .auditagent/skills/db-manager/SKILL.md | Discoverable historical database/reporting playbook; its named tools are not registered in the current runtime. |
-| .auditagent/skills/github-pr-manager/SKILL.md | Discoverable historical PR playbook; current publication instead uses automated publication and managed services. |
+| `src/main/resources/skills/stage-*/SKILL.md` | Active dynamic prompts for the 16 code review stages (loaded via classpath). |
+| `src/main/resources/skills/patch-engineer/SKILL.md` | Legacy remediation model playbook. |
+| `src/main/resources/skills/db-manager/SKILL.md` | Discoverable historical database/reporting playbook; its named tools are not registered in the current runtime. |
+| `src/main/resources/skills/github-pr-manager/SKILL.md` | Discoverable historical PR playbook; current publication instead uses automated publication and managed services. |
 | `.agents/skills/doc-navigator/SKILL.md` | Developer assistant skill for navigating and searching `@doc`. |
 | `.agents/skills/git-feature-workflow/SKILL.md` | Developer assistant skill for Mandatory Step 0 Pre-Flight Reflex, branch isolation, grouped commits, and release workflow. |
 | `.agents/skills/systematic-debugging/SKILL.md` | Developer assistant skill for structured root-cause debugging. |
@@ -348,7 +348,7 @@
 | `scripts/install-git-hooks.ps1`                 | Configures repository hooks path to `.githooks` for PowerShell/Windows users. |
 | `scripts/install-git-hooks.sh`                  | Configures repository hooks path to `.githooks` and executable bit on Unix-like systems. |
 | `.devcontainer/devcontainer.json`               | Temurin Java 21, Node.js 24 & Python 3.12 development container. |
-| `release_notes/*.md`                            | Versioned release notes tracking product, tooling, and infrastructure updates (v2.0.0, v2.0.1, v2.1.0, v2.1.1, v2.2.0, v2.2.1, v2.3.0, v2.3.1, v2.3.2, v2.3.3, v2.4.0, v2.4.1, v2.5.0, v2.6.0, v2.6.1, v2.7.0, v2.8.0, v2.9.0, v2.9.1, v2.10.0, v2.11.0, v2.12.0, v2.13.0, v2.13.1, v2.14.0, v2.14.1). |
+| `release_notes/*.md`                            | Versioned release notes tracking product, tooling, and infrastructure updates (v2.0.0, v2.0.1, v2.1.0, v2.1.1, v2.2.0, v2.2.1, v2.3.0, v2.3.1, v2.3.2, v2.3.3, v2.4.0, v2.4.1, v2.5.0, v2.6.0, v2.6.1, v2.7.0, v2.8.0, v2.9.0, v2.9.1, v2.10.0, v2.11.0, v2.12.0, v2.13.0, v2.13.1, v2.14.0, v2.14.1, v2.14.2). |
 
 ## Test file map
 

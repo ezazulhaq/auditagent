@@ -453,5 +453,23 @@
     "name": "auditagent.agent.stateless-workspaces",
     "type": "java.lang.String",
     "description": "A description for 'auditagent.agent.stateless-workspaces'"
+  },
+  {
+    "name": "auditagent.skills.location",
+    "type": "java.lang.String",
+    "description": "Base location for runtime remediation skills. Defaults to classpath:skills/.",
+    "defaultValue": "classpath:skills/"
+  },
+  {
+    "name": "auditagent.skills.pattern",
+    "type": "java.lang.String",
+    "description": "Resource pattern for discovering runtime remediation skills. Defaults to classpath*:skills/**/SKILL.md.",
+    "defaultValue": "classpath*:skills/**/SKILL.md"
+  },
+  {
+    "name": "auditagent.skills.fallback-dir",
+    "type": "java.lang.String",
+    "description": "Filesystem fallback directory for discovering skills when classpath pattern is empty. Defaults to .auditagent/skills.",
+    "defaultValue": ".auditagent/skills"
   }
 ]}

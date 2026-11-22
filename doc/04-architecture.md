@@ -203,7 +203,7 @@ State that must survive reload lives in PostgreSQL. Ephemeral view state—open 
 
 ```text
 auditagent/
-  .auditagent/skills/patch-engineer/  remediation playbook
+  src/main/resources/skills/patch-engineer/  remediation playbook
   .devcontainer/                  Java 21, Node.js 24, and Python 3.12 development container
   frontend/                       React/Vite application and tests
   rules/                          bundled Semgrep rules

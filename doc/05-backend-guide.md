@@ -245,7 +245,7 @@ Creates a portable enterprise Markdown assessment and delegates management-ready
 
 ### Skills
 
-`SkillManagerService` scans `.auditagent/skills`, validates lowercase/digit/hyphen folder names, parses the final frontmatter-separated instruction body, and rediscovers on each lookup/list request.
+`SkillManagerService` scans `classpath*:skills/**/SKILL.md` (packaged from `src/main/resources/skills/`) using Spring's `ResourcePatternResolver`, parses frontmatter-separated instructions, validates lowercase/digit/hyphen skill names, and rediscovers on lookup/list requests, with configurable patterns and filesystem fallback support.
 
 ### Observability
 

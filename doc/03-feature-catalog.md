@@ -119,7 +119,7 @@ This catalog connects each feature to its user/business outcome and main impleme
 | Model command tags | Model may request scan or analysis. | `[TRIGGER_SCAN]`, `[TRIGGER_FIX:...]` |
 | No chat approval | Tags do not map to publication decisions. | publication exists only in `RunPublicationController` |
 | Dual model integration | Spring AI handles chat; LangChain4j handles tool calling. | `ChatModel` and `OpenAiChatModel` |
-| Dynamic skill loading | `.auditagent/skills/*/SKILL.md` is rediscovered on access. | `SkillManagerService` |
+| Dynamic skill loading | Discovered as classpath resources (`classpath*:skills/**/SKILL.md` under `src/main/resources/skills/`) with filesystem fallback. | `SkillManagerService` |
 | Default remediation prompt | Agent remains functional if `patch-engineer` skill is unavailable. | `buildAgenticSystemPrompt()` fallback |
 | Repository memory injection | Up to eight matching memories (both approved successes and rejected failures) enrich remediation context via PostgreSQL FTS/BM25 (mirrored from PostgreSQL). | `DatabaseService.searchRepositoryMemories()`, `DatabaseService.searchRejectedMemories()` |
 | Knowledge base improvement | System learns from failures by asking user for a rejection reason, storing it, and providing it to the `MEMORY_REVIEW` agent on subsequent runs. Unmerged closed PRs lower confidence scores. | `FindingDrawer.jsx`, `RunPublicationController`, `PullRequestLifecycleService`, `DatabaseService` |
