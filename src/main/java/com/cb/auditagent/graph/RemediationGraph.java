@@ -82,7 +82,10 @@ public class RemediationGraph {
                 .addEdge("complete", StateGraph.END)
                 .addEdge("abort", StateGraph.END);
 
-        this.graph = builder.compile(CompileConfig.builder().checkpointSaver(checkpointSaver).build());
+        this.graph = builder.compile(CompileConfig.builder()
+                .checkpointSaver(checkpointSaver)
+                .releaseThread(false)
+                .build());
     }
 
     public CompiledGraph<RemediationState> getGraph() {

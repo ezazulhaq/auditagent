@@ -97,6 +97,7 @@ public class WorkerAgentGraphFactory {
 
         return builder.compile(CompileConfig.builder()
                 .checkpointSaver(checkpointSaver)
+                .releaseThread(false)
                 .recursionLimit(100)
                 .build());
     }

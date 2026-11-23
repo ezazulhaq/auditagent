@@ -17,7 +17,7 @@ The `DatabaseCheckpointSaver` intercepts every graph transition and stores the s
 This guarantees that:
 - Server restarts or process crashes do not lose the conversation or patch progress.
 - Human-in-the-loop workflows (like the `approval_ready` interrupt) can cleanly suspend execution, freeing up virtual threads, and securely resume only upon authenticated user input (`decide` API).
-- Native lifecycle hooks and interruption registration (`registerInterruption`, `release`) conform to the LangGraph4j 1.9.5 `BaseCheckpointSaver` contract.
+- Native lifecycle hooks and interruption registration (`registerInterruption`, `release`) conform to the LangGraph4j `BaseCheckpointSaver` contract. `release(config)` loads and supplies ordered thread checkpoints with latest-first orientation, paired with fallback guarantees and `.releaseThread(false)` compilation across outer and worker graphs to prevent empty tag exceptions during final state extraction.
 
 ## Multi-agent topology & unified workflow (phases 3 and 4)
 

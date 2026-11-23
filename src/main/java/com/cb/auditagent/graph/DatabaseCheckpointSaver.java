@@ -36,9 +36,7 @@ public class DatabaseCheckpointSaver implements BaseCheckpointSaver {
     @SuppressWarnings("unchecked")
     @Override
     public Collection<Checkpoint> list(RunnableConfig config) {
-        String threadId = config.threadId().orElse(null);
-        if (threadId == null)
-            return Collections.emptyList();
+        String threadId = config.threadId().orElse(THREAD_ID_DEFAULT);
 
         List<String> checkpointIds = db.listGraphCheckpoints(threadId);
         List<Checkpoint> checkpoints = new ArrayList<>();
@@ -48,12 +46,19 @@ public class DatabaseCheckpointSaver implements BaseCheckpointSaver {
             if (checkpointData != null) {
                 try {
                     String json = checkpointData[0];
-                    String nodeId = checkpointData[1] != null ? checkpointData[1] : "unknown";
+                    String fullNodeName = checkpointData[1] != null ? checkpointData[1] : "unknown";
+                    String nodeId = fullNodeName;
+                    String nextNodeId = fullNodeName;
+                    if (fullNodeName.contains(":")) {
+                        String[] parts = fullNodeName.split(":", 2);
+                        nodeId = parts[0];
+                        nextNodeId = parts[1];
+                    }
                     Map<String, Object> stateMap = mapper.readValue(json, Map.class);
                     checkpoints.add(Checkpoint.builder()
                             .id(id)
                             .nodeId(nodeId)
-                            .nextNodeId(nodeId)
+                            .nextNodeId(nextNodeId)
                             .state(stateMap)
                             .build());
                 } catch (Exception e) {
@@ -68,11 +73,9 @@ public class DatabaseCheckpointSaver implements BaseCheckpointSaver {
     @Override
     public Optional<Checkpoint> get(RunnableConfig config) {
         String id = config.checkPointId().orElse(null);
-        String threadId = config.threadId().orElse(null);
+        String threadId = config.threadId().orElse(THREAD_ID_DEFAULT);
 
         if (id == null) {
-            if (threadId == null)
-                return Optional.empty();
             List<String> checkpointIds = db.listGraphCheckpoints(threadId);
             if (checkpointIds.isEmpty())
                 return Optional.empty();
@@ -140,7 +143,22 @@ public class DatabaseCheckpointSaver implements BaseCheckpointSaver {
 
     @Override
     public Tag release(RunnableConfig config) throws Exception {
-        return new Tag(config.threadId().orElse("default"), java.util.Collections.emptyList());
+        String threadId = config.threadId().orElse(THREAD_ID_DEFAULT);
+        List<Checkpoint> checkpoints = new ArrayList<>(list(config));
+        if (!checkpoints.isEmpty()) {
+            Collections.reverse(checkpoints);
+        } else {
+            get(config).ifPresent(checkpoints::add);
+        }
+        if (checkpoints.isEmpty()) {
+            checkpoints.add(Checkpoint.builder()
+                    .id(UUID.randomUUID().toString())
+                    .nodeId("unknown")
+                    .nextNodeId("unknown")
+                    .state(Collections.emptyMap())
+                    .build());
+        }
+        return new Tag(threadId, checkpoints);
     }
 
     @Override
@@ -161,7 +179,7 @@ public class DatabaseCheckpointSaver implements BaseCheckpointSaver {
 
     @Override
     public Optional<Tag> tag(RunnableConfig config, Integer index) throws Exception {
-        throw new UnsupportedOperationException("tag not implemented");
+        return Optional.of(release(config));
     }
 
     @Override

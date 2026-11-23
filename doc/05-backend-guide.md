@@ -267,7 +267,7 @@ The backend now uses `langgraph4j` to orchestrate agents and workflows:
 - `GitHubWebhookController`: Handles asynchronous `pull_request` webhook payloads, identifying merges and instantly updating the grouped vulnerability findings.
 - `MultiAgentRemediationGraph`: A 3-agent orchestration graph (Triage, Patch, Verification) with retry edges, subsuming the single-agent `RemediationGraph`.
 - `AuditWorkflowGraph`: Unified end-to-end graph orchestrating scan, chat, remediation, and publication workflows into a single timeline.
-- `DatabaseCheckpointSaver`: Connects LangGraph4j's state-saving mechanisms natively to PostgreSQL, enabling durable suspend/resume operations.
+- `DatabaseCheckpointSaver`: Connects LangGraph4j's state-saving mechanisms natively to PostgreSQL, enabling durable suspend/resume operations. Accurately fulfills `release(config)` and `tag(config)` by providing ordered checkpoints with fallback protection, while compiled graphs utilize `.releaseThread(false)` to prevent premature checkpoint disposal or empty tag exceptions.
 - `WorkflowState`, `RemediationState`, & `MultiAgentState`: Custom state objects to hold parameters during graph execution and multi-agent handoffs.
 
 ## Domain states

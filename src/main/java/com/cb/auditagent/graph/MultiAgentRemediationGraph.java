@@ -161,6 +161,7 @@ public class MultiAgentRemediationGraph {
 
         this.graph = builder.compile(CompileConfig.builder()
                 .checkpointSaver(checkpointSaver)
+                .releaseThread(false)
                 .recursionLimit(150)
                 .build());
     }

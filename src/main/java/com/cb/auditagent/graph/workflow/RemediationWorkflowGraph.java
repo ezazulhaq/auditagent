@@ -58,14 +58,18 @@ public class RemediationWorkflowGraph {
 
         workflow.addNode("agent_loop", node_async(state -> {
             try {
+                String threadId = state.getThreadId() != null && !state.getThreadId().isBlank()
+                        ? state.getThreadId()
+                        : "default";
+                var config = org.bsc.langgraph4j.RunnableConfig.builder()
+                        .threadId(threadId)
+                        .build();
                 if (agentConfig.isUseMultiAgent()) {
-                    var config = org.bsc.langgraph4j.RunnableConfig.builder().build();
                     com.cb.auditagent.graph.state.MultiAgentState result = multiAgentRemediationGraph.getGraph()
                             .invoke(org.bsc.langgraph4j.GraphInput.args(state.data()), config)
                             .orElse(new com.cb.auditagent.graph.state.MultiAgentState(state.data()));
                     return result.data();
                 } else {
-                    var config = org.bsc.langgraph4j.RunnableConfig.builder().build();
                     com.cb.auditagent.graph.RemediationState result = remediationGraph.getGraph()
                             .invoke(org.bsc.langgraph4j.GraphInput.args(state.data()), config)
                             .orElse(new com.cb.auditagent.graph.RemediationState(state.data()));
@@ -105,6 +109,7 @@ public class RemediationWorkflowGraph {
         // before evaluating the conditional edge.
         this.graph = workflow.compile(CompileConfig.builder()
                 .checkpointSaver(checkpointSaver)
+                .releaseThread(false)
                 .interruptBefore("process_decision")
                 .build());
     }
