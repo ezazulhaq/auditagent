@@ -121,4 +121,8 @@ public class RemediationState extends AgentState {
     public String getNextAction() {
         return this.<String>value("nextAction").orElse(null);
     }
+
+    public int getRootCauseNudgeCount() {
+        return this.<Integer>value("rootCauseNudgeCount").orElse(0);
+    }
 }

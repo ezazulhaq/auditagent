@@ -97,6 +97,22 @@ public class InitNode implements NodeAction<RemediationState> {
         updates.put("rescanPassed", false);
         updates.put("testsPassed", false);
         updates.put("testsAttempted", false);
+        updates.put("hitMaxIterations", false);
+        updates.put("verified", false);
+        updates.put("rootCauseNudgeCount", 0);
+        updates.put("finalResponse", null);
+        updates.put("trajectory", List.of());
+        updates.put("planGenerated", false);
+        updates.put("remediationPlan", null);
+        updates.put("milestones", List.of());
+        updates.put("agentOutputs", Map.of());
+        updates.put("stageRetries", Map.of());
+        updates.put("hops", 0);
+        updates.put("retries", 0);
+        updates.put("nextAgent", null);
+        updates.put("lastStage", null);
+        updates.put("lastStageSuccess", null);
+        updates.put("supervisorReasoning", null);
 
         return updates;
     }

@@ -172,6 +172,16 @@ Use the latest scan and restore/discard the existing run as appropriate.
 
 **Remedy:** add support for the repository's build system if skips are not acceptable. Update tool, prompt, policy, tests, and docs together.
 
+## Remediation fails with "agent did not produce any code changes"
+
+**Cause:** `ApprovalReadyNode` checks `git status` (`sourceControl.changedFiles(workspace)`) and rejects runs with zero modified files unless a false positive was explicitly asserted. Two bugs could trigger this:
+1. **Cross-run checkpoint leakage:** `RemediationWorkflowGraph` previously invoked the inner `MultiAgentRemediationGraph` using the bare conversation `threadId` instead of `<threadId>:<runId>`, causing a new vulnerability's run to load stale `planGenerated`, `milestones`, and `finalResponse` checkpoints from an earlier finished run on the same conversation thread and skip straight to `COMPLETE`.
+2. **Unpatched `POST_FIX` / `COMPLETE` routing:** `SupervisorNode` could route directly to `POST_FIX` (where `npm`/`tsc` projects return `BUILD SKIPPED`) and `COMPLETE` without `ROOT_CAUSE` applying a patch, or `ROOT_CAUSE` could exit with prose without calling `apply_patch`.
+
+**Check:** inspect `agent_runs`, `agent_steps`, `memory_messages`, and `graph_checkpoints` for the `run_id` (especially `iteration=0` or a mismatched vulnerability ID in `final_summary`, which indicates stale checkpoint state, vs. `apply_patch` errors in `agent_steps`).
+
+**Remedy:** ensure `RemediationWorkflowGraph` scopes inner-graph checkpoints to `<threadId>:<runId>`, `InitNode` resets all multi-agent state fields, `SupervisorNode` enforces `patchApplied=true` before allowing `POST_FIX` or `COMPLETE` (redirecting to `ROOT_CAUSE` up to `max-stage-retries`), `WorkerAgentGraphFactory` nudges `ROOT_CAUSE` to call `apply_patch`, and `ApprovalReadyNode` preserves explicit false-positive conclusions when `CompleteNode` marks `VERIFICATION_INCOMPLETE`.
+
 ## Target rescan still fails
 
 **Cause:** any Semgrep finding remains in the patched file, even one unrelated to the target.

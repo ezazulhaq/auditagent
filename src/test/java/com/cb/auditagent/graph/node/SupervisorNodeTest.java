@@ -137,5 +137,32 @@ class SupervisorNodeTest {
 
         assertEquals("FAIL", updates.get("nextAgent"));
     }
+
+    @Test
+    void testJevRouteToPostFixRedirectsToRootCauseWhenNoPatchApplied() throws Exception {
+        when(mockJevClient.isEnabled()).thenReturn(true);
+
+        JevResponse response = new JevResponse();
+        response.setAnswers(Map.of("next_stage", new JevAnswer("POST_FIX", 0.91)));
+        when(mockJevClient.execute(any(), eq("supervisor_routing"), any(), any())).thenReturn(response);
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("runId", "run-jev-guard");
+        data.put("threadId", "thread-jev-guard");
+        data.put("hops", 1);
+        data.put("retries", 1);
+        data.put("planGenerated", true);
+        data.put("patchApplied", false);
+        data.put("milestones", java.util.List.of(
+                new com.cb.auditagent.graph.agent.StageMilestone(
+                        com.cb.auditagent.graph.agent.AgentStage.PLANNING, true, "Plan created", java.util.List.of())
+        ));
+
+        MultiAgentState state = new MultiAgentState(data);
+        Map<String, Object> updates = supervisorNode.apply(state);
+
+        assertEquals("ROOT_CAUSE", updates.get("nextAgent"));
+        verifyNoInteractions(mockChatModel);
+    }
 }
 

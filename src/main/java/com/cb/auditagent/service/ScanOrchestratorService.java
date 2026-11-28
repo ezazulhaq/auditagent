@@ -227,10 +227,14 @@ public class ScanOrchestratorService {
                         baseSha, now, findings.size(), high, medium, low, info));
 
                 Report report = new Report(reportKey, markdown, html, findings, metadata);
+                recordNotification(user.userId(), "success",
+                        "Security scan completed on branch " + branch + ": " + findings.size() + " findings detected.");
                 emit(sink, resultEvent("complete", report, repository, branch, baseSha,
                         "Scan complete at " + shortSha(baseSha) + ". Found " + findings.size() + " issue(s)."));
             } catch (Exception e) {
                 logger.error("Managed GitHub scan failed: {}", safeMessage(e));
+                recordNotification(user.userId(), "error",
+                        "Security scan failed on branch " + branch + ": " + safeMessage(e));
                 String code = e instanceof ScanTimeoutException ? "SCAN_TIMEOUT" : "SCAN_FAILED";
                 emit(sink, Map.of("type", "error", "code", code, "message", safeMessage(e)));
             } finally {
@@ -357,6 +361,8 @@ public class ScanOrchestratorService {
                     task.baseSha(), now, findings.size(), high, medium, low, info));
 
             Report report = new Report(reportKey, markdown, html, findings, metadata);
+            recordNotification(task.userId(), "success",
+                    "Security scan completed on branch " + task.branch() + ": " + findings.size() + " findings detected.");
             if (eventBroadcastService != null) {
                 Map<String, Object> completePayload = resultEvent("complete", report, repository,
                         task.branch(), task.baseSha(),
@@ -365,6 +371,8 @@ public class ScanOrchestratorService {
             }
         } catch (Exception e) {
             logger.error("Scan task execution failed for job {}: {}", task.jobId(), safeMessage(e));
+            recordNotification(task.userId(), "error",
+                    "Security scan failed on branch " + task.branch() + ": " + safeMessage(e));
             if (eventBroadcastService != null) {
                 String code = e instanceof ScanTimeoutException ? "SCAN_TIMEOUT" : "SCAN_FAILED";
                 eventBroadcastService.broadcastEvent(task.jobId(), null, "error", Map.of(
@@ -485,5 +493,16 @@ public class ScanOrchestratorService {
             return message.substring(0, 500) + "...";
         }
         return message;
+    }
+
+    private void recordNotification(String userId, String type, String message) {
+        if (database == null || userId == null || userId.isBlank() || message == null || message.isBlank()) {
+            return;
+        }
+        try {
+            database.saveNotification(new Notification(userId, type, message));
+        } catch (Exception ex) {
+            logger.warn("Could not persist notification for user {}: {}", userId, ex.getMessage());
+        }
     }
 }
