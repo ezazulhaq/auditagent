@@ -6,9 +6,9 @@ This document establishes the architectural roadmap and technical specification 
 
 ## 1. Executive Summary & Problem Analysis
 
-AuditAgent operates an autonomous remediation engine using a **17-stage Star Topology** ([MultiAgentRemediationGraph.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/graph/MultiAgentRemediationGraph.java)) orchestrated by [SupervisorNode.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/graph/node/SupervisorNode.java) and [WorkerAgentGraphFactory.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/graph/agent/WorkerAgentGraphFactory.java).
+AuditAgent operates an autonomous remediation engine using a **17-stage Star Topology** ([MultiAgentRemediationGraph.java](../src/main/java/com/cb/auditagent/graph/MultiAgentRemediationGraph.java)) orchestrated by [SupervisorNode.java](../src/main/java/com/cb/auditagent/graph/node/SupervisorNode.java) and [WorkerAgentGraphFactory.java](../src/main/java/com/cb/auditagent/graph/agent/WorkerAgentGraphFactory.java).
 
-While resilient and crash-safe (backed by PostgreSQL checkpoints via [DatabaseCheckpointSaver.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/graph/DatabaseCheckpointSaver.java)), profiling production workflows reveals four primary latency and token bottlenecks:
+While resilient and crash-safe (backed by PostgreSQL checkpoints via [DatabaseCheckpointSaver.java](../src/main/java/com/cb/auditagent/graph/DatabaseCheckpointSaver.java)), profiling production workflows reveals four primary latency and token bottlenecks:
 
 1. **Unnecessary Supervisor Roundtrips**: Every stage completion queries an LLM (or TypeSafe Jev) to decide the next stage—even when the outcome is mathematically certain (e.g. successful patch $\rightarrow$ `POST_FIX`; verified zero-vulnerability build $\rightarrow$ `COMPLETE`).
 2. **One-Size-Fits-All Stage Walk (Lack of Pruning)**: Simple or localized findings (such as missing annotations, regex tweaks, or localized null-checks) are evaluated against all 16 review stages, incurring 8–15 hops and minutes of delay when only 3–4 stages were relevant.
@@ -71,13 +71,13 @@ Instead of exposing all 16 review stages to the supervisor for every vulnerabili
    * Full 17-stage review with multi-perspective analysis.
 
 ### Pillar 2: Deterministic Short-Circuiting Engine
-In [SupervisorNode.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/graph/node/SupervisorNode.java), intercept transitions with mathematical certainty before invoking an external LLM or Jev call:
+In [SupervisorNode.java](../src/main/java/com/cb/auditagent/graph/node/SupervisorNode.java), intercept transitions with mathematical certainty before invoking an external LLM or Jev call:
 * **Rule A**: If `lastStage == ROOT_CAUSE` and `patchApplied == true` $\longrightarrow$ transition immediately to `POST_FIX`.
 * **Rule B**: If `lastStage == POST_FIX` and `compilePassed && rescanPassed && (!testsAttempted || testsPassed)` $\longrightarrow$ transition immediately to `COMPLETE`.
 * **Rule C**: If `lastStage == POST_FIX` and verification failed with retry budget remaining $\longrightarrow$ transition immediately to `ROOT_CAUSE`.
 
 ### Pillar 3: Idempotent Tool Execution Caching
-In [ToolExecutionNode.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/graph/node/ToolExecutionNode.java):
+In [ToolExecutionNode.java](../src/main/java/com/cb/auditagent/graph/node/ToolExecutionNode.java):
 * Maintain a transient in-memory cache keyed by `(toolName + ":" + repoPath + ":" + workspaceRevision)`.
 * Before any patch is applied (`patchApplied == false`), sequential read-only stages (`BASELINE`, `SYNTAX`, `SECURITY`) share the same verification output for `compile_project`, `run_linter`, and `run_static_analysis`.
 * Cache is invalidated instantly upon `apply_patch` or `rollback_file`.
@@ -103,25 +103,25 @@ $$\text{Deterministic Rule (if verified/trivial)} \longrightarrow \mathbf{Jev\ F
 ## 5. Proposed Component Modifications
 
 ### Configuration & State Layer
-* **[AgentConfig.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/config/AgentConfig.java)**:
+* **[AgentConfig.java](../src/main/java/com/cb/auditagent/config/AgentConfig.java)**:
   * `auditagent.agent.deterministic-transitions`: boolean (default: `true`)
   * `auditagent.agent.adaptive-profiles`: boolean (default: `true`)
   * `auditagent.agent.tool-cache-enabled`: boolean (default: `true`)
-* **[MultiAgentState.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/graph/state/MultiAgentState.java)**:
+* **[MultiAgentState.java](../src/main/java/com/cb/auditagent/graph/state/MultiAgentState.java)**:
   * `targetStages`: List of active stages selected for the run.
   * `remediationProfile`: Current active profile (`FAST_PATH`, `STANDARD_AUDIT`, `DEEP_AUDIT`).
 * **`RemediationProfile.java`**:
   * Enum defining profiles, stage whitelists, and severity heuristics.
 
 ### Graph Orchestration Layer
-* **[SupervisorNode.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/graph/node/SupervisorNode.java)**:
+* **[SupervisorNode.java](../src/main/java/com/cb/auditagent/graph/node/SupervisorNode.java)**:
   * Add `evaluateDeterministicNextStage(MultiAgentState)` executed prior to Jev / ChatModel calls.
   * Filter `options` passed to `routeWithJev` and `ChatRequest` to match `targetStages`.
   * Dynamic milestone compression: compress historical milestones older than 3 hops to single-line summaries.
-* **[ToolExecutionNode.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/graph/node/ToolExecutionNode.java)**:
+* **[ToolExecutionNode.java](../src/main/java/com/cb/auditagent/graph/node/ToolExecutionNode.java)**:
   * Add clean-workspace tool execution caching for `compile_project`, `run_linter`, and `run_static_analysis`.
   * Invalidate on patch application.
-* **[MultiAgentRemediationGraph.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/graph/MultiAgentRemediationGraph.java)**:
+* **[MultiAgentRemediationGraph.java](../src/main/java/com/cb/auditagent/graph/MultiAgentRemediationGraph.java)**:
   * Initialize profile and `targetStages` upon completion of `PLANNING`.
 
 ---
