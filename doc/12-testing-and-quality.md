@@ -183,7 +183,7 @@ npm test
 
 ### Responsive interface
 
-- Authentication, scan setup, dashboard, findings, report, remediation drawer, and chat remain usable at 320px, 768px, 1024px, and wide desktop viewports.
+- Authentication, scan setup, dashboard, findings, report, remediation drawer, and chat remain usable at 320px, 768px, 1024px, and wide desktop viewports, with the sign-in form and `Continue with GitHub` action prioritized above the fold on mobile.
 - Workspace tabs remain reachable by horizontal scrolling on narrow screens.
 - Finding rows preserve severity, identity, location, status, and selection at mobile widths.
 - The finding drawer and chat do not overflow the mobile viewport; Escape closes each open overlay.

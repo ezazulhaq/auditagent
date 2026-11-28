@@ -196,7 +196,7 @@ For model responses it removes the temporary "Agent thinking..." message, adds t
 
 ### `LoginPage`
 
-Shows a responsive two-column enterprise access experience with product capabilities, protected-access context, server configuration warning, session error, GitHub button, and the no-write-before-approval promise.
+Shows a responsive two-column enterprise access experience on desktop (`lg:` and up) and a sign-in-first stacked layout on mobile/tablet viewports. A compact brand header stays at the top, followed immediately in DOM and mobile visual order by the protected-access sign-in panel (server configuration warning, session error, `Continue with GitHub` button, and the no-write-before-approval promise) so mobile users can sign in above the fold without scrolling past product overview and capability cards. On desktop, CSS Grid placement renders the brand header and capabilities in the left column while centering the sign-in panel in the right column.
 
 ### `AppHeader`
 
