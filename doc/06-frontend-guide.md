@@ -200,7 +200,7 @@ Shows a responsive two-column enterprise access experience with product capabili
 
 ### `AppHeader`
 
-Shows brand and enterprise context, secure-session status, responsive repository scan summary, high/medium counts, interactive tour trigger, notification center, and user profile menu (linking to Profile & LLM Keys, Documentation, Token Usage, theme switcher, Sign out, and dynamic application version badge sourced from `package.json`).
+Shows brand and enterprise context, secure-session status, responsive repository scan summary, high/medium counts, interactive tour trigger, notification center, and user profile menu (linking to API Keys, Documentation, Token Usage, theme switcher, Sign out, and dynamic application version badge sourced from `package.json`).
 
 ### `NotificationDropdown`
 
@@ -271,7 +271,7 @@ Located in `frontend/src/features/profile/`:
   - `SystemOneSettings`: Non-autoregressive SystemOne (TypeSafe Jev) fast decision engine configuration card.
   - `llmProviders.js`: Provider metadata and model presets.
 - **`LlmOnboardingModal`**: A non-closable modal displayed immediately upon login if user keys are required but not yet configured, preventing users from attempting AI workflows with missing credentials.
-- **`UserProfileModal`**: Accessible from the user avatar dropdown menu in `AppHeader` ("Profile & LLM Keys"). Allows users to inspect their active GitHub identity, review their masked API key (`sk-or-••••••••3a8f`), update configurations, test connections, and save updates with automatic cache refresh.
+- **`UserProfileModal`**: Accessible from the user avatar dropdown menu in `AppHeader` ("API Keys"). Allows users to inspect their active GitHub identity, review their masked API key (`sk-or-••••••••3a8f`), update configurations, test connections, and save updates with automatic cache refresh.
 
 ### `TokenUsageLayout`
 

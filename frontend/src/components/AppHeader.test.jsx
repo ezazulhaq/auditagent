@@ -41,6 +41,7 @@ describe('AppHeader', () => {
     expect(screen.getByText('@auditor1')).toBeInTheDocument();
 
     // Verify Sign out button and package.json version
+    expect(screen.getByRole('button', { name: /API Keys/i })).toBeInTheDocument();
     const signOutButton = screen.getByRole('button', { name: /Sign out/i });
     expect(signOutButton).toBeInTheDocument();
 

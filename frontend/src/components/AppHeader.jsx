@@ -109,7 +109,7 @@ export const AppHeader = memo(function AppHeader({ metadata, counts, user, onLog
                       className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-medium text-[var(--text-secondary)] transition hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]"
                     >
                       <KeyRound size={15} className="text-amber-500 dark:text-amber-400 shrink-0" />
-                      <span>Profile & LLM Keys</span>
+                      <span>API Keys</span>
                     </button>
 
                     <button

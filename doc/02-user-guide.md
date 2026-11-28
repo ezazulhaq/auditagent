@@ -44,7 +44,7 @@ Upon signing in for the first time (when `auditagent.llm.user-keys-required` is 
 ### Managing Credentials via Profile
 You can review, modify, or test your credentials at any time:
 1. Click your user avatar / name in the top-right header of the application.
-2. Select **Profile & LLM Keys** from the dropdown menu.
+2. Select **API Keys** from the dropdown menu.
 3. The modal displays your current masked API key (`sk-or-••••••••3a8f`), active provider, and model configurations.
 4. You can update your key, change models, test the connection, and save updates. Updating credentials automatically invalidates and refreshes the server-side model client cache.
 
