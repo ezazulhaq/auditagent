@@ -4,6 +4,8 @@ import org.bsc.langgraph4j.StateGraph;
 import org.bsc.langgraph4j.CompiledGraph;
 import org.bsc.langgraph4j.CompileConfig;
 import java.util.Map;
+import java.util.Optional;
+
 import static org.bsc.langgraph4j.action.AsyncNodeAction.node_async;
 import org.springframework.stereotype.Component;
 
@@ -61,8 +63,12 @@ public class RemediationWorkflowGraph {
                 String threadId = state.getThreadId() != null && !state.getThreadId().isBlank()
                         ? state.getThreadId()
                         : "default";
+                String runId = state.getRunId();
+                String scopedThreadId = (runId != null && !runId.isBlank())
+                        ? threadId + ":" + runId
+                        : threadId + ":" + Optional.ofNullable(state.getVulnerabilityId()).orElse("run");
                 var config = org.bsc.langgraph4j.RunnableConfig.builder()
-                        .threadId(threadId)
+                        .threadId(scopedThreadId)
                         .build();
                 if (agentConfig.isUseMultiAgent()) {
                     com.cb.auditagent.graph.state.MultiAgentState result = multiAgentRemediationGraph.getGraph()

@@ -97,6 +97,10 @@ public class ToolExecutionNode implements NodeAction<RemediationState> {
                 if (toolResult.startsWith("SUCCESS")) {
                     patchApplied = true;
                     hasCalledApplyPatch = true;
+                    compilePassed = false;
+                    rescanPassed = false;
+                    testsPassed = false;
+                    testsAttempted = false;
                     llmService.persistRunChange(runId, toolArgs, toolResult);
                 } else {
                     String kbMemory = repositoryMemoryService != null

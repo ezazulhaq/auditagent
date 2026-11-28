@@ -187,4 +187,81 @@ class SupervisorNodeStructuredTest {
 
         assertEquals("FAIL", updates.get("nextAgent"));
     }
+
+    @Test
+    void testRedirectsPostFixToRootCauseWhenNoPatchApplied() throws Exception {
+        when(mockChatModel.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder()
+                .aiMessage(AiMessage.from("{\"nextAgent\": \"POST_FIX\", \"reasoning\": \"Running post-fix checks.\"}"))
+                .build());
+
+        Map<String, Object> data = new HashMap<>(createStateWithPlan().data());
+        data.put("patchApplied", false);
+        data.put("milestones", java.util.List.of(
+                new com.cb.auditagent.graph.agent.StageMilestone(AgentStage.PLANNING, true, "Plan ready.", java.util.List.of()),
+                new com.cb.auditagent.graph.agent.StageMilestone(AgentStage.SECURITY, true, "Confirmed issue.", java.util.List.of())
+        ));
+
+        MultiAgentState state = new MultiAgentState(data);
+        Map<String, Object> updates = supervisorNode.apply(state);
+
+        assertEquals("ROOT_CAUSE", updates.get("nextAgent"));
+    }
+
+    @Test
+    void testRedirectsCompleteToRootCauseWhenNoPatchAppliedAndNotFalsePositive() throws Exception {
+        when(mockChatModel.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder()
+                .aiMessage(AiMessage.from("{\"nextAgent\": \"COMPLETE\", \"reasoning\": \"Done.\"}"))
+                .build());
+
+        Map<String, Object> data = new HashMap<>(createStateWithPlan().data());
+        data.put("patchApplied", false);
+        data.put("milestones", java.util.List.of(
+                new com.cb.auditagent.graph.agent.StageMilestone(AgentStage.PLANNING, true, "Plan ready.", java.util.List.of()),
+                new com.cb.auditagent.graph.agent.StageMilestone(AgentStage.ROOT_CAUSE, false, "Could not apply patch yet.", java.util.List.of())
+        ));
+
+        MultiAgentState state = new MultiAgentState(data);
+        Map<String, Object> updates = supervisorNode.apply(state);
+
+        assertEquals("ROOT_CAUSE", updates.get("nextAgent"));
+    }
+
+    @Test
+    void testAllowsCompleteWhenExplicitFalsePositiveConfirmedWithoutPatch() throws Exception {
+        when(mockChatModel.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder()
+                .aiMessage(AiMessage.from("{\"nextAgent\": \"COMPLETE\", \"reasoning\": \"Confirmed false positive.\"}"))
+                .build());
+
+        Map<String, Object> data = new HashMap<>(createStateWithPlan().data());
+        data.put("patchApplied", false);
+        data.put("agentOutputs", Map.of("SECURITY", "Confirmed this finding is a false positive."));
+        data.put("milestones", java.util.List.of(
+                new com.cb.auditagent.graph.agent.StageMilestone(AgentStage.PLANNING, true, "Plan ready.", java.util.List.of()),
+                new com.cb.auditagent.graph.agent.StageMilestone(AgentStage.SECURITY, true, "Confirmed this finding is a false positive.", java.util.List.of())
+        ));
+
+        MultiAgentState state = new MultiAgentState(data);
+        Map<String, Object> updates = supervisorNode.apply(state);
+
+        assertEquals("COMPLETE", updates.get("nextAgent"));
+    }
+
+    @Test
+    void testAllowsPostFixWhenPatchAppliedIsTrue() throws Exception {
+        when(mockChatModel.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder()
+                .aiMessage(AiMessage.from("{\"nextAgent\": \"POST_FIX\", \"reasoning\": \"Verify patch.\"}"))
+                .build());
+
+        Map<String, Object> data = new HashMap<>(createStateWithPlan().data());
+        data.put("patchApplied", true);
+        data.put("milestones", java.util.List.of(
+                new com.cb.auditagent.graph.agent.StageMilestone(AgentStage.PLANNING, true, "Plan ready.", java.util.List.of()),
+                new com.cb.auditagent.graph.agent.StageMilestone(AgentStage.ROOT_CAUSE, true, "Applied fix.", java.util.List.of("src/App.ts"))
+        ));
+
+        MultiAgentState state = new MultiAgentState(data);
+        Map<String, Object> updates = supervisorNode.apply(state);
+
+        assertEquals("POST_FIX", updates.get("nextAgent"));
+    }
 }

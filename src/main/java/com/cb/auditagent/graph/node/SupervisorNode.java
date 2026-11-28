@@ -22,6 +22,7 @@ import com.cb.auditagent.client.jev.JevResponse;
 import com.cb.auditagent.config.AgentConfig;
 import com.cb.auditagent.config.JevProperties;
 import com.cb.auditagent.graph.agent.AgentStage;
+import com.cb.auditagent.graph.agent.RemediationOutcomeClassifier;
 import com.cb.auditagent.graph.agent.StageMilestone;
 import com.cb.auditagent.graph.agent.SupervisorDecision;
 import com.cb.auditagent.graph.state.MultiAgentState;
@@ -110,13 +111,7 @@ public class SupervisorNode implements NodeAction<MultiAgentState> {
         // Fast-path: Route with TypeSafe Jev Model if enabled
         String jevDecision = routeWithJev(state);
         if (jevDecision != null) {
-            memoryService.addUserMessage(threadId, runId, "Supervisor decided to route to: " + jevDecision);
-            Map<String, Object> updates = new HashMap<>();
-            updates.put("nextAgent", jevDecision);
-            updates.put("hops", hops + 1);
-            updates.put("retries", hops + 1);
-            updates.put("supervisorReasoning", "Selected via Jev fast-path routing");
-            return updates;
+            return finalizeRoutingDecision(state, jevDecision, "Selected via Jev fast-path routing");
         }
 
         StringBuilder promptBuilder = new StringBuilder();
@@ -152,13 +147,15 @@ public class SupervisorNode implements NodeAction<MultiAgentState> {
             promptBuilder.append("}\n");
             promptBuilder.append("3. The \"nextAgent\" value MUST be one of the available agents listed above, \"COMPLETE\", or \"FAIL\".\n");
             promptBuilder.append("4. Do NOT route to PLANNING again; it has already run.\n");
-            promptBuilder.append("5. Do not include markdown code block formatting or additional commentary outside the JSON object.\n");
+            promptBuilder.append("5. Do NOT route to POST_FIX or COMPLETE while Patch Applied is false (unless a stage explicitly confirmed a false positive, in which case route to COMPLETE). Invoke ROOT_CAUSE to apply the patch first.\n");
+            promptBuilder.append("6. Do not include markdown code block formatting or additional commentary outside the JSON object.\n");
         } else {
             promptBuilder.append("Rules:\n");
             promptBuilder.append("1. Follow the REMEDIATION PLAN order when deciding the next agent.\n");
             promptBuilder.append("2. Reply ONLY with the exact name of the next agent (e.g. 'DISCOVERY', 'SECURITY', 'COMPLETE', or 'FAIL').\n");
             promptBuilder.append("3. Do not include any other text, reasoning, or markdown.\n");
             promptBuilder.append("4. Do NOT route to PLANNING again; it has already run.\n");
+            promptBuilder.append("5. Do NOT route to POST_FIX or COMPLETE while Patch Applied is false (unless explicitly confirmed false positive); route to ROOT_CAUSE first.\n");
         }
 
         SystemMessage systemMessage = new SystemMessage(promptBuilder.toString());
@@ -204,8 +201,18 @@ public class SupervisorNode implements NodeAction<MultiAgentState> {
 
         // Parse structured response with resilient fuzzy normalization
         SupervisorDecision decision = parseSupervisorResponse(aiText);
-        String nextAgent = decision.nextAgent();
-        String reasoning = decision.reasoning();
+        return finalizeRoutingDecision(state, decision.nextAgent(), decision.reasoning());
+    }
+
+    private Map<String, Object> finalizeRoutingDecision(MultiAgentState state, String candidateAgent, String candidateReasoning) {
+        String runId = state.getRunId();
+        String threadId = state.getThreadId();
+        int hops = state.getHops();
+        Map<String, Integer> stageRetries = state.getStageRetries();
+
+        SupervisorDecision guarded = enforcePatchBeforeCompletion(state, candidateAgent, candidateReasoning);
+        String nextAgent = guarded.nextAgent();
+        String reasoning = guarded.reasoning();
 
         // Check if the chosen stage has already exceeded retry limits
         if (stageRetries.getOrDefault(nextAgent, 0) >= config.getMaxStageRetries()) {
@@ -227,22 +234,69 @@ public class SupervisorNode implements NodeAction<MultiAgentState> {
         return updates;
     }
 
+    private SupervisorDecision enforcePatchBeforeCompletion(MultiAgentState state, String nextAgent, String reasoning) {
+        if ((!"POST_FIX".equals(nextAgent) && !"COMPLETE".equals(nextAgent))
+                || state.isPatchApplied()
+                || state.getMilestones().isEmpty()
+                || hasSuccessfulPatchMilestone(state)) {
+            return new SupervisorDecision(nextAgent, reasoning);
+        }
+
+        boolean explicitFalsePositive = hasExplicitFalsePositiveConclusion(state);
+        if ("COMPLETE".equals(nextAgent) && explicitFalsePositive) {
+            return new SupervisorDecision("COMPLETE", reasoning);
+        }
+        if ("POST_FIX".equals(nextAgent) && explicitFalsePositive) {
+            return new SupervisorDecision("COMPLETE",
+                    "Redirected from POST_FIX to COMPLETE because an earlier stage confirmed a false positive.");
+        }
+
+        String redirectReason = "Redirected from " + nextAgent
+                + " to ROOT_CAUSE because no code patch has been applied yet.";
+        logger.info("Supervisor: {} (runId={})", redirectReason, state.getRunId());
+        return new SupervisorDecision("ROOT_CAUSE", redirectReason);
+    }
+
+    private boolean hasSuccessfulPatchMilestone(MultiAgentState state) {
+        return state.getMilestones().stream()
+                .anyMatch(m -> m.success()
+                        && (m.stage() == AgentStage.ROOT_CAUSE || m.stage() == AgentStage.FORMATTING));
+    }
+
+    private boolean hasExplicitFalsePositiveConclusion(MultiAgentState state) {
+        if (RemediationOutcomeClassifier.hasExplicitFalsePositiveInOutputs(state.getAgentOutputs())) {
+            return true;
+        }
+        return state.getMilestones().stream()
+                .anyMatch(m -> RemediationOutcomeClassifier.containsExplicitFalsePositiveAssertion(m.summary()));
+    }
+
     public String buildExecutionContext(MultiAgentState state) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Execution State: patchApplied=").append(state.isPatchApplied())
+                .append(", compilePassed=").append(state.isCompilePassed())
+                .append(", rescanPassed=").append(state.isRescanPassed())
+                .append(", testsPassed=").append(state.isTestsPassed()).append("\n");
+
         List<StageMilestone> milestones = state.getMilestones();
         if (milestones != null && !milestones.isEmpty()) {
-            return milestones.stream()
-                    .map(m -> String.format("- Stage: %s | Status: %s | Touched Files: %s | Summary: %s",
+            sb.append(milestones.stream()
+                    .map(m -> String.format("- Stage: %s | Status: %s | Modified Files: %s | Summary: %s",
                             m.stage() != null ? m.stage().name() : "UNKNOWN",
                             m.success() ? "SUCCESS" : "FAILED",
                             m.touchedFiles() != null && !m.touchedFiles().isEmpty() ? String.join(", ", m.touchedFiles()) : "none",
                             truncateTokens(m.summary(), 150)))
-                    .collect(Collectors.joining("\n"));
+                    .collect(Collectors.joining("\n")));
+            return sb.toString();
         }
 
         Map<String, String> outputs = state.getAgentOutputs();
-        return outputs.entrySet().stream()
-                .map(e -> e.getKey() + " output: " + e.getValue())
-                .collect(Collectors.joining("\n"));
+        if (!outputs.isEmpty()) {
+            sb.append(outputs.entrySet().stream()
+                    .map(e -> e.getKey() + " output: " + e.getValue())
+                    .collect(Collectors.joining("\n")));
+        }
+        return sb.toString();
     }
 
     public SupervisorDecision parseSupervisorResponse(String rawAiText) {
@@ -380,7 +434,13 @@ public class SupervisorNode implements NodeAction<MultiAgentState> {
 
             Map<String, String> stageCriteria = new LinkedHashMap<>();
             for (String opt : options) {
-                stageCriteria.put(opt, "Execute stage " + opt);
+                if ("POST_FIX".equals(opt)) {
+                    stageCriteria.put(opt, "Execute stage POST_FIX (only when Patch Applied is true)");
+                } else if ("COMPLETE".equals(opt)) {
+                    stageCriteria.put(opt, "Finish workflow (only when Patch Applied is true and verified, or confirmed false positive)");
+                } else {
+                    stageCriteria.put(opt, "Execute stage " + opt);
+                }
             }
 
             JevQuestion question = JevQuestion.choice(

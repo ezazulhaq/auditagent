@@ -86,6 +86,11 @@ public class MultiAgentRemediationGraph {
                 subStateMap.put("allowedTools", stage.getAllowedTools());
                 subStateMap.put("maxIterations", config.getMaxIterations());
                 subStateMap.put("iteration", 0);
+                subStateMap.put("consecutiveEmptyResponses", 0);
+                subStateMap.put("consecutiveSameToolCalls", 0);
+                subStateMap.put("hitMaxIterations", false);
+                subStateMap.put("finalResponse", null);
+                subStateMap.put("rootCauseNudgeCount", 0);
 
                 String subThreadId = String.format("%s:%s:%s", threadId, runId, stage.name());
                 RunnableConfig subConfig = RunnableConfig.builder()

@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 import com.cb.auditagent.config.AgentConfig;
 import com.cb.auditagent.graph.RemediationState;
 import com.cb.auditagent.graph.node.*;
+import com.cb.auditagent.service.ConversationMemoryService;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import static org.bsc.langgraph4j.action.AsyncEdgeAction.edge_async;
 import static org.bsc.langgraph4j.action.AsyncNodeAction.node_async;
@@ -21,6 +23,7 @@ import java.util.regex.Pattern;
 public class WorkerAgentGraphFactory {
 
     private static final Pattern FILE_PATH_PATTERN = Pattern.compile("\"(?:file_path|filePath)\"\\s*:\\s*\"([^\"]+)\"");
+    private static final int MAX_ROOT_CAUSE_PATCH_NUDGES = 2;
 
     private final AgentConfig config;
     private final BaseCheckpointSaver checkpointSaver;
@@ -30,6 +33,7 @@ public class WorkerAgentGraphFactory {
     private final NudgeNode nudgeNode;
     private final EmptyResponseNode emptyResponseNode;
     private final TimeoutNode timeoutNode;
+    private final ConversationMemoryService memoryService;
 
     public WorkerAgentGraphFactory(
             AgentConfig config,
@@ -40,6 +44,21 @@ public class WorkerAgentGraphFactory {
             NudgeNode nudgeNode,
             EmptyResponseNode emptyResponseNode,
             TimeoutNode timeoutNode) {
+        this(config, checkpointSaver, modelCallNode, toolExecutionNode, stuckDetectionNode,
+                nudgeNode, emptyResponseNode, timeoutNode, null);
+    }
+
+    @Autowired
+    public WorkerAgentGraphFactory(
+            AgentConfig config,
+            BaseCheckpointSaver checkpointSaver,
+            ModelCallNode modelCallNode,
+            ToolExecutionNode toolExecutionNode,
+            StuckDetectionNode stuckDetectionNode,
+            NudgeNode nudgeNode,
+            EmptyResponseNode emptyResponseNode,
+            TimeoutNode timeoutNode,
+            @Autowired(required = false) ConversationMemoryService memoryService) {
         this.config = config;
         this.checkpointSaver = checkpointSaver;
         this.modelCallNode = modelCallNode;
@@ -48,6 +67,7 @@ public class WorkerAgentGraphFactory {
         this.nudgeNode = nudgeNode;
         this.emptyResponseNode = emptyResponseNode;
         this.timeoutNode = timeoutNode;
+        this.memoryService = memoryService;
     }
 
     public CompiledGraph<RemediationState> createWorkerGraph(AgentStage stage) throws Exception {
@@ -57,6 +77,15 @@ public class WorkerAgentGraphFactory {
                 .addNode("execute_tools", node_async(toolExecutionNode))
                 .addNode("stuck_detection", node_async(stuckDetectionNode))
                 .addNode("nudge", node_async(nudgeNode))
+                .addNode("patch_nudge", node_async(state -> {
+                    if (memoryService != null) {
+                        memoryService.addUserMessage(state.getThreadId(), state.getRunId(),
+                                "[HARNESS WARNING]: You are in the ROOT_CAUSE stage and NO code patch has been applied yet (patchApplied=false). "
+                                        + "You MUST call apply_patch now using the exact existing lines from read_file as originalCode and your security fix as replacementCode. "
+                                        + "Do not finish with prose recommendations alone unless you explicitly confirm this finding is a false positive.");
+                    }
+                    return Map.of("rootCauseNudgeCount", state.getRootCauseNudgeCount() + 1);
+                }))
                 .addNode("empty_response", node_async(emptyResponseNode))
                 .addNode("timeout_handler", node_async(timeoutNode))
                 .addNode("record_milestone", node_async(state -> {
@@ -73,11 +102,19 @@ public class WorkerAgentGraphFactory {
                         return "empty_response";
                     if ("tools".equals(nextAction))
                         return "execute_tools";
+                    if (stage == AgentStage.ROOT_CAUSE
+                            && !state.isPatchApplied()
+                            && state.getIteration() < state.getMaxIterations()
+                            && state.getRootCauseNudgeCount() < MAX_ROOT_CAUSE_PATCH_NUDGES
+                            && !RemediationOutcomeClassifier.containsExplicitFalsePositiveAssertion(state.getFinalResponse())) {
+                        return "patch_nudge";
+                    }
                     return "record_milestone";
                 }), Map.of(
                         "timeout_handler", "timeout_handler",
                         "empty_response", "empty_response",
                         "execute_tools", "execute_tools",
+                        "patch_nudge", "patch_nudge",
                         "record_milestone", "record_milestone"))
                 .addEdge("execute_tools", "stuck_detection")
                 .addConditionalEdges("stuck_detection", edge_async(state -> {
@@ -87,6 +124,7 @@ public class WorkerAgentGraphFactory {
                     return state.getConsecutiveSameToolCalls() >= 3 ? "nudge" : "call_model";
                 }), Map.of("record_milestone", "record_milestone", "nudge", "nudge", "call_model", "call_model"))
                 .addEdge("nudge", "call_model")
+                .addEdge("patch_nudge", "call_model")
                 .addConditionalEdges("empty_response", edge_async(
                         state -> state.getConsecutiveEmptyResponses() >= config.getMaxConsecutiveEmptyResponses()
                                 ? "record_milestone"
@@ -143,16 +181,19 @@ public class WorkerAgentGraphFactory {
     private List<String> extractTouchedFiles(RemediationState state) {
         Set<String> files = new LinkedHashSet<>();
 
-        if (state.getVulnerability() != null && state.getVulnerability().getFilePath() != null) {
-            String path = state.getVulnerability().getFilePath().trim();
-            if (!path.isBlank()) {
-                files.add(path);
-            }
-        }
-
         List<Map<String, Object>> trajectory = state.getTrajectory();
         if (trajectory != null) {
             for (Map<String, Object> step : trajectory) {
+                Object actionObj = step.get("action");
+                String action = actionObj != null ? String.valueOf(actionObj) : "";
+                if (!"apply_patch".equals(action) && !"rollback_file".equals(action)) {
+                    continue;
+                }
+                Object resultObj = step.get("result");
+                String result = resultObj != null ? String.valueOf(resultObj) : "";
+                if (!result.startsWith("SUCCESS")) {
+                    continue;
+                }
                 Object argsObj = step.get("args");
                 if (argsObj instanceof String argsStr) {
                     Matcher m = FILE_PATH_PATTERN.matcher(argsStr);
@@ -160,6 +201,14 @@ public class WorkerAgentGraphFactory {
                         files.add(m.group(1).trim());
                     }
                 }
+            }
+        }
+
+        if (files.isEmpty() && state.isPatchApplied()
+                && state.getVulnerability() != null && state.getVulnerability().getFilePath() != null) {
+            String path = state.getVulnerability().getFilePath().trim();
+            if (!path.isBlank()) {
+                files.add(path);
             }
         }
 

@@ -216,4 +216,48 @@ class ApprovalReadyNodeTest {
         verify(database).updateVulnerabilityStatus(eq(vulnId), eq(VulnerabilityStatus.AWAITING_APPROVAL),
                 eq("Verified security fix applied."));
     }
+
+    @Test
+    @DisplayName("When CompleteNode set VERIFICATION_INCOMPLETE with explicit false positive, marks IGNORED")
+    void whenFilesEmpty_andVerificationIncompleteWithFalsePositive_marksIgnored() {
+        AgentRunRecord run = new AgentRunRecord(runId, threadId, vulnId, "fingerprint",
+                workspacePath.toString(), AgentPhase.FAILED, AgentRunStatus.FAILED,
+                2, 0, 15, false, false, false, false, null,
+                "This finding is a false positive because input is sanitized upstream.",
+                "VERIFICATION_INCOMPLETE", "This finding is a false positive because input is sanitized upstream.",
+                LocalDateTime.now());
+        when(database.getAgentRun(runId)).thenReturn(Optional.of(run));
+        when(sourceControl.changedFiles(workspacePath)).thenReturn(List.of());
+
+        Map<String, Object> stateData = new HashMap<>();
+        stateData.put("runId", runId);
+        stateData.put("authenticatedUser", user);
+        WorkflowState state = new WorkflowState(stateData);
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> approvalReadyNode.apply(state));
+        assertTrue(ex.getMessage().contains("IGNORED"));
+        verify(database).updateVulnerabilityStatus(eq(vulnId), eq(VulnerabilityStatus.IGNORED), any());
+    }
+
+    @Test
+    @DisplayName("When CompleteNode set VERIFICATION_INCOMPLETE without false positive, marks PATCH_FAILED")
+    void whenFilesEmpty_andVerificationIncompleteWithoutFalsePositive_marksPatchFailed() {
+        AgentRunRecord run = new AgentRunRecord(runId, threadId, vulnId, "fingerprint",
+                workspacePath.toString(), AgentPhase.FAILED, AgentRunStatus.FAILED,
+                2, 0, 15, false, true, false, false, null,
+                "## Post-Fix Validation & Diff Review\n- Compilation: PASSED",
+                "VERIFICATION_INCOMPLETE", "## Post-Fix Validation & Diff Review",
+                LocalDateTime.now());
+        when(database.getAgentRun(runId)).thenReturn(Optional.of(run));
+        when(sourceControl.changedFiles(workspacePath)).thenReturn(List.of());
+
+        Map<String, Object> stateData = new HashMap<>();
+        stateData.put("runId", runId);
+        stateData.put("authenticatedUser", user);
+        WorkflowState state = new WorkflowState(stateData);
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> approvalReadyNode.apply(state));
+        assertTrue(ex.getMessage().contains("PATCH_FAILED"));
+        verify(database).updateVulnerabilityStatus(eq(vulnId), eq(VulnerabilityStatus.PATCH_FAILED), any());
+    }
 }

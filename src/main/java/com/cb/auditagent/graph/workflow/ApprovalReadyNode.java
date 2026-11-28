@@ -15,6 +15,7 @@ import com.cb.auditagent.domain.AuthenticatedUser;
 import com.cb.auditagent.domain.ManagedRepository;
 import com.cb.auditagent.domain.RunPublicationRecord;
 import com.cb.auditagent.domain.VulnerabilityStatus;
+import com.cb.auditagent.graph.agent.RemediationOutcomeClassifier;
 import com.cb.auditagent.service.DatabaseService;
 import com.cb.auditagent.service.PatchBundleService;
 import com.cb.auditagent.service.SourceControlProvider;
@@ -235,23 +236,28 @@ public class ApprovalReadyNode implements NodeAction<WorkflowState> {
     }
 
     private boolean isExplicitFalsePositive(AgentRunRecord run, WorkflowState state) {
-        // 1. If run failed, was aborted, timed out, or encountered errors, it is NOT a false positive
-        if (run.phase() == AgentPhase.FAILED
-                || run.phase() == AgentPhase.INTERRUPTED
+        // 1. If run was aborted, timed out, interrupted, conflicted, or discarded, it is NOT a false positive.
+        // Note: CompleteNode records FAILED + VERIFICATION_INCOMPLETE whenever no patch was applied;
+        // allow false-positive text detection only for that status when no failure indicators are present.
+        if (run.phase() == AgentPhase.INTERRUPTED
                 || run.phase() == AgentPhase.CONFLICTED
                 || run.phase() == AgentPhase.DISCARDED) {
             return false;
         }
 
-        if (run.status() == AgentRunStatus.FAILED
-                || run.status() == AgentRunStatus.INTERRUPTED
+        if (run.status() == AgentRunStatus.INTERRUPTED
                 || run.status() == AgentRunStatus.CONFLICTED
                 || run.status() == AgentRunStatus.DISCARDED) {
             return false;
         }
 
-        if (run.errorCode() != null && !run.errorCode().isBlank()
-                && !"VERIFICATION_INCOMPLETE".equalsIgnoreCase(run.errorCode())) {
+        boolean verificationIncompleteOnly = "VERIFICATION_INCOMPLETE".equalsIgnoreCase(run.errorCode());
+        if ((run.phase() == AgentPhase.FAILED || run.status() == AgentRunStatus.FAILED)
+                && !verificationIncompleteOnly) {
+            return false;
+        }
+
+        if (run.errorCode() != null && !run.errorCode().isBlank() && !verificationIncompleteOnly) {
             return false;
         }
 
@@ -266,65 +272,24 @@ public class ApprovalReadyNode implements NodeAction<WorkflowState> {
 
         // 2. Check if summary or state responses contain abort/timeout/exhaustion indicators
         String summary = run.finalSummary();
-        if (containsFailureIndicators(summary)) {
+        if (RemediationOutcomeClassifier.containsFailureIndicators(summary)) {
             return false;
         }
 
         String finalResponse = state.getFinalResponse();
-        if (containsFailureIndicators(finalResponse)) {
+        if (RemediationOutcomeClassifier.containsFailureIndicators(finalResponse)) {
             return false;
         }
 
         // 3. Check for explicit assertion of false positive in summary, response, or agent outputs
-        return containsExplicitFalsePositiveAssertion(summary)
-                || containsExplicitFalsePositiveAssertion(finalResponse)
+        return RemediationOutcomeClassifier.containsExplicitFalsePositiveAssertion(summary)
+                || RemediationOutcomeClassifier.containsExplicitFalsePositiveAssertion(finalResponse)
                 || containsExplicitFalsePositiveAssertionInOutputs(state);
-    }
-
-    private boolean containsFailureIndicators(String text) {
-        if (text == null || text.isBlank()) {
-            return false;
-        }
-        String lower = text.toLowerCase();
-        return lower.contains("aborted")
-                || lower.contains("max iterations")
-                || lower.contains("maximum iterations")
-                || lower.contains("consecutive empty responses")
-                || lower.contains("consecutive same tool")
-                || lower.contains("timed out")
-                || lower.contains("timeout")
-                || lower.contains("remediation failed");
-    }
-
-    private boolean containsExplicitFalsePositiveAssertion(String text) {
-        if (text == null || text.isBlank()) {
-            return false;
-        }
-        String lower = text.toLowerCase();
-        if (lower.contains("not a false positive")
-                || lower.contains("not a false-positive")
-                || lower.contains("is not a false positive")
-                || lower.contains("isn't a false positive")) {
-            return false;
-        }
-
-        return lower.contains("false positive")
-                || lower.contains("false-positive")
-                || lower.contains("not a vulnerability")
-                || lower.contains("not a security vulnerability")
-                || lower.contains("no vulnerability")
-                || lower.contains("invalid finding");
     }
 
     private boolean containsExplicitFalsePositiveAssertionInOutputs(WorkflowState state) {
         Object outputs = state.data().get("agentOutputs");
-        if (outputs instanceof Map<?, ?> map) {
-            for (Object value : map.values()) {
-                if (value != null && containsExplicitFalsePositiveAssertion(String.valueOf(value))) {
-                    return true;
-                }
-            }
-        }
-        return false;
+        return outputs instanceof Map<?, ?> map
+                && RemediationOutcomeClassifier.hasExplicitFalsePositiveInOutputs(map);
     }
 }
