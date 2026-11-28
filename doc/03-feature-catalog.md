@@ -81,7 +81,7 @@ This catalog connects each feature to its user/business outcome and main impleme
 
 | Feature | Behavior | Implementation |
 |---|---|---|
-| Authentication gate | Unauthenticated users see an enterprise access page with configuration status, protected-access guidance, and the no-write-before-approval promise. | `LoginPage` |
+| Authentication gate | Unauthenticated users see an enterprise access page with configuration status, protected-access guidance, and the no-write-before-approval promise; on mobile viewports, the sign-in panel appears directly below the compact brand header above the fold ahead of product capabilities. | `LoginPage` |
 | Onboarding walkthrough tour | A dynamic onboarding modal guides first-time users through the Dashboard, Findings, Chat, and Remediation workflows. | `OnboardingTour.jsx`, `AppHeader.jsx`, `App.jsx` |
 | Repository/branch panel | Selection, permission context, installation guidance, scanner, rescan toggle, wall-clock elapsed time, progress, and errors are grouped. Panel can be collapsed/expanded to maximize workspace area. | `ScanPanel`, `useScanElapsedSeconds`, `App.jsx` state |
 | Responsive enterprise layout | Scan rail, workspace tabs, metrics, finding rows, report, full-screen mobile drawer, and bottom-sheet chat adapt from 320px mobile widths through large desktop workspaces, styled with Plus Jakarta Sans and JetBrains Mono typography. | Tailwind classes and `index.css` design primitives |
