@@ -36,6 +36,7 @@ COPY .mvn/ .mvn/
 RUN chmod +x mvnw && ./mvnw dependency:go-offline -B || true
 
 COPY src/ ./src/
+COPY doc/ ./doc/
 # Inject pre-built frontend static assets into Spring Boot's static resources
 COPY --from=frontend-builder /app/src/main/resources/static/ ./src/main/resources/static/
 
@@ -101,8 +102,9 @@ WORKDIR ${AUDITAGENT_HOME}
 # Copy the packaged Spring Boot executable JAR
 COPY --from=backend-builder --chown=auditagent:auditagent /app/target/auditagent-*.jar ${AUDITAGENT_HOME}/auditagent.jar
 
-# Copy security scanning rules (runtime remediation skills are packaged in JAR from src/main/resources/skills)
+# Copy security scanning rules and project documentation (runtime skills and docs are also packaged in the JAR)
 COPY --chown=auditagent:auditagent rules/ ${AUDITAGENT_HOME}/rules/
+COPY --chown=auditagent:auditagent doc/ ${AUDITAGENT_HOME}/doc/
 COPY --chown=auditagent:auditagent .auditagent/ ${AUDITAGENT_HOME}/.auditagent/
 
 # Set standard environment defaults

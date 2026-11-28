@@ -52,6 +52,8 @@
 | `ApiExceptionHandler.java` | Safe 400/403/409/422 JSON errors. |
 | `AuditController.java` | Scan, analyze, report, skill, and chat APIs. |
 | `AuthController.java` | Session, OAuth start/callback, logout. |
+| `DocHandler.java` | Lists and serves Markdown documentation from `doc/` with `classpath*:doc/*.md` fallback and traversal guards. |
+| `DocRouter.java` | WebFlux router mapping `/api/docs` and `/api/docs/{filename}` to `DocHandler`. |
 | `GitHubRepositoryController.java` | Installed repositories, branches, and tracked GitHub issues. |
 | `GitHubWebhookController.java` | Signed/replay-protected PR, issue, and issue comment webhook. |
 | `ObservabilityController.java` | Aggregated user-level observability metrics (e.g. token usage). |
@@ -329,7 +331,7 @@
 | `.agents/rules/git-commit-policy.md` | Developer workspace rule: Mandatory Step 0 Pre-Flight Reflex, branch protection, and explicit user approval prior to git commit and push. |
 | `.agents/rules/pr-merge-policy.md` | Developer workspace rule: Pull Requests must strictly target and merge into dev only. |
 | `.agents/rules/solid-principles-policy.md` | Developer workspace rule: Strict adherence to SOLID principles (Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, Dependency Inversion) across all future frontend and backend architectural additions. |
-| `pom.xml` | Java dependencies, versions, build plugin. |
+| `pom.xml` | Java dependencies, versions, build plugin, and `doc/*.md` classpath resource packaging. |
 | `frontend/package.json` | Frontend dependencies and scripts. |
 | `frontend/vite.config.js` | plugins, backend proxy, production output. |
 | `frontend/vitest.config.js` | frontend test environment. |
@@ -354,11 +356,11 @@
 
 ### Backend
 
-`AuditagentApplicationTests`, `ApiSecurityFilterTest`, `AuditControllerReportExportTest`, `ChatConversationServiceTest`, `GitHubWebhookControllerTest`, `GitHubRepositoryControllerTest`, `IssueLifecycleServiceTest`, `AgentToolServiceSecurityTest`, `ContainerizedSandboxSecurityTest`, `ConversationMemoryServiceTest`, `DatabaseMemoryServiceTest`, `FindingTriageServiceTest`, `FindingTriageConcurrencyTest`, `GitHubAuthServiceTest`, `GitHubAuthServiceConcurrencyTest`, `GitHubProviderIntegrationTest`, `JevClientTest`, `LlmErrorClassifierTest`, `LlmServiceAgentLoopTest`, `LlmTokenAuditServiceTest`, `ManagedProcessRunnerTest`, `PatchBundleServiceTest`, `ProjectUploadControllerTest`, `ProjectUploadServiceTest`, `RabbitMqTaskQueueTest`, `RemediationToolRegistryTest`, `RemediationWorkflowPreparationTest`, `CloneWorkspaceNodeConcurrencyTest`, `EventBroadcastServiceRabbitMqTest`, `EventBroadcastServiceTest`, `RepositoryEventsControllerTest`, `RunPublicationControllerTest`, `ScanOrchestratorReportExportTest`, `ScanOrchestratorServiceTest`, `ReporterServiceTest`, `ScannerServiceTest`, `StatelessPublicationTest`, `SupabaseStorageServiceTest`, `SupabaseStorageClientTest`, `ScanDataServiceBatchUpsertTest`, `PostgresKnowledgeBaseFtsPerformanceTest`, `SupervisorNodeTest`, `SupervisorNodeStructuredTest`, `SupervisorContextCompressionTest`, `MultiAgentExecutionLimitTest`, `StageMilestoneSerializationTest`, `WorkerAgentGraphFactoryTest`, `RemediationWorkflowGraphIsolationTest`, `TokenCipherTest`, `UserLlmClientFactoryTest`, `UserLlmConfigControllerTest`, `UserLlmConfigServiceTest`, and `ZipArchiveExtractorTest`.
+`AuditagentApplicationTests`, `ApiSecurityFilterTest`, `AuditControllerReportExportTest`, `ChatConversationServiceTest`, `DocHandlerTest`, `GitHubWebhookControllerTest`, `GitHubRepositoryControllerTest`, `IssueLifecycleServiceTest`, `AgentToolServiceSecurityTest`, `ContainerizedSandboxSecurityTest`, `ConversationMemoryServiceTest`, `DatabaseMemoryServiceTest`, `FindingTriageServiceTest`, `FindingTriageConcurrencyTest`, `GitHubAuthServiceTest`, `GitHubAuthServiceConcurrencyTest`, `GitHubProviderIntegrationTest`, `JevClientTest`, `LlmErrorClassifierTest`, `LlmServiceAgentLoopTest`, `LlmTokenAuditServiceTest`, `ManagedProcessRunnerTest`, `PatchBundleServiceTest`, `ProjectUploadControllerTest`, `ProjectUploadServiceTest`, `RabbitMqTaskQueueTest`, `RemediationToolRegistryTest`, `RemediationWorkflowPreparationTest`, `CloneWorkspaceNodeConcurrencyTest`, `EventBroadcastServiceRabbitMqTest`, `EventBroadcastServiceTest`, `RepositoryEventsControllerTest`, `RunPublicationControllerTest`, `ScanOrchestratorReportExportTest`, `ScanOrchestratorServiceTest`, `ReporterServiceTest`, `ScannerServiceTest`, `StatelessPublicationTest`, `SupabaseStorageServiceTest`, `SupabaseStorageClientTest`, `ScanDataServiceBatchUpsertTest`, `PostgresKnowledgeBaseFtsPerformanceTest`, `SupervisorNodeTest`, `SupervisorNodeStructuredTest`, `SupervisorContextCompressionTest`, `MultiAgentExecutionLimitTest`, `StageMilestoneSerializationTest`, `WorkerAgentGraphFactoryTest`, `RemediationWorkflowGraphIsolationTest`, `TokenCipherTest`, `UserLlmClientFactoryTest`, `UserLlmConfigControllerTest`, `UserLlmConfigServiceTest`, and `ZipArchiveExtractorTest`.
 
 ### Frontend
 
-Tests cover App, API (`auditApi.test.js`), SSE, scan state/panel/wall-clock timing, thread restore, remediation normalizer (`remediationNormalizer.test.js`), remediation reducer (`useRemediationReducer.test.js`), remediation controller/drawer (`useRemediationController.test.jsx`), findings, dashboard (`DashboardView.test.jsx`), tracked issues, report, and user LLM configuration dialogs (`LlmConfigForm.test.jsx`, `LlmOnboardingModal.test.jsx`, `UserProfileModal.test.jsx`).
+Tests cover App, API (`auditApi.test.js`), SSE, scan state/panel/wall-clock timing, thread restore, remediation normalizer (`remediationNormalizer.test.js`), remediation reducer (`useRemediationReducer.test.js`), remediation controller/drawer (`useRemediationController.test.jsx`), findings, dashboard (`DashboardView.test.jsx`), documentation viewer (`DocsView.test.jsx`), tracked issues, report, and user LLM configuration dialogs (`LlmConfigForm.test.jsx`, `LlmOnboardingModal.test.jsx`, `UserProfileModal.test.jsx`).
 
 ## Rule inventory
 

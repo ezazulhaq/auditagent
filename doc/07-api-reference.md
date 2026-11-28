@@ -647,11 +647,11 @@ Returns discovered skill objects. This route is protected by session via the API
 
 ### `GET /api/docs`
 
-Returns a JSON array of all available `.md` documentation filenames within the repository's `doc/` directory.
+Returns a sorted JSON array of all available `.md` documentation filenames from the `doc/` directory (or packaged `classpath*:doc/*.md` fallback when running outside the repository root).
 
 ### `GET /api/docs/{filename}`
 
-Returns the raw `text/plain` markdown content of the requested documentation file. Access is restricted exclusively to files within the `doc/` directory to prevent directory traversal attacks.
+Returns the raw `text/plain; charset=UTF-8` markdown content of the requested documentation file from `doc/` (or packaged classpath fallback). Access is restricted exclusively to top-level `.md` filenames without path separators or traversal segments (`403` on invalid filenames, `404` when absent).
 
 ## Notifications
 

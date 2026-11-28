@@ -63,6 +63,12 @@
 
 - Backed by user-bound queries in `DatabaseService`.
 
+### `DocRouter` and `DocHandler`
+
+- Exposes `GET /api/docs` and `GET /api/docs/{filename}` via WebFlux functional routing.
+- Reads `.md` files from the configured `doc/` directory (`auditagent.docs.dir`, default `doc`) in sorted order and falls back to packaged `classpath*:doc/*.md` resources when running from a JAR or container without a working-directory `doc/` folder.
+- Rejects directory-traversal characters and non-Markdown filenames with `403` and returns `text/plain; charset=UTF-8` content.
+
 ### `UserLlmConfigController`
 
 - `GET /api/user/llm-config`: Retrieves the current user's saved LLM provider, base URL, primary model, supervisor model, and masked API key (`sk-or-••••••••3a8f`).

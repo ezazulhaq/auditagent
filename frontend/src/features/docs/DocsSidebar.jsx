@@ -1,18 +1,26 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Book, ChevronRight, ChevronLeft, FileText } from 'lucide-react';
 
 export function DocsSidebar({ api, theme, isOpen, onToggle, selectedDoc, onSelectDoc }) {
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const selectedDocRef = useRef(selectedDoc);
+
+  useEffect(() => {
+    selectedDocRef.current = selectedDoc;
+  }, [selectedDoc]);
 
   useEffect(() => {
     const controller = new AbortController();
     api.getDocs(controller.signal)
       .then(fetchedDocs => {
-        setDocs(fetchedDocs);
-        if (fetchedDocs.length > 0 && !selectedDoc) {
-          onSelectDoc(fetchedDocs[0]);
+        if (controller.signal.aborted) return;
+        const list = Array.isArray(fetchedDocs) ? fetchedDocs : [];
+        setDocs(list);
+        setError(null);
+        if (list.length > 0 && !selectedDocRef.current) {
+          onSelectDoc(list[0]);
         }
       })
       .catch(err => {
@@ -22,7 +30,7 @@ export function DocsSidebar({ api, theme, isOpen, onToggle, selectedDoc, onSelec
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [api, selectedDoc, onSelectDoc]);
+  }, [api, onSelectDoc]);
 
   if (!isOpen) {
     return (

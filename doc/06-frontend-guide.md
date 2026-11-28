@@ -226,7 +226,7 @@ Shows guided empty-state steps or executive metric cards, severity distribution,
 
 ### `DocsSidebar` and `DocsMainPanel`
 
-Provide the in-app documentation viewing experience. `DocsSidebar` fetches the list of available documentation files via `auditApi`, formats their filenames for display, and handles selection. `DocsMainPanel` fetches the raw markdown content of the selected document and renders it using `react-markdown` with `@tailwindcss/typography` styles applied.
+Provide the in-app documentation viewing experience. `DocsSidebar` fetches the list of available documentation files once via `auditApi` (auto-selecting the first document when none is selected without re-fetching the directory list on selection changes), formats their filenames for display, and handles selection. `DocsMainPanel` fetches the raw markdown content of the selected document and renders it using `react-markdown` with `@tailwindcss/typography` styles applied.
 
 ### `FindingsView`
 
