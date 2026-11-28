@@ -30,9 +30,9 @@ flowchart LR
 
 ### 1.1 Problem Statement & Objectives
 - **Broken Multi-Node Event Streaming:** In-memory `jobSinks` maps caused remote worker progress events to be invisible to web ingress pods serving client Server-Sent Events (SSE) connections.
-- **Carrier Thread Pinning:** Method-level and block-level `synchronized` keywords around blocking disk/network I/O in [GitHubAuthService.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/service/GitHubAuthService.java) and [CloneWorkspaceNode.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/graph/workflow/CloneWorkspaceNode.java) pinned Java 21 OS carrier threads.
+- **Carrier Thread Pinning:** Method-level and block-level `synchronized` keywords around blocking disk/network I/O in [GitHubAuthService.java](../src/main/java/com/cb/auditagent/service/GitHubAuthService.java) and [CloneWorkspaceNode.java](../src/main/java/com/cb/auditagent/graph/workflow/CloneWorkspaceNode.java) pinned Java 21 OS carrier threads.
 - **Scan Queue Bypassing:** Primary scan endpoint `POST /api/scan` bypassed RabbitMQ, running CPU-heavy Semgrep AST parsing directly on web pods without backpressure.
-- **Unbounded Parallel Triage:** [FindingTriageService.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/service/FindingTriageService.java) launched unbounded virtual threads, triggering `HTTP 429 Too Many Requests` cascades during large scans.
+- **Unbounded Parallel Triage:** [FindingTriageService.java](../src/main/java/com/cb/auditagent/service/FindingTriageService.java) launched unbounded virtual threads, triggering `HTTP 429 Too Many Requests` cascades during large scans.
 - **Checkpoint Collisions:** Sub-agent executions defaulted to `"default"` `threadId`, causing multi-tenant checkpoint overwrites in PostgreSQL table `graph_checkpoints`.
 
 ### 1.2 Architecture & Flow
@@ -60,11 +60,11 @@ sequenceDiagram
 ```
 
 ### 1.3 Implemented Components
-1. **RabbitMQ Event Topology**: Declared durable `auditagent.events` fanout exchange in [RabbitMqConfig.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/config/RabbitMqConfig.java) and ephemeral, auto-delete `AnonymousQueue` on web pods.
+1. **RabbitMQ Event Topology**: Declared durable `auditagent.events` fanout exchange in [RabbitMqConfig.java](../src/main/java/com/cb/auditagent/config/RabbitMqConfig.java) and ephemeral, auto-delete `AnonymousQueue` on web pods.
 2. **Striped `ReentrantLock` Striping**: Replaced global `synchronized` locks with identifier-keyed locks (`userId` in `GitHubAuthService` and `repoId:branch:fingerprint` in `CloneWorkspaceNode`), eliminating carrier thread pinning.
-3. **Queue-Backed Scans**: Added `enqueueAndStreamScan` in [ScanOrchestratorService.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/service/ScanOrchestratorService.java) and updated [AuditController.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/controller/AuditController.java) with virtual-thread local fallback.
+3. **Queue-Backed Scans**: Added `enqueueAndStreamScan` in [ScanOrchestratorService.java](../src/main/java/com/cb/auditagent/service/ScanOrchestratorService.java) and updated [AuditController.java](../src/main/java/com/cb/auditagent/controller/AuditController.java) with virtual-thread local fallback.
 4. **Bounded Triage Concurrency**: Wrapped triage calls in a `Semaphore` (default: 8 permits) with exponential backoff on HTTP 429 errors.
-5. **Scoped Checkpoint Keys**: In [MultiAgentRemediationGraph.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/graph/MultiAgentRemediationGraph.java), sub-agent graph executions pass `String.format("%s:%s:%s", threadId, runId, stage.name())`.
+5. **Scoped Checkpoint Keys**: In [MultiAgentRemediationGraph.java](../src/main/java/com/cb/auditagent/graph/MultiAgentRemediationGraph.java), sub-agent graph executions pass `String.format("%s:%s:%s", threadId, runId, stage.name())`.
 
 ### 1.4 Implementation and Verification Checklist (Phase 1)
 - [x] **RabbitMQ Event Topology**: Declared `auditagent.events` exchange and ephemeral queue listener in `RabbitMqConfig.java` and `EventBroadcastService.java`.
@@ -85,10 +85,10 @@ sequenceDiagram
 ## Phase 2: Database Performance Hardening & Storage Offloading *(Implemented in v2.8.0)*
 
 ### 2.1 Problem Statement & Objectives
-1. **Unindexed On-The-Fly FTS**: In [PostgresKnowledgeBaseService.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/service/PostgresKnowledgeBaseService.java#L118-L122), queries compute `to_tsvector('english', ...)` dynamically on text strings inside the `WHERE` clause for every row. As approved memories accumulate, every search incurs a high-CPU sequential table scan.
-2. **N+1 Finding Persistence**: In [ScanDataService.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/service/data/ScanDataService.java#L150-L181), saving a scan iterates over findings sequentially, executing an individual `SELECT` (`findFirstByRepoPathAndFindingFingerprint`) and individual `save()` per finding (2,000+ DB queries for a 1,000-finding scan).
+1. **Unindexed On-The-Fly FTS**: In [PostgresKnowledgeBaseService.java](../src/main/java/com/cb/auditagent/service/PostgresKnowledgeBaseService.java#L118-L122), queries compute `to_tsvector('english', ...)` dynamically on text strings inside the `WHERE` clause for every row. As approved memories accumulate, every search incurs a high-CPU sequential table scan.
+2. **N+1 Finding Persistence**: In [ScanDataService.java](../src/main/java/com/cb/auditagent/service/data/ScanDataService.java#L150-L181), saving a scan iterates over findings sequentially, executing an individual `SELECT` (`findFirstByRepoPathAndFindingFingerprint`) and individual `save()` per finding (2,000+ DB queries for a 1,000-finding scan).
 3. **Relational Table Bloat**: Finding details are duplicated: stored once as relational rows in `vulnerabilities` and once stringified inside `reports.findings_json`.
-4. **Stubbed Storage Service**: [SupabaseStorageService.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/service/storage/SupabaseStorageService.java#L68) currently logs a comment (`// Future HTTP client call...`) and falls back to writing files to the local node filesystem, defeating multi-pod artifact access.
+4. **Stubbed Storage Service**: [SupabaseStorageService.java](../src/main/java/com/cb/auditagent/service/storage/SupabaseStorageService.java#L68) currently logs a comment (`// Future HTTP client call...`) and falls back to writing files to the local node filesystem, defeating multi-pod artifact access.
 
 ### 2.2 Technical Design
 
@@ -180,13 +180,13 @@ auditagent:
 
 ### 3.1 Problem Statement & Objectives
 1. **Framework Fragmentation**: The application imports Spring AI (`ChatModel`), LangChain4j (`ChatModel`), official OpenAI Java SDK (`OpenAIClient`), and raw Spring `WebClient` simultaneously.
-2. **Dual Caching Pools**: [UserLlmClientFactory.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/service/UserLlmClientFactory.java) maintains two parallel caches: `agentModelCache` and `springChatModelCache`.
-3. **Monolithic Service Violating SRP**: [LlmService.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/service/LlmService.java) (1,313 lines) bundles chat endpoints, tool specifications, execution dispatching, token auditing, run checkpoints, and reflection summaries.
+2. **Dual Caching Pools**: [UserLlmClientFactory.java](../src/main/java/com/cb/auditagent/service/UserLlmClientFactory.java) maintains two parallel caches: `agentModelCache` and `springChatModelCache`.
+3. **Monolithic Service Violating SRP**: [LlmService.java](../src/main/java/com/cb/auditagent/service/LlmService.java) (1,313 lines) bundles chat endpoints, tool specifications, execution dispatching, token auditing, run checkpoints, and reflection summaries.
 
 ### 3.2 Technical Design
 
 #### 1. Standardization on LangChain4j
-- Migrate all chat conversations ([`LlmService.chat()`](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/service/LlmService.java#L1030)) from Spring AI to LangChain4j `ChatModel`.
+- Migrate all chat conversations ([`LlmService.chat()`](../src/main/java/com/cb/auditagent/service/LlmService.java#L1030)) from Spring AI to LangChain4j `ChatModel`.
 - Remove `spring-ai-openai-spring-boot-starter` from `pom.xml`, removing redundant dependency trees and eliminating split configuration keys.
 
 #### 2. Decomposition of `LlmService.java`
@@ -241,7 +241,7 @@ auditagent:
 ## Phase 4: Multi-Agent Star Topology & Supervisor Hardening *(Implemented in v2.11.0)*
 
 ### 4.1 Problem Statement & Objectives
-1. **Fragile String Matching**: [SupervisorNode.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/graph/node/SupervisorNode.java#L166-L177) expects the LLM to reply with a raw enum name (`"Reply ONLY with the exact name..."`). Markdown, punctuation, or lowercase text causes fallback to `FAIL`.
+1. **Fragile String Matching**: [SupervisorNode.java](../src/main/java/com/cb/auditagent/graph/node/SupervisorNode.java#L166-L177) expects the LLM to reply with a raw enum name (`"Reply ONLY with the exact name..."`). Markdown, punctuation, or lowercase text causes fallback to `FAIL`.
 2. **Quadratic Token Context Expansion**: `SupervisorNode` concatenates uncompressed outputs from all previous stages into `contextStr` on every hop, inflating prompt tokens quadratically.
 3. **Execution Limit Conflict**: `auditagent.agent.max-iterations: 5` terminates supervisor execution with `FAIL` on iteration 5, making it impossible to complete a 17-stage workflow.
 
@@ -319,7 +319,7 @@ auditagent:
 ## Phase 5: Workspace Storage Decoupling & Host Sandbox Hardening *(Implemented in v2.13.0)*
 
 ### 5.1 Problem Statement & Objectives
-1. **Node-Local Workspace Dependency**: [PublicationNode.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/graph/workflow/PublicationNode.java#L80) reads `publication.workspacePath()` directly from the local filesystem. In a multi-pod cluster, if approval happens on a pod different from the worker, the directory does not exist.
+1. **Node-Local Workspace Dependency**: [PublicationNode.java](../src/main/java/com/cb/auditagent/graph/workflow/PublicationNode.java#L80) reads `publication.workspacePath()` directly from the local filesystem. In a multi-pod cluster, if approval happens on a pod different from the worker, the directory does not exist.
 2. **Host OS Execution of Untrusted Builds**: Default `auditagent.agent.sandbox-enabled: false` runs `mvn test`, `gradle test`, and build scripts directly on the host JVM container OS with host privileges.
 
 ### 5.2 Technical Design
@@ -512,7 +512,7 @@ Extract a dedicated normalization module obeying SRP:
 
 To eliminate the 5-second polling loop permanently:
 1. **Backend Event Emitter**:
-   - In [PullRequestLifecycleService.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/service/PullRequestLifecycleService.java), when GitHub webhooks report a PR merged or closed, publish a `pr_lifecycle` event to RabbitMQ `auditagent.events`:
+   - In [PullRequestLifecycleService.java](../src/main/java/com/cb/auditagent/service/PullRequestLifecycleService.java), when GitHub webhooks report a PR merged or closed, publish a `pr_lifecycle` event to RabbitMQ `auditagent.events`:
      ```java
      eventBroadcastService.broadcastEvent(
          "repo-" + repositoryId,
@@ -531,7 +531,7 @@ To eliminate the 5-second polling loop permanently:
      );
      ```
 2. **Repository Event Stream Endpoint**:
-   - In [AuditController.java](file:///home/coder/workspace/auditagent/src/main/java/com/cb/auditagent/controller/AuditController.java), add `GET /api/repositories/{repositoryId}/events?branch={branch}`:
+   - In [AuditController.java](../src/main/java/com/cb/auditagent/controller/AuditController.java), add `GET /api/repositories/{repositoryId}/events?branch={branch}`:
      ```java
      @GetMapping(value = "/repositories/{repositoryId}/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
      public Flux<String> streamRepositoryEvents(
